@@ -1,0 +1,51 @@
+# Domain-to-Service Mapping
+# Maps each bounded context to a deployable service
+# Version: 1.0.0
+
+bounded_contexts:
+  - context: user-registration
+    service: auth-service
+    port: 8080
+    database: auth_db (PostgreSQL)
+    owner_team: platform-identity
+    description: User self-registration with email/password
+
+  - context: email-verification
+    service: auth-service
+    port: 8080
+    database: auth_db (PostgreSQL)
+    owner_team: platform-identity
+    description: Email ownership verification via token
+
+  - context: user-authentication
+    service: auth-service
+    port: 8080
+    database: auth_db (PostgreSQL, session_cache: Redis)
+    owner_team: platform-identity
+    description: Login, session management, logout
+
+  - context: password-management
+    service: auth-service
+    port: 8080
+    database: auth_db (PostgreSQL)
+    owner_team: platform-identity
+    description: Password reset request and execution
+
+service_summary:
+  auth-service:
+    contexts:
+      - user-registration
+      - email-verification
+      - user-authentication
+      - password-management
+    type: monolithic
+    scaling: horizontal (stateless)
+    ports:
+      - 8080  # HTTP API
+      - 9090  # Metrics
+    databases:
+      - auth_db (PostgreSQL)       # Primary data store
+      - session_cache (Redis)      # Session cache
+    external_dependencies:
+      - email_provider             # Transactional emails
+      - message_broker             # Event publishing

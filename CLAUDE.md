@@ -60,6 +60,7 @@ Skills are discoverable and invocable via both auto-activation and direct `/` co
 - **plugin-creator** - Create, convert, and validate Claude Code plugins. Claude auto-activates when detecting plugin-related tasks; users can invoke directly with `/skills-toolkit:plugin-creator`.
 - **subagent-creator** - Create, validate, and refine Claude Code subagents. Claude auto-activates for subagent delegation tasks; users can invoke with `/skills-toolkit:subagent-creator`.
 - **hook-creator** - Create, validate, and refine hooks for automating workflows. Claude auto-activates for hook-related work; users can invoke with `/skills-toolkit:hook-creator`.
+- **orchestrate** - Orchestrate multi-phase SDLC workflows (new feature, change request, cook/TDD, debug, explore/reverse-engineer) by delegating to specialized subagents. Pure orchestration — never explores, writes, or updates directly. Users can invoke with `/skills-toolkit:orchestrate`.
 
 No separate command files are needed—skills use frontmatter to control invocation behavior.
 
