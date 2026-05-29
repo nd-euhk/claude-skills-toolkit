@@ -5,7 +5,7 @@ description: >-
   Use when implementing new features, handling change requests, running TDD/cook loops,
   debugging, fixing bugs, or reverse-engineering documentation from codebase.
   Pure orchestration - never explores, writes, or updates directly.
-version: 1.2.0
+version: 2.0.0
 allowed-tools: Read, AskUserQuestion, Agent, TaskCreate, TaskUpdate, TaskList
 ---
 
@@ -260,3 +260,4 @@ The orchestrator moves tasks through this flow:
 7. **Read-only scouting** — Use Explore agent for all codebase exploration; if unavailable, escalate
 8. **Agent isolation** — test-writer never reads impl code; implementer never modifies tests
 9. **Dead-end discipline** — If neither Agent tool nor leader is available, build a task plan and STOP. Never fall back to direct Write/Bash/Grep/Glob.
+10. **Structured project data** — The explore workflow produces `.work/reports/project_registry.yaml` as SSOT for all per-project delegation. Every subsequent phase reads this registry rather than re-parsing free-text scouting reports. Each project gets 1 dedicated subagent per phase (never 1 subagent for multiple projects).

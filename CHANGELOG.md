@@ -2,6 +2,11 @@
 
 All notable changes to the skills-toolkit plugin are documented here.
 
+## [2.18.0] - 2026-05-29
+
+### Changed
+- **orchestrate 2.0.0:** Complete overhaul of explore/reverse-engineering workflow. All phases now use per-project delegation (1 subagent per project per phase, running in parallel). New `project_registry.yaml` SSOT produced by Step 1d for all subsequent phases. All output paths now project-qualified (`agent_docs/projects/{project}/...`) to prevent name collisions. Epic names auto-detected from code structure via domain detection. Added reverse-engineering mode sections to 5 agent definitions (hld-architect, srs-specifier, lld-designer, imp-specifier, tst-specifier) with code-reading paths. Steps 6-7 support batching for projects with >30 FRs.
+
 ## [2.17.0] - 2026-05-29
 
 ### Changed

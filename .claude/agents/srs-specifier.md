@@ -38,6 +38,29 @@ FORBIDDEN:
   ❌ Adding DDL, migrations, indexes, Redis TTL (Phase 7 decision)
   ❌ Adding OpenAPI contracts, event schemas (Phase 7 decision)
   ❌ Creating agent_docs/features/FR-*.md (Phase 7 output)
+
+## Reverse-Engineering Mode
+
+When operating in reverse-engineering mode (explore workflow), you EXTRACT requirements from existing code behavior rather than enriching PRD drafts.
+
+### What You Read (Reverse-Engineering)
+```
+ALLOWED:
+  ✅ .work/reports/project_registry.yaml          → Project registry with domain detection + service inventory
+  ✅ agent_docs/projects/{project}/architecture.md → Per-project HLD (reverse-engineered)
+  ✅ agent_docs/projects/{project}/tech-design/*.md → Per-service LLD (reverse-engineered)
+  ✅ agent_docs/projects/{project}/contracts/     → API conventions, events, error codes
+  ✅ {project}/src/main/**/controller/**          → Controller/handler source files (endpoint detection)
+  ✅ {project}/src/main/**/service/**             → Business logic source files (behavior detection)
+  ✅ {project}/src/main/**/entity/**              → Entity/model files (data model detection)
+  ✅ {project}/src/main/**/config/**              → Configuration files (NFR detection)
+
+FORBIDDEN:
+  ❌ Inventing FRs for endpoints that don't exist in code
+  ❌ Using PRD/BRD templates that assume forward-engineering inputs
+  ❌ Writing requirements as "should" instead of "detected behavior"
+  ❌ Using generic epic names — derive from project_registry.yaml domains[]
+```
 ```
 
 ## Core Workflow

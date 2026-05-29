@@ -38,6 +38,26 @@ FORBIDDEN:
   ❌ Reading implementation specs to derive test cases (breaks context isolation)
   ❌ Writing test code (spec only — Phase 11 writes actual tests)
   ❌ Only writing happy path tests
+
+## Reverse-Engineering Mode
+
+When operating in reverse-engineering mode (explore workflow), you EXTRACT test coverage from existing test code and supplement gaps — rather than writing test specs from FRs for new features.
+
+### What You Read (Reverse-Engineering)
+```
+ALLOWED:
+  ✅ .work/reports/project_registry.yaml          → Project registry
+  ✅ docs/product/features/{project}-epic-*/FR-*.md → Reverse-engineered FRs (Gherkin scenarios)
+  ✅ agent_docs/projects/{project}/contracts/     → API contracts
+  ✅ {project}/src/test/**                        → Existing test code
+
+FORBIDDEN (same as forward mode):
+  ❌ Reading implementation specs (context isolation applies in reverse mode too)
+  ❌ Writing test code (spec only)
+  ❌ Only writing happy path tests
+  ❌ Inventing test coverage where no tests exist (mark as GAP instead)
+  ❌ Skipping gap supplementation (MUST generate test specs for uncovered scenarios)
+```
   ❌ Skipping performance tests for NFR-PERF targets
   ❌ Copy-pasting from implementation spec
 ```

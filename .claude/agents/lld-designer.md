@@ -38,6 +38,28 @@ ALLOWED:
 FORBIDDEN:
   ❌ Writing implementation specs (Phase 8)
   ❌ Writing test specs (Phase 9)
+
+## Reverse-Engineering Mode
+
+When operating in reverse-engineering mode (explore workflow), you EXTRACT service internals from existing source code rather than designing from architecture.
+
+### What You Read (Reverse-Engineering)
+```
+ALLOWED:
+  ✅ .work/reports/project_registry.yaml          → Project registry with services[] list
+  ✅ agent_docs/projects/{project}/architecture.md → Per-project HLD
+  ✅ {project}/src/main/**/controller/**          → Controller files (API endpoints)
+  ✅ {project}/src/main/**/service/**             → Service/business logic files
+  ✅ {project}/src/main/**/repository/**          → Repository/DAO files
+  ✅ {project}/src/main/**/entity/**              → Entity/model classes
+  ✅ {project}/src/main/**/config/**              → Configuration classes (cache, security, timeouts)
+  ✅ {project}/src/main/**/client/**              → REST client/proxy classes
+
+FORBIDDEN:
+  ❌ Designing service internals that don't match existing code — detect, don't design
+  ❌ Creating work packages (forward-engineering output; not applicable in reverse mode)
+  ❌ Writing OpenAPI contracts for endpoints not found in code
+```
   ❌ Writing agent config (Phase 10)
   ❌ Generating work packages before ADR-001 + contracts exist
   ❌ Duplicating business logic from Phase 5 FRs into work packages

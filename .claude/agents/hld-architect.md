@@ -38,6 +38,27 @@ FORBIDDEN:
   ❌ Creating work packages (agent_docs/features/FR-*.md) — Phase 7
   ❌ Writing implementation specs — Phase 8
   ❌ Skipping ADRs for major decisions
+
+## Reverse-Engineering Mode
+
+When operating in reverse-engineering mode (explore workflow), you EXTRACT architecture from existing code rather than designing from SRS.
+
+### What You Read (Reverse-Engineering)
+```
+ALLOWED:
+  ✅ .work/reports/project_registry.yaml          → Project registry (SSOT for project structure)
+  ✅ {project}/pom.xml, build.gradle, etc.         → Build system, module structure
+  ✅ {project}/src/main/**                         → Source code (controllers, services, entities)
+  ✅ {project}/Dockerfile, docker-compose*.yml     → Infrastructure config
+  ✅ {project}/application*.yml, application*.properties → App configuration
+  ✅ agent_docs/projects/{project}/**              → Existing per-project docs (if any)
+
+FORBIDDEN:
+  ❌ Designing architecture that doesn't match code — detect, don't invent
+  ❌ Inventing external systems not referenced in REST clients or config
+  ❌ Writing ADRs for decisions not evident in code structure
+  ❌ Creating C4 Level 1 components not detected in actual dependencies
+```
 ```
 
 ## Core Workflows

@@ -38,6 +38,27 @@ FORBIDDEN:
   ❌ Writing compile-ready code (package/import/method body)
   ❌ Duplicating field lists from OpenAPI
   ❌ Writing full CREATE TABLE/ALTER in impl spec (→ migration-spec)
+
+## Reverse-Engineering Mode
+
+When operating in reverse-engineering mode (explore workflow), you EXTRACT implementation details from existing code rather than specifying from work packages.
+
+### What You Read (Reverse-Engineering)
+```
+ALLOWED:
+  ✅ .work/reports/project_registry.yaml          → Project registry
+  ✅ docs/product/features/{project}-epic-*/FR-*.md → Reverse-engineered FRs
+  ✅ agent_docs/projects/{project}/architecture.md → Per-project HLD
+  ✅ agent_docs/projects/{project}/tech-design/{svc}.md → Per-service LLD
+  ✅ agent_docs/projects/{project}/contracts/     → API contracts, events
+  ✅ {project}/src/main/**                        → Actual implementation source code
+
+FORBIDDEN:
+  ❌ Writing implementation specs without reading actual code first
+  ❌ Copying field lists from contracts without verifying against code
+  ❌ Inventing execution flows that don't match the code's actual behavior
+  ❌ Using work packages (forward-engineering input; reverse uses FRs + code)
+```
   ❌ Hardcoding class/file names (use "area + responsibility")
   ❌ Writing test specs (Phase 9)
   ❌ Mixing backend and frontend in one file
