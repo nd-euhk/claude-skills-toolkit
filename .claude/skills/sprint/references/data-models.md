@@ -49,8 +49,11 @@ Each phase is a markdown section:
 
 ### Status Values
 
-- 🔲 Todo — not started
-- 🚧 In Progress (WIP) — actively being worked
+Status conventions (match roadmap):
+
+- 🔲 Todo — not started, specs not yet complete
+- ✅ Ready — all specs done (SRS/HLD/LLD/IMP/TST), ready for implementation
+- 🚧 In Progress (WIP) — actively being implemented
 - ✅ Done — completed and verified
 - ⛔ Blocked — blocked (note reason)
 
@@ -91,17 +94,21 @@ Prioritized queue of features not yet in the current sprint.
 | Feature | string | Yes | Short feature name |
 | Priority | Must/Should/Nice | Yes | From roadmap |
 | Phase | Phase N | Yes | Which roadmap phase |
-| Status | Todo/InProgress/Done/Blocked | Yes | Current state |
+| Status | Todo/InProgress/Done/Blocked/Ready | Yes | Current state |
 | Dependencies | BL-XXX list | No | Other backlog items this depends on |
 | Notes | string | No | Free-text context |
 
 ### Status Transitions
 
 ```
-🔲 Todo → 🚧 In Progress (when sprint starts)
+🔲 Todo → ✅ Ready (specs complete, ready for cook)
+🔲 Todo → 🚧 In Progress (implementation without full specs)
+✅ Ready → 🚧 In Progress (cook implementation started)
 🚧 In Progress → ✅ Done (all board tasks complete)
 🚧 In Progress → ⛔ Blocked (dependency not met)
-⛔ Blocked → 🚧 In Progress (dependency resolved)
+✅ Ready → ⛔ Blocked (dependency surfaced after specs)
+⛔ Blocked → ✅ Ready (dependency resolved)
+✅ Done → 🚧 In Progress (reopened for change request)
 ```
 
 ## Board (`.work/board.md`)
@@ -114,6 +121,10 @@ Current sprint task board with status columns.
 ## Board — Sprint {{N}} ({{start_date}} — {{end_date}})
 
 ### 🔲 Todo
+| # | Task | Feature | Service | Spec | Assignee |
+|---|------|---------|---------|------|----------|
+
+### ✅ Ready
 | # | Task | Feature | Service | Spec | Assignee |
 |---|------|---------|---------|------|----------|
 
@@ -143,3 +154,17 @@ Current sprint task board with status columns.
 - Each task completable in 1 session
 - Task descriptions are concrete and verifiable
 - Prefer small, independent tasks over large monolithic ones
+
+### Board Status Transitions
+
+```
+🔲 Todo → ✅ Ready (specs complete for this task)
+🔲 Todo → 🚧 In Progress (started without Ready gate)
+✅ Ready → 🚧 In Progress (implementation started)
+🚧 In Progress → 👀 Review (code complete, awaiting review)
+🚧 In Progress → ⛔ Blocked (external dependency blocks work)
+👀 Review → ✅ Done (review approved)
+👀 Review → 🚧 In Progress (changes requested)
+✅ Done → 🚧 In Progress (reopened for bug fix)
+⛔ Blocked → 🚧 In Progress (dependency resolved)
+```

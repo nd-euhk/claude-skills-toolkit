@@ -58,6 +58,12 @@ For each backlog feature, create tasks following these rules:
 3. **BE before FE (if dependent):** Backend tasks before frontend tasks when FE depends on BE APIs
 4. **Parallel marker:** Mark tasks that can be worked on simultaneously
 
+**Task breakdown guidelines:**
+- Each feature should spawn 1-5 tasks depending on complexity
+- Tasks should be concrete and completable in 1 session
+- Reference the impl spec path when available (from roadmap)
+- Prefix task IDs with T-XXX, link to backlog BL-XXX
+
 ### Task Description Convention
 
 ```

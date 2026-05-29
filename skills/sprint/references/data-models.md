@@ -49,6 +49,8 @@ Each phase is a markdown section:
 
 ### Status Values
 
+Status conventions (match roadmap):
+
 - 🔲 Todo — not started, specs not yet complete
 - ✅ Ready — all specs done (SRS/HLD/LLD/IMP/TST), ready for implementation
 - 🚧 In Progress (WIP) — actively being implemented
@@ -152,3 +154,17 @@ Current sprint task board with status columns.
 - Each task completable in 1 session
 - Task descriptions are concrete and verifiable
 - Prefer small, independent tasks over large monolithic ones
+
+### Board Status Transitions
+
+```
+🔲 Todo → ✅ Ready (specs complete for this task)
+🔲 Todo → 🚧 In Progress (started without Ready gate)
+✅ Ready → 🚧 In Progress (implementation started)
+🚧 In Progress → 👀 Review (code complete, awaiting review)
+🚧 In Progress → ⛔ Blocked (external dependency blocks work)
+👀 Review → ✅ Done (review approved)
+👀 Review → 🚧 In Progress (changes requested)
+✅ Done → 🚧 In Progress (reopened for bug fix)
+⛔ Blocked → 🚧 In Progress (dependency resolved)
+```

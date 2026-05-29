@@ -3,8 +3,8 @@ name: sprint
 description: >-
   Manage sprint workflow: roadmap, backlog, board. Use when breaking down
   roadmap to backlog, backlog to board, syncing status between layers, or
-  adding/editing/deleting work items. Supports Vietnamese and English.
-version: 1.0.0
+  adding/editing/deleting work items. Includes validation and consistency checks.
+version: 1.1.0
 allowed-tools: Read, Write, Bash, Glob, Grep, AskUserQuestion
 ---
 
@@ -14,12 +14,15 @@ allowed-tools: Read, Write, Bash, Glob, Grep, AskUserQuestion
 
 ## Quick Start
 
-At the start of every invocation, determine what the user wants:
+Determine the action type from user input, then route to the corresponding workflow:
 
-1. **Breakdown** — "break down roadmap", "move to backlog", "create board tasks"
-2. **Sync** — "sync status", "update progress", "check consistency"
-3. **CRUD** — "add feature", "edit task", "delete", "update status"
-4. **Query** — "get ready tasks", "list todo items", "what's on the board"
+| User says... | Action | Workflow | Orchestrate Use |
+|---|---|---|---|
+| "break down", "populate", "move to backlog/board" | Breakdown | WF1, WF2 | Phase 10 handoff |
+| "sync", "update progress", "full sync" | Sync | WF3, WF4, WF6 | Cook completion, sprint end |
+| "add", "edit", "delete", "update status" | CRUD | WF5 | Board task creation/update |
+| "validate", "check consistency" | Validate | WF7 | Pre/post-sync gate |
+| "get ready tasks", "list todo", "find by feature" | Query | WF8 | Cook task selection, feature lookup |
 
 Then identify the target layer(s) and execute the corresponding workflow below.
 
@@ -73,12 +76,7 @@ For each feature pulled from roadmap, create a backlog entry in `.work/backlog.m
 
 If `.work/backlog.md` already exists, append new entries with next available BL-XXX IDs. Never overwrite existing entries — merge instead.
 
-Status conventions (match roadmap):
-- 🔲 Todo — not yet started, specs not yet complete
-- ✅ Ready — all specs done (SRS/HLD/LLD/IMP/TST), ready for implementation
-- 🚧 In Progress — actively being implemented
-- ✅ Done — completed and verified
-- ⛔ Blocked — blocked (note the reason)
+Status conventions: use the status set from `references/data-models.md#status-values`.
 
 ### Step 4: Update Roadmap Traceability
 
@@ -126,6 +124,8 @@ For each selected backlog feature, create task entries in `.work/board.md`:
 - Tasks should be concrete and completable in 1 session
 - Reference the impl spec path when available (from roadmap)
 - Prefix task IDs with T-XXX, link to backlog BL-XXX
+
+For detailed decomposition rules (service boundaries, parallelization, spec-per-task), see `references/breakdown-workflow.md#task-decomposition-rules`.
 
 If `.work/board.md` already exists for the current sprint, merge into existing board. For a new sprint, create fresh.
 
@@ -186,28 +186,51 @@ Backlog → Roadmap Sync:
 
 ## Workflow 5: CRUD Operations
 
+Use progressive disclosure — ask ONE question at a time via AskUserQuestion. Never combine layer selection, item selection, and field collection into a single call.
+
 ### 5A: Add Item
 
-**Roadmap — Add a feature/phase:**
-Ask: layer (roadmap), type (feature/phase/task), then collect fields per the data model. Insert into the correct section of `agent_docs/roadmap.md` with next available ID.
+**Step 1: Identify target layer** (AskUserQuestion, single-select):
+- Roadmap: "Which roadmap section?" → Options: "Phase N task", "New phase", "Feature in Feature→Phase table"
+- Backlog: "Which phase?" → Options: phase numbers from roadmap
+- Board: "Which backlog item (BL-XXX)?" → Options: BL-IDs from backlog with feature name summaries
 
-**Backlog — Add a feature:**
-Ask for Feature ID, name, priority, phase. Assign next BL-XXX ID. Append to `.work/backlog.md`.
+**Step 2: Collect fields** (AskUserQuestion for structured fields, free-form for description):
 
-**Board — Add a task:**
-Ask for description, parent feature (BL-XXX), service. Assign next T-XXX ID. Add to Todo column in `.work/board.md`.
+| Layer | Fields to collect |
+|---|---|
+| Roadmap task | description, service/component, spec path, assignee |
+| Backlog item | Feature ID, name, priority, phase, dependencies |
+| Board task | description, BL-XXX parent, service, spec path |
+
+**Step 3:** Insert entry with next available ID, preserving table formatting and column alignment.
 
 ### 5B: Edit Item
 
-Ask which layer, which item ID, which field to change, and the new value. Read the file, locate the item, apply the edit. Preserve all other fields.
+Progressive AskUserQuestion sequence:
+1. "Which layer?" — Roadmap / Backlog / Board
+2. "Which item?" — present IDs with current values for context
+3. "Which field to change?" — present only the item's actual fields from the table
+4. Collect the new value
+5. Apply the edit, preserving all other fields
 
 ### 5C: Delete Item
 
-Ask which layer and item ID. Confirm before deleting — deletions are irreversible. Remove the row from the table. If deleting a backlog item that has board tasks, warn the user. If deleting a roadmap feature referenced by backlog, warn the user.
+Progressive AskUserQuestion sequence:
+1. "Which layer?" — Roadmap / Backlog / Board
+2. "Which item?" — present ID with summary
+3. **CONFIRM** — "Delete {{ID}}: '{{summary}}'? This is irreversible." Options: "Yes, delete", "No, cancel"
+4. Before deleting, check for children:
+   - Backlog item with board tasks → warn and ask to also delete children
+   - Roadmap feature referenced by backlog → warn and block until children resolved
 
 ### 5D: Update Status
 
-Direct status update on any item at any layer. The reverse sync workflows handle cascading — individual status updates are explicit one-off changes.
+Progressive AskUserQuestion sequence:
+1. "Which layer?" — Roadmap / Backlog / Board
+2. "Which item?" — present IDs with current status
+3. "New status?" — options limited to valid transitions per `references/data-models.md`
+4. Apply the change. Add note: "Manual override — {{date}}" if bypassing sync rules
 
 ## Workflow 6: Full Sync (All Layers)
 
@@ -220,6 +243,16 @@ Execute in order:
 
 ## Workflow 7: Validate Consistency
 
+### Pre-Sync Validation
+
+Before any sync operation (WF3, WF4, WF6), run a quick check:
+1. All three files exist (warn if any are missing, skip affected checks)
+2. No circular dependencies in backlog (block sync if found — report and exit)
+
+### Post-Sync Validation
+
+After sync, run the full validation suite:
+
 Run `scripts/validate-sync.sh` from the sprint skill directory. This script checks:
 - Every board task references a valid backlog BL-XXX
 - Every backlog item references a valid roadmap Feature ID
@@ -227,7 +260,9 @@ Run `scripts/validate-sync.sh` from the sprint skill directory. This script chec
 - Status consistency: backlog In Progress items have at least one board task
 - Status consistency: backlog Done items have all board tasks Done
 
-Report any broken links or status mismatches.
+Report summary:
+- N errors (must fix before next sync)
+- N warnings (informational, can proceed)
 
 ## Workflow 8: Query Tasks by Status
 
@@ -245,8 +280,21 @@ Read `.work/board.md`, extract all tasks in the 🔲 Todo column. Return the lis
 
 Read `.work/board.md`, filter by feature (BL-XXX) and return all tasks with their current status.
 
-### Output Format
+### Output Format (Machine-Readable)
 
+Each query returns tasks in a consistent pipe-delimited format for reliable parsing:
+
+```
+T-XXX | {{status_emoji}} {{status_label}} | {{description}} | {{BL-XXX}} | {{service}} [| {{spec_path}}]
+```
+
+| Query | Filter | Fields Returned |
+|---|---|---|
+| Ready Tasks | Board tasks in ✅ Ready | ID, status, description, BL-XXX, service, spec |
+| Todo Tasks | Board tasks in 🔲 Todo | ID, status, description, BL-XXX, service |
+| By Feature | Board tasks matching BL-XXX | ID, status, description, service, spec |
+
+Example:
 ```
 Board tasks:
   T-001 | ✅ Ready  | Implement user login | BL-003 | auth-service
@@ -256,11 +304,7 @@ Board tasks:
 
 ## Key Notes
 
-**Data model details:** See `references/data-models.md` for the complete field specifications for roadmap phases, backlog entries, and board tasks.
-
-**Breakdown patterns:** See `references/breakdown-workflow.md` for detailed rules on task granularity, dependency handling, and parallelization decisions.
-
-**Sync rules:** See `references/sync-workflow.md` for edge cases: partial completion, reopened items, blocked items, and handling items that span multiple sprints.
+### Critical Invariants
 
 **File locations (SSOT from orchestrate):**
 - `agent_docs/roadmap.md` — Roadmap (single source of truth for timeline)
@@ -269,18 +313,39 @@ Board tasks:
 
 **Frontmatter traceability:** The roadmap frontmatter has `depends_on` and `referenced_by` fields. When modifying any file, keep these cross-references accurate.
 
-**Status conventions (all layers):**
+**Before any destructive operation (delete), always confirm with the user.**
+
+### Reference Pointers
+
+**Data model details:** See `references/data-models.md` for complete field specifications, status values, and valid transitions per layer.
+
+**Breakdown patterns:** See `references/breakdown-workflow.md` for detailed rules on task granularity, dependency handling, and parallelization decisions.
+
+**Sync rules:** See `references/sync-workflow.md` for edge cases: partial completion, reopened items, blocked items, and handling items that span multiple sprints.
+
+**Data model flexibility:** The reference data model describes the canonical format. Project-specific variants are common:
+- ID conventions may use domain prefixes (e.g., BL-AUTH-001 vs BL-001)
+- Board columns may include additional lanes (e.g., Review)
+- Board tasks may carry extra metadata (story points, assignee)
+- Status emojis may vary (🚧 vs 🟡 for In Progress)
+
+**Invariants (must be present for sync and validation to work):**
+- Every board task references a backlog ID
+- Every backlog entry references a roadmap Feature ID
+- Every layer has a Status field with a value from the status set
+
+### Operational Rules
+
+**Progressive disclosure rule:** Ask ONE question at a time. Never combine breakdown scope, CRUD target, and sync direction into one AskUserQuestion call.
+
+**Status conventions** (see `references/data-models.md` for transitions):
 - 🔲 Todo — not started, specs not yet complete
 - ✅ Ready — all specs done, ready for implementation
 - 🚧 In Progress — actively being implemented
 - ✅ Done — completed and verified
 - ⛔ Blocked — blocked with reason
 
-**ID conventions:**
+**ID conventions** (see `references/breakdown-workflow.md` for assignment rules):
 - Roadmap: Phase numbers (1, 2, N), task numbers (1.1, 1.2), Feature IDs (FR-XXX-NNN)
 - Backlog: BL-XXX (sequential, 3-digit zero-padded)
 - Board: T-XXX (sequential, 3-digit zero-padded, resets per sprint)
-
-**Progressive disclosure rule:** Ask ONE question at a time. Never combine breakdown scope, CRUD target, and sync direction into one AskUserQuestion call.
-
-**Before any destructive operation (delete), always confirm with the user.**
