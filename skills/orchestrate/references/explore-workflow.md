@@ -7,30 +7,68 @@ Extract documentation from an existing codebase. Generates HLD, LLD, SRS, IMP, a
 ## Phase Overview
 
 ```
-Scout Codebase → Extract HLD → Extract LLD → Extract SRS → Extract IMP → Extract TST → Assess Docs
-       ↓            ↓ Gate       ↓ Gate       ↓ Gate       ↓ Gate       ↓ Gate
+Discover Projects → Deep Scout Per Project → Extract HLD → Extract LLD → Extract SRS → Extract IMP → Extract TST → Assess Docs
+       ↓                    ↓ Gate              ↓ Gate       ↓ Gate       ↓ Gate       ↓ Gate       ↓ Gate
+  (1a→1b→1c→1d)
 ```
 
 ---
 
 ## Step 1: Scout Codebase Structure
 
-**CRITICAL SCOPING RULE:** Minimum 1 Explore subagent per project. NEVER assign 1 Explore subagent to scout **more than 1 project**. If the codebase has N projects/services, spawn N Explore subagents (one per project) in parallel. This prevents context overload and ensures thorough per-project reconnaissance.
+**CRITICAL SCOPING RULE:** Minimum 1 Explore subagent per project. NEVER assign 1 Explore subagent to scout **more than 1 project**. If the codebase has N projects/subprojects, spawn N Explore subagents (one per project) in parallel. This prevents context overload and ensures thorough per-project reconnaissance.
 
-### Step 1a: Discover Projects (Lightweight Scout)
+Scouting follows a strict two-phase pattern:
+```
+Phase 1: DISCOVER — How many projects/submodules/subprojects exist?
+          ↓
+Phase 2: DEEP SCOUT — Spawn 1 Explore per discovered project (parallel)
+```
 
-First, determine how many projects exist. Use a single lightweight Explore agent to list project directories only — no deep analysis:
+### Step 1a: Discover Projects & Submodules
+
+First, determine how many projects, submodules, and subprojects exist. Spawn a single Explore subagent with `glob` and `bash` tools for filesystem discovery — no deep code analysis:
 
 ```
 Agent type: Explore
-Prompt: "Scan the repository root for project/service directories. Look for:
-- Top-level directories with build files (pom.xml, build.gradle, package.json, Cargo.toml, etc.)
-- Monorepo packages (packages/*, services/*, apps/*, modules/*)
-- Independent deployable units (each with its own Dockerfile or deployment config)
-- Multi-module project structure (settings.gradle, parent pom.xml modules)
+Prompt: "Discover ALL projects, submodules, and subprojects in this repository. Use glob patterns and bash commands for filesystem discovery. Do NOT deep-dive into source code.
 
-Report ONLY: list of project/service names and their root paths. Do NOT deep-dive into each project.
-This is a lightweight directory scan to determine how many Explore subagents to spawn next."
+1. GIT SUBMODULES (check first):
+   - Run: git submodule status (if .gitmodules exists)
+   - For each submodule found, note: name, path, URL, commit hash
+   - Run: cat .gitmodules (if exists) to get full submodule metadata
+
+2. BUILD SYSTEM CLUSTERS (glob scan):
+   - Glob for build files: **/pom.xml, **/build.gradle*, **/settings.gradle, **/package.json, **/Cargo.toml, **/Makefile, **/CMakeLists.txt, **/go.mod, **/pyproject.toml, **/setup.py, **/*.csproj, **/*.sln
+   - Each build file location is a potential project/subproject root
+   - Group by directory depth and relationship (parent pom.xml → child modules)
+
+3. MONOREPO STRUCTURES:
+   - Glob: packages/*/package.json, services/*/pom.xml, apps/*/build.gradle, modules/*/, libs/*/
+   - Check for workspace configs: pnpm-workspace.yaml, lerna.json, nx.json, turbo.json, rush.json
+   - Check for multi-module markers: settings.gradle modules list, parent pom.xml <modules>
+
+4. DEPLOYABLE UNITS:
+   - Glob: **/Dockerfile, **/docker-compose*.yml, **/docker-compose*.yaml
+   - Glob: **/deployment.yaml, **/helm/Chart.yaml
+   - Each Dockerfile's directory is a candidate deployable unit
+
+5. INDEPENDENT DIRECTORY CLUSTERS:
+   - Directories with their own build file AND distinct purpose (not just build tool config)
+   - Separate README.md or CLAUDE.md at project level
+   - Distinct package namespace (e.g., com.example.serviceA vs com.example.serviceB)
+
+Report a flat list: project/subproject name, root path, type (git-submodule|build-project|monorepo-package|deployable-unit), and build system detected. ONE line per project. This is a lightweight discovery scan — no source code analysis."
+```
+
+**Expected output format:**
+```
+| # | Name | Path | Type | Build System |
+|---|------|------|------|-------------|
+| 1 | api-gateway | ./services/api-gateway | build-project | gradle |
+| 2 | user-service | ./services/user-service | build-project | gradle |
+| 3 | shared-lib | ./libs/shared | git-submodule | maven |
+| 4 | web-app | ./apps/web | monorepo-package | npm |
 ```
 
 ### Step 1b: Deep Scout — One Explore per Project
@@ -93,16 +131,16 @@ Report everything found with file paths. Flag any existing docs that are out of 
 
 Present scouting report to user. Highlight what docs exist and what's missing.
 
-### Step 1b-split: Per-Project Scouting Rule
+### Step 1 Scouting Summary
 
-**CRITICAL SCOPING RULE:** Minimum 1 Explore subagent per project. NEVER assign 1 Explore subagent to scout **more than 1 project**. If the codebase has N projects/services, refactor the Step 1 delegation into:
+The complete scouting pipeline has 4 sub-steps:
 
-1. **Step 1a (Discover):** Lightweight Explore to list project directories only
-2. **Step 1b (Deep Scout):** Spawn N Explore subagents in parallel — one per project. Never let 1 Explore agent scout > 1 project.
-3. **Step 1c (Root-Level):** One additional Explore for cross-cutting concerns (root docs, shared config)
+1. **Step 1a (Discover):** Single Explore agent with glob+bash discovers all projects, submodules, subprojects
+2. **Step 1b (Deep Scout):** Spawn N Explore subagents in parallel — one per project discovered in 1a
+3. **Step 1c (Root-Level):** One additional Explore for cross-cutting concerns (root docs, shared config, CI/CD)
 4. **Step 1d (Merge):** General-purpose agent synthesizes all reports into `.work/reports/scouting-report.md`
 
-The original Step 1 prompt above serves as the template for each per-project Explore agent in Step 1b.
+The per-project deep scout prompt in Step 1b above serves as the template for each parallel Explore agent.
 
 ### Step 1c: Root-Level Scout (Cross-Cutting Concerns)
 

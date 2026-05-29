@@ -5,7 +5,7 @@ description: >-
   Use when implementing new features, handling change requests, running TDD/cook loops,
   debugging, fixing bugs, or reverse-engineering documentation from codebase.
   Pure orchestration - never explores, writes, or updates directly.
-version: 1.1.0
+version: 1.2.0
 allowed-tools: Read, AskUserQuestion, Agent, TaskCreate, TaskUpdate, TaskList
 ---
 

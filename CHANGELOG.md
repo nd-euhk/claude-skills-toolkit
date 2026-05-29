@@ -2,6 +2,11 @@
 
 All notable changes to the skills-toolkit plugin are documented here.
 
+## [2.17.0] - 2026-05-29
+
+### Changed
+- **orchestrate 1.2.0:** Refined explore workflow Step 1 (Scout Codebase Structure). Step 1a now explicitly instructs Explore subagent to use `glob` and `bash` for filesystem discovery, with dedicated git submodule detection (`git submodule status`, `.gitmodules` parsing). Discovery covers 5 categories: git submodules, build system clusters, monorepo structures, deployable units, and independent directory clusters. Added expected output format table for structured reporting. Replaced redundant Step 1b-split section with concise Scouting Summary.
+
 ## [2.16.0] - 2026-03-06
 
 ### Changed
