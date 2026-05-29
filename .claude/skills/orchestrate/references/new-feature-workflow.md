@@ -19,8 +19,92 @@ All output follows the SDLC framework conventions from `_framework/sdlc/`:
 | `agent_docs/` | Agent-facing condensed specs, contracts, work packages | 05-10 |
 | `.work/` | Tracking artifacts (board, backlog, reports, incidents) | 10+ |
 | `scripts/` | Validation and utility scripts | 10 |
+| `AGENTS.md` | Root-level vendor-neutral agent instructions | 10 |
 
 **Templates available at:** `skills/orchestrate/templates/` — subagents MUST use these templates for all outputs.
+
+## Pre-Flight: Plan Mode (MANDATORY)
+
+**Before any scouting or phase execution, enter plan mode per the Plan Mode Protocol in SKILL.md.**
+
+The orchestrator MUST follow this sequence before proceeding to Phase 05:
+
+### Step P1: Enter Plan Mode
+
+```
+EnterPlanMode
+```
+
+This puts the session into plan mode. No writes allowed — only reads, questions, and delegation.
+
+### Step P2: Delegate to Plan Subagent
+
+```
+Agent type: Plan
+Prompt: "Analyze the New Feature request and create a comprehensive orchestration plan.
+
+Feature: <feature description>
+Scope: Full SDLC phases 05 (SRS) → 06 (HLD) → 07 (LLD) → 08 (IMP) → 09 (TST) → 10 (AGT)
+
+Plan should include:
+1. What this feature does (from user's request)
+2. Phase-by-phase breakdown: inputs, outputs, subagent assignments
+3. Gate review assignments: different reviewer per phase
+4. Output paths following SDLC conventions
+5. Dependencies and ordering
+6. Estimated complexity per phase
+
+Report the plan in structured format ready for documentation."
+```
+
+### Step P3: Write Plan to File
+
+```
+Agent type: general-purpose
+Model: sonnet
+Prompt: "Write the New Feature orchestration plan to .work/plans/<YYYYMMDD>/plan-new-feature-<feature-slug>.md.
+
+Plan content:
+<plan from Step P2>
+
+Create directory .work/plans/<YYYYMMDD>/ if it doesn't exist.
+
+Write the complete plan to .work/plans/<YYYYMMDD>/plan-new-feature-<feature-slug>.md
+Include: phase sequence, subagent assignments per phase, gate review assignments, output paths, and timeline."
+```
+
+### Step P4: Present Plan for Human Confirmation
+
+Read `.work/plans/<YYYYMMDD>/plan-new-feature-<feature-slug>.md` and present:
+
+```
+New Feature Plan: .work/plans/<YYYYMMDD>/plan-new-feature-<feature-slug>.md
+
+Phases: <N> phases from SRS to AGT
+Subagents: <list per phase>
+Outputs: <directory structure>
+Gate reviews: <assignments>
+
+Confirm to proceed with execution.
+```
+
+Use AskUserQuestion for any branching decisions. Wait for explicit approval.
+
+### Step P5: Exit Plan Mode
+
+```
+ExitPlanMode
+```
+
+Only after human confirms. This exits plan mode and allows phase execution.
+
+### Step P6: Proceed with Execution
+
+Return to the workflow below, starting with Pre-Flight Check. All phases execute per the approved plan. Every phase still requires mandatory gate review.
+
+**If the user's feature request is ambiguous (no specific FR-ID or feature name):** Use sprint skill during plan mode to query `.work/board.md` for 🔲 Todo tasks and present candidates in the plan.
+
+---
 
 ## Pre-Flight Check
 
@@ -34,6 +118,18 @@ Report what exists and what's missing."
 ```
 
 Use the scouting report to determine starting phase. If phases 0-4 (Intake, BRD, PRD, URD, UX) don't exist, note this to the user but proceed from Phase 05 — those are business-side phases.
+
+**If the user's feature request is ambiguous (no specific FR-ID or feature name):**
+1. Use sprint skill to query `.work/board.md` for 🔲 Todo tasks
+2. Present the todo task list to the user as implementation candidates
+3. Let the user select which task/feature to implement
+4. Proceed with the selected feature through phases 05-10
+
+**Sprint board interaction:**
+```
+Skill: sprint
+Description: "Get all 🔲 Todo tasks from the board. List them with task IDs, feature IDs, and descriptions."
+```
 
 ---
 
@@ -87,7 +183,8 @@ Gate checklist:
 3. [ ] All NFRs have concrete, measurable numbers
 4. [ ] Traceability matrix complete (every FR → business objective)
 5. [ ] NO Phase 06/07 leaks: grep for API paths, service names, DB table names, technology choices
-6. [ ] Concurrency and idempotency scenarios covered
+6. [ ] Concurrency scenarios covered (what happens with concurrent requests?)
+7. [ ] Idempotency expectations stated (retry behavior)
 
 Report: PASS / FAIL with specific gaps. If FAIL, list exact FRs that need fixes."
 ```
@@ -148,13 +245,16 @@ Read from:
 - agent_docs/contracts/api-conventions.md
 
 Gate checklist:
-1. [ ] 3 mandatory ADRs complete with context, decision, consequences
-2. [ ] domain-service-mapping.yaml covers 100% of bounded contexts
-3. [ ] hard-boundaries.md clearly states ownership (service X OWNS Y, REFERENCES Z)
-4. [ ] Data ownership matrix: each entity has exactly one owner
-5. [ ] Forward-reference backfill: SRS files updated from 'will be added' to concrete references
-6. [ ] No circular dependencies in service graph
-7. [ ] C4 diagrams include all external systems
+1. [ ] ADR-001 (service decomposition): decision + context + consequences
+2. [ ] ADR-002 (API gateway/versioning): strategy defined
+3. [ ] ADR-003 (event taxonomy): event types cataloged
+4. [ ] C4 Level 1 diagram: all external systems shown
+5. [ ] C4 Level 2 diagram: containers per service
+6. [ ] domain-service-mapping.yaml: 100% coverage of bounded contexts
+7. [ ] hard-boundaries.md: OWNS vs REFERENCES explicit per service
+8. [ ] Data ownership matrix: each entity has exactly one owner service
+9. [ ] No circular dependencies in service dependency graph
+10. [ ] SRS backfill: "will be added" placeholders in SRS replaced with HLD links
 
 Report: PASS / FAIL with specific gaps."
 ```
@@ -224,6 +324,7 @@ Gate checklist:
 5. [ ] No missing error codes (every error flow has a code)
 6. [ ] Caching strategy defined for all read-heavy endpoints
 7. [ ] Transaction boundaries explicit (what's atomic, what's eventual)
+8. [ ] Performance targets match NFR-PERF from SRS
 
 Report: PASS / FAIL with specific gaps."
 ```
@@ -290,6 +391,7 @@ Gate checklist:
 5. [ ] Security section addresses authZ per endpoint
 6. [ ] Migration spec exists for any DB changes
 7. [ ] Acceptance checklist is testable (each item is a yes/no question)
+8. [ ] Feature dependencies noted (must implement X before Y)
 
 Report: PASS / FAIL with specific gaps."
 ```
@@ -358,6 +460,7 @@ Gate checklist:
 4. [ ] Performance test specs for all NFR-PERF items
 5. [ ] Context isolation verified: no references to implementation details
 6. [ ] Test data/fixtures are concrete and reproducible
+7. [ ] Each test references the specific Gherkin scenario it validates
 
 Report: PASS / FAIL with specific gaps."
 ```
@@ -378,11 +481,13 @@ Prompt: "Configure the agent environment for execution based on all specs:
 - TST: agent_docs/backend/*/test-specs/, agent_docs/frontend/*/test-specs/
 
 Templates to use:
+- AGENTS.md: skills/orchestrate/templates/agt/AGENTS-TEMPLATE.md
 - Routing table: skills/orchestrate/templates/agt/agent-routing-TEMPLATE.md
 - Roadmap: skills/orchestrate/templates/agt/roadmap-TEMPLATE.md
 - Feature index: skills/orchestrate/templates/agt/feature-index-TEMPLATE.md
 
 Produce:
+1. AGENTS.md — vendor-neutral agent instructions (project root)
 2. agent_docs/README.md — routing table (FR → service → specs)
 3. agent_docs/roadmap.md — Sprint 1 with concrete, ordered tasks
 4. .work/board.md — current sprint task board
@@ -393,6 +498,7 @@ Produce:
 9. Health check: verify all FRs have complete traceability chain
 
 Output:
+- AGENTS.md (project root)
 - agent_docs/README.md — routing table
 - agent_docs/roadmap.md — sprint roadmap
 - .work/board.md — current sprint board
@@ -417,6 +523,7 @@ Read from:
 - scripts/
 
 Gate checklist:
+1. [ ] AGENTS.md covers all services and workflows
 2. [ ] Routing table maps every FR → service → impl spec → test spec
 3. [ ] Roadmap Sprint 1 has concrete, ordered, dependency-aware tasks
 4. [ ] Board/backlog reflects current state
@@ -431,7 +538,17 @@ Report: PASS / FAIL with specific gaps."
 
 ## Completion
 
-After all phases pass gate review, report to user:
+After all phases pass gate review:
+
+1. **Update board via sprint skill:** Mark the corresponding task on `.work/board.md` as ✅ Ready (from 🔲 Todo):
+
+```
+Skill: sprint
+Description: "Update board task for feature <FR-ID> from 🔲 Todo to ✅ Ready. 
+The specs (SRS, HLD, LLD, IMP, TST) are all complete and the feature is ready for Cook implementation."
+```
+
+2. **Report to user:**
 
 ```
 New Feature workflow complete. All phases 05-10 passed gate review.
@@ -450,7 +567,8 @@ Output:
   agent_docs/backend/{service}/test-specs/      - Test specs
   agent_docs/README.md               - Routing table
   agent_docs/roadmap.md              - Sprint roadmap
-  .work/board.md                     - Sprint board
+  AGENTS.md                          - Agent instructions (root)
+  .work/board.md                     - Sprint board (task updated to ✅ Ready)
   .work/backlog.md                   - Prioritized backlog
   scripts/                           - Validation scripts
 

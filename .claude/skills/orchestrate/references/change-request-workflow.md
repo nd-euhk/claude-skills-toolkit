@@ -16,6 +16,88 @@ Path B (Design impacted):
        ↓ Gate         ↓ Gate          ↓ Gate          ↓ Gate              ↓ Gate
 ```
 
+## Pre-Flight: Plan Mode (MANDATORY)
+
+**Before any scouting or impact assessment, enter plan mode per the Plan Mode Protocol in SKILL.md.**
+
+The orchestrator MUST follow this sequence before proceeding to Step 1:
+
+### Step P1: Enter Plan Mode
+
+```
+EnterPlanMode
+```
+
+This puts the session into plan mode. No writes allowed — only reads, questions, and delegation.
+
+### Step P2: Delegate to Plan Subagent
+
+```
+Agent type: Plan
+Prompt: "Analyze the Change Request and create a comprehensive orchestration plan.
+
+Change request: <change description>
+Affected feature: <feature identifier if known>
+
+Plan should include:
+1. What needs to change and why
+2. Impact assessment approach: what to scout, design impact questions
+3. Phase plan: Path A (IMP→TST→AGT) vs Path B (HLD→LLD→IMP→TST→AGT)
+4. Subagent assignments per phase
+5. Gate review assignments: different reviewer per phase
+6. Output paths for updated specs
+7. Board impact: which tasks need updating
+
+Report the plan in structured format ready for documentation."
+```
+
+### Step P3: Write Plan to File
+
+```
+Agent type: general-purpose
+Model: sonnet
+Prompt: "Write the Change Request orchestration plan to .work/plans/<YYYYMMDD>/plan-change-request-<slug>.md.
+
+Plan content:
+<plan from Step P2>
+
+Create directory .work/plans/<YYYYMMDD>/ if it doesn't exist.
+
+Write the complete plan to .work/plans/<YYYYMMDD>/plan-change-request-<slug>.md
+Include: change summary, impact assessment approach, phase path, subagent assignments, gate reviews, and board impact."
+```
+
+### Step P4: Present Plan for Human Confirmation
+
+Read `.work/plans/<YYYYMMDD>/plan-change-request-<slug>.md` and present:
+
+```
+Change Request Plan: .work/plans/<YYYYMMDD>/plan-change-request-<slug>.md
+
+Path: <A (implementation-only) or B (design impacted)>
+Phases: <list>
+Subagents: <assignments>
+Board impact: <tasks affected>
+
+Confirm to proceed with execution.
+```
+
+Use AskUserQuestion for design impact decisions. Wait for explicit approval.
+
+### Step P5: Exit Plan Mode
+
+```
+ExitPlanMode
+```
+
+Only after human confirms. This exits plan mode and allows scouting + phase execution.
+
+### Step P6: Proceed with Execution
+
+Return to the workflow below, starting with Step 1 (Scout Current State). All decisions made in the plan guide execution.
+
+---
+
 ## Step 1: Scout Current State
 
 Delegate to Explore agent to understand the existing feature:
@@ -30,12 +112,26 @@ Find:
 3. Existing LLD in agent_docs/tech-design/, agent_docs/contracts/
 4. Existing impl specs in agent_docs/backend/*/implementation/, agent_docs/frontend/*/implementation/
 5. Existing test specs in agent_docs/backend/*/test-specs/, agent_docs/frontend/*/test-specs/
-6. Board/backlog state in .work/board.md, .work/backlog.md
-7. Routing tables in agent_docs/README.md, AGENTS.md
-8. Current implementation (find relevant source files in projects/)
+6. Routing tables in agent_docs/README.md, AGENTS.md
+7. Current implementation (find relevant source files in projects/)
 
 Report: What exists, what's marked 'done', what's in progress."
 ```
+
+### Step 1b: Check Board for Affected Tasks
+
+Use sprint skill to find tasks related to this feature on the board:
+
+```
+Skill: sprint
+Description: "Find all board tasks related to feature <FR-ID or feature name>. 
+Check both .work/board.md (current sprint) for matching tasks. 
+Report: task IDs, current status, and whether they need updating."
+```
+
+**If NO matching tasks found on the board:** This change doesn't affect any tracked work. It's effectively a new feature request. **Redirect to the New Feature workflow** (`references/new-feature-workflow.md`).
+
+**If matching tasks found:** Proceed with Step 2 (Impact Assessment) below.
 
 ## Step 2: Assess Impact
 
@@ -301,7 +397,30 @@ After phases 06-07 pass, continue with phases 08-10 from Path A above.
 
 ## Completion
 
-After all phases pass gate review, report:
+After all phases pass gate review:
+
+1. **Update/Create board task via sprint skill:**
+
+If updating an existing task (feature was already on the board):
+```
+Skill: sprint
+Description: "Update board task for <FR-ID> to status ✅ Ready. 
+The change request specs (IMP, TST, AGT) are complete. 
+If the task was previously ✅ Done, reopen it and set to ✅ Ready."
+```
+
+If creating a new task (feature is new to the board after change request):
+```
+Skill: sprint
+Description: "Create a new board task in .work/board.md:
+- Task: '<description of change>'
+- Feature: <FR-ID or BL-XXX>
+- Service: <affected service>
+- Status: ✅ Ready
+The change request specs are complete and the task is ready for Cook implementation."
+```
+
+2. **Report to user:**
 
 ```
 Change Request workflow complete.
@@ -316,8 +435,7 @@ Output updated:
   agent_docs/           - [if Path B] Architecture, contracts, tech-design
   agent_docs/backend/{service}/implementation/  - Updated Implementation Specs
   agent_docs/backend/{service}/test-specs/      - Updated Test Specs
-  .work/board.md        - Updated Board
-  .work/backlog.md      - Updated Backlog
+  .work/board.md        - Updated Board (task set to ✅ Ready)
 
 Next: Ready for Cook (TDD execution) to implement the changes.
 ```

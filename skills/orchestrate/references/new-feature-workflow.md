@@ -23,6 +23,89 @@ All output follows the SDLC framework conventions from `_framework/sdlc/`:
 
 **Templates available at:** `skills/orchestrate/templates/` — subagents MUST use these templates for all outputs.
 
+## Pre-Flight: Plan Mode (MANDATORY)
+
+**Before any scouting or phase execution, enter plan mode per the Plan Mode Protocol in SKILL.md.**
+
+The orchestrator MUST follow this sequence before proceeding to Phase 05:
+
+### Step P1: Enter Plan Mode
+
+```
+EnterPlanMode
+```
+
+This puts the session into plan mode. No writes allowed — only reads, questions, and delegation.
+
+### Step P2: Delegate to Plan Subagent
+
+```
+Agent type: Plan
+Prompt: "Analyze the New Feature request and create a comprehensive orchestration plan.
+
+Feature: <feature description>
+Scope: Full SDLC phases 05 (SRS) → 06 (HLD) → 07 (LLD) → 08 (IMP) → 09 (TST) → 10 (AGT)
+
+Plan should include:
+1. What this feature does (from user's request)
+2. Phase-by-phase breakdown: inputs, outputs, subagent assignments
+3. Gate review assignments: different reviewer per phase
+4. Output paths following SDLC conventions
+5. Dependencies and ordering
+6. Estimated complexity per phase
+
+Report the plan in structured format ready for documentation."
+```
+
+### Step P3: Write Plan to File
+
+```
+Agent type: general-purpose
+Model: sonnet
+Prompt: "Write the New Feature orchestration plan to .work/plans/<YYYYMMDD>/plan-new-feature-<feature-slug>.md.
+
+Plan content:
+<plan from Step P2>
+
+Create directory .work/plans/<YYYYMMDD>/ if it doesn't exist.
+
+Write the complete plan to .work/plans/<YYYYMMDD>/plan-new-feature-<feature-slug>.md
+Include: phase sequence, subagent assignments per phase, gate review assignments, output paths, and timeline."
+```
+
+### Step P4: Present Plan for Human Confirmation
+
+Read `.work/plans/<YYYYMMDD>/plan-new-feature-<feature-slug>.md` and present:
+
+```
+New Feature Plan: .work/plans/<YYYYMMDD>/plan-new-feature-<feature-slug>.md
+
+Phases: <N> phases from SRS to AGT
+Subagents: <list per phase>
+Outputs: <directory structure>
+Gate reviews: <assignments>
+
+Confirm to proceed with execution.
+```
+
+Use AskUserQuestion for any branching decisions. Wait for explicit approval.
+
+### Step P5: Exit Plan Mode
+
+```
+ExitPlanMode
+```
+
+Only after human confirms. This exits plan mode and allows phase execution.
+
+### Step P6: Proceed with Execution
+
+Return to the workflow below, starting with Pre-Flight Check. All phases execute per the approved plan. Every phase still requires mandatory gate review.
+
+**If the user's feature request is ambiguous (no specific FR-ID or feature name):** Use sprint skill during plan mode to query `.work/board.md` for 🔲 Todo tasks and present candidates in the plan.
+
+---
+
 ## Pre-Flight Check
 
 Before starting, scout the project structure using Explore agent:

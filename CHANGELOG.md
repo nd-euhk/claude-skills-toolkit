@@ -2,6 +2,11 @@
 
 All notable changes to the skills-toolkit plugin are documented here.
 
+## [2.19.0] - 2026-05-29
+
+### Changed
+- **orchestrate 2.1.0:** Added Plan Mode Protocol for pre-execution planning in New Feature, Change Request, and Explore workflows. Orchestrator now enters plan mode via EnterPlanMode, delegates to Plan subagent for orchestration planning, writes plan to `.work/plans/YYYYMMDD/` via general-purpose:sonnet, presents for human confirmation, and exits via ExitPlanMode before execution. Added EnterPlanMode/ExitPlanMode to allowed-tools.
+
 ## [2.18.0] - 2026-05-29
 
 ### Changed

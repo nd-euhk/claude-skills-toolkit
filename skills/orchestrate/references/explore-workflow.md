@@ -15,6 +15,89 @@ Discover → Deep Scout → Merge → Scope → HLD Per Proj → LLD Per Proj �
 
 ---
 
+## Pre-Flight: Plan Mode (MANDATORY)
+
+**Before any scouting, enter plan mode per the Plan Mode Protocol in SKILL.md.**
+
+The orchestrator MUST follow this sequence before proceeding to Step 1:
+
+### Step P1: Enter Plan Mode
+
+```
+EnterPlanMode
+```
+
+This puts the session into plan mode. No writes allowed — only reads, questions, and delegation.
+
+### Step P2: Delegate to Plan Subagent
+
+```
+Agent type: Plan
+Prompt: "Analyze the Explore/Reverse Engineer request and create a comprehensive orchestration plan.
+
+Codebase: <path or repository>
+Goal: <what documentation to extract, or full pipeline>
+
+Plan should include:
+1. Discovery strategy: how many projects to expect, what to look for
+2. Scouting plan: per-project deep scout scope, cross-cutting concerns
+3. Documentation scope: Full pipeline (HLD+LLD+SRS+IMP+TST), Architecture only, or Fill gaps
+4. Phase-by-phase plan: HLD→LLD→SRS→IMP→TST→Assessment per project
+5. Subagent assignments: 1 per project per phase (parallel execution)
+6. Gate review assignments: 1 per project per phase
+7. Output paths: project-scoped directory structure
+8. Merge strategy: when/how to synthesize cross-project docs
+
+Report the plan in structured format ready for documentation."
+```
+
+### Step P3: Write Plan to File
+
+```
+Agent type: general-purpose
+Model: sonnet
+Prompt: "Write the Explore/Reverse Engineer orchestration plan to .work/plans/<YYYYMMDD>/plan-explore-<slug>.md.
+
+Plan content:
+<plan from Step P2>
+
+Create directory .work/plans/<YYYYMMDD>/ if it doesn't exist.
+
+Write the complete plan to .work/plans/<YYYYMMDD>/plan-explore-<slug>.md
+Include: discovery strategy, project count estimate, documentation scope, phase plan per project, subagent assignments, and output paths."
+```
+
+### Step P4: Present Plan for Human Confirmation
+
+Read `.work/plans/<YYYYMMDD>/plan-explore-<slug>.md` and present:
+
+```
+Explore Plan: .work/plans/<YYYYMMDD>/plan-explore-<slug>.md
+
+Scope: <Full/Architecture/Fill gaps>
+Estimated projects: <N>
+Phases per project: <HLD, LLD, SRS, IMP, TST, Assess>
+Output: agent_docs/projects/{project-name}/, docs/, .work/reports/
+
+Confirm to proceed with execution.
+```
+
+Use AskUserQuestion to confirm documentation scope if not yet decided. Wait for explicit approval.
+
+### Step P5: Exit Plan Mode
+
+```
+ExitPlanMode
+```
+
+Only after human confirms. This exits plan mode and allows scouting + extraction.
+
+### Step P6: Proceed with Execution
+
+Return to the workflow below, starting with Step 1 (Scout Codebase Structure). All scoping decisions made in the plan guide execution.
+
+---
+
 ## Step 1: Scout Codebase Structure
 
 **CRITICAL SCOPING RULE:** Minimum 1 Explore subagent per project. NEVER assign 1 Explore subagent to scout **more than 1 project**. If the codebase has N projects/subprojects, spawn N Explore subagents (one per project) in parallel. This prevents context overload and ensures thorough per-project reconnaissance.

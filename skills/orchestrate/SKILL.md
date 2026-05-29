@@ -5,8 +5,8 @@ description: >-
   Use when implementing new features, handling change requests, running TDD/cook loops,
   debugging, fixing bugs, or reverse-engineering documentation from codebase.
   Pure orchestration - never explores, writes, or updates directly.
-version: 2.0.0
-allowed-tools: Read, AskUserQuestion, Agent, TaskCreate, TaskUpdate, TaskList
+version: 2.1.0
+allowed-tools: Read, AskUserQuestion, Agent, TaskCreate, TaskUpdate, TaskList, EnterPlanMode, ExitPlanMode
 ---
 
 # Orchestrate
@@ -71,6 +71,112 @@ If FAIL: list exactly what must be fixed before proceeding."
 ```
 
 CRITICAL: Never skip gate review. Never use the same subagent type for both producing and reviewing the same phase.
+
+## Plan Mode Protocol (Pre-Execution Planning)
+
+**Applies to these workflows:** New Feature, Change Request, Explore/Reverse Engineer
+
+Before executing any phase, the orchestrator MUST enter plan mode to produce an orchestration plan and get human sign-off. This prevents wasted work on incorrect assumptions.
+
+### Plan Mode Flow
+
+```
+1. EnterPlanMode — enter plan mode (read-only, no writes)
+2. DELEGATE to Plan subagent — analyze scope and create orchestration plan
+3. DELEGATE to general-purpose:sonnet — write plan to .work/plans/YYYYMMDD/
+4. RAISE human confirmation — present plan for approval
+5. ExitPlanMode — exit plan mode (only after human confirms)
+6. Execute — proceed with SDLC phases per the approved plan
+```
+
+### Plan Mode Protocol Details
+
+**Step 1: Enter Plan Mode**
+
+```
+EnterPlanMode
+```
+
+This puts the session into plan mode, restricting writes. The orchestrator can only read, ask questions, and delegate.
+
+**Step 2: Delegate to Plan Subagent**
+
+```
+Agent type: Plan
+Prompt: "Analyze the <workflow-type> request and create a comprehensive orchestration plan.
+
+Task: <user's task description>
+Workflow: <new-feature | change-request | explore>
+Scope: <what needs to be done>
+
+Plan should include:
+1. Task breakdown: each phase with clear inputs/outputs
+2. Subagent assignments: which specialized agent per phase
+3. Dependencies: what must complete before what
+4. Gate review assignments: different reviewer per phase
+5. Output paths: where each phase's output goes
+6. Timeline estimate: phases and expected complexity
+
+Report the plan in structured format ready for documentation."
+```
+
+**Step 3: Write Plan to File**
+
+```
+Agent type: general-purpose
+Model: sonnet
+Prompt: "Write the orchestration plan to .work/plans/<YYYYMMDD>/plan-<workflow-type>-<slug>.md.
+
+Plan content:
+<plan from Step 2>
+
+The directory .work/plans/<YYYYMMDD>/ must be created if it doesn't exist.
+
+Output: .work/plans/<YYYYMMDD>/plan-<workflow-type>-<slug>.md
+
+Write the complete plan to the file."
+```
+
+**Step 4: Present for Human Confirmation**
+
+Read the plan from `.work/plans/<YYYYMMDD>/plan-<workflow-type>-<slug>.md` and present a summary:
+
+```
+Plan ready for review: .work/plans/<YYYYMMDD>/plan-<workflow-type>-<slug>.md
+
+<summarize phases, subagents, and key decisions>
+
+Confirm to proceed with execution.
+```
+
+Use AskUserQuestion if there are branching decisions. Wait for explicit human approval.
+
+**Step 5: Exit Plan Mode**
+
+```
+ExitPlanMode
+```
+
+Only call after human confirms the plan. This exits plan mode and allows writes.
+
+**Step 6: Execute**
+
+Proceed with the SDLC phases as defined in the approved plan. Every phase still requires mandatory gate review.
+
+### When Plan Mode is NOT Required
+
+Plan mode is NOT required for these workflows (they are direct-execution by nature):
+- **Cook (TDD Loop)** — already has RED→GREEN→REFACTOR cycle, no planning needed
+- **Debug / Fix Bug** — investigation-driven, too fluid for upfront planning
+- **Sprint Management** — delegates to sprint skill, no SDLC phases
+
+### Common Rules
+
+- **Never skip plan mode** for New Feature, Change Request, or Explore workflows
+- **Never self-plan** — always delegate to Plan subagent (pure orchestration)
+- **Never execute before confirmation** — no ExitPlanMode until human approves
+- **Plan is SSOT** — all subsequent phases reference the plan file for phase ordering and subagent assignments
+- **Plan mode is read-only** — the orchestrator cannot modify files during plan mode; use subagents for file writes
 
 ## Task Selection Details
 
