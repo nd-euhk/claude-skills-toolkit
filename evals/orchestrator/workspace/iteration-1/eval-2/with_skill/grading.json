@@ -1,0 +1,36 @@
+{
+  "eval_id": 2,
+  "configuration": "with_skill",
+  "assertions_evaluated": [
+    {
+      "text": "Correctly identifies input as 'cr' (change request) workflow type and routes to CR workflow",
+      "passed": true,
+      "evidence": "Line 13: 'Workflow type: cr — The presence of the phrase change request matches the cr route'; Line 24: 'ROUTING: Change Request Workflow'"
+    },
+    {
+      "text": "Mentions invoking sprint to pick a Done or In Review task from the board",
+      "passed": true,
+      "evidence": "Line 146: 'Invoke Skill(sprint) to pick a task from the board with status Done or In Review'"
+    },
+    {
+      "text": "Mentions assessing HLD and LLD impact during planning phase",
+      "passed": true,
+      "evidence": "Lines 40-83: Comprehensive HLD/LDD impact assessment with separate analysis for each, lines 87-90 summary table showing HLD not affected, LLD affected"
+    },
+    {
+      "text": "Shows understanding that HLD and LLD phases are optional (executed only if affected)",
+      "passed": true,
+      "evidence": "Line 107: 'HLD Phase: SKIPPED — plan determined HLD is NOT affected'; Lines 113-124: 'LLD Phase: EXECUTED — plan determined LLD IS affected'; Line 93-94: 'HLD phase: SKIPPED, HLD gate verifier: SKIPPED'"
+    },
+    {
+      "text": "Always includes IMP+TST phases regardless of HLD/LLD impact assessment",
+      "passed": true,
+      "evidence": "Lines 126-133: 'IMP Phase: ALWAYS EXECUTED — Per the CR workflow rules: IMP+TST always execute regardless'; 'TST Phase: ALWAYS EXECUTED'"
+    }
+  ],
+  "summary": {
+    "assertions_total": 5,
+    "assertions_passed": 5,
+    "pass_rate": 1.0
+  }
+}

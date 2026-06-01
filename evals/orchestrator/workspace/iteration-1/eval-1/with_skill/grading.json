@@ -1,0 +1,36 @@
+{
+  "eval_id": 1,
+  "configuration": "with_skill",
+  "assertions_evaluated": [
+    {
+      "text": "Correctly identifies input as 'feature' workflow type and routes to task workflow",
+      "passed": true,
+      "evidence": "Line 8: 'Workflow type: feature — matches the feature|task|story pattern', Line 12: 'route to references/task-workflow.md'"
+    },
+    {
+      "text": "Mentions invoking sprint skill to pick a TODO task from the board",
+      "passed": true,
+      "evidence": "Line 16: 'Invoke Skill(sprint) to pick a task from the board with status TODO'"
+    },
+    {
+      "text": "Describes the SDLC sequence: SRS → HLD → LLD → IMP+TST with gate verification at each phase",
+      "passed": true,
+      "evidence": "Lines 41-177: Complete SRS→gate→HLD→gate→LLD→gate→IMP+TST(parallel)→gate sequence with explicit gate-verifier agent spawns"
+    },
+    {
+      "text": "Mentions parallel spawning of IMP and TST agents",
+      "passed": true,
+      "evidence": "Line 140: 'Spawn Agent(imp) and Agent(tst) simultaneously in a single message'"
+    },
+    {
+      "text": "Includes gate rejection handling with re-spawn logic and 3-strike limit",
+      "passed": true,
+      "evidence": "Lines 185-208: Detailed gate rejection flow with re-spawn briefs, 'If the same agent fails gate verification 3 times consecutively: Stop the pipeline immediately'"
+    }
+  ],
+  "summary": {
+    "assertions_total": 5,
+    "assertions_passed": 5,
+    "pass_rate": 1.0
+  }
+}

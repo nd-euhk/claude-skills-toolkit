@@ -1,0 +1,36 @@
+{
+  "eval_id": 3,
+  "configuration": "with_skill",
+  "assertions_evaluated": [
+    {
+      "text": "Correctly identifies input as 'cook' workflow type and routes to cook workflow",
+      "passed": true,
+      "evidence": "Line 13: 'keyword detection: The user's message contains the explicit keyword Cook which triggers the Cook workflow variant of the orchestrator skill'"
+    },
+    {
+      "text": "Mentions invoking sprint to pick a Ready task from the board",
+      "passed": true,
+      "evidence": "Line 17: 'I would still invoke Skill(sprint) briefly to verify that this task exists on the board with status Ready and to log the in-progress transition'"
+    },
+    {
+      "text": "Mentions assessing BE and FE impact during planning phase",
+      "passed": true,
+      "evidence": "Lines 23-42: Detailed BE impact assessment (YES — security, API endpoint, database constraints, business logic) and FE impact assessment (YES — UX, field-level validation, form state, accessibility)"
+    },
+    {
+      "text": "Describes TDD red→green→refactor→gate pipeline with correct sequencing",
+      "passed": true,
+      "evidence": "Lines 74-138 (BE pipeline): tdd-be-red → tdd-be-green → tdd-be-gate(light) → tdd-be-refactor → tdd-be-gate(full); Lines 144-211 (FE pipeline): tdd-fe-red → tdd-fe-green → tdd-fe-gate(light) → tdd-fe-refactor → tdd-fe-gate(full)"
+    },
+    {
+      "text": "Mentions gate mode routing: light after green, full after refactor",
+      "passed": true,
+      "evidence": "Line 99: 'tdd-be-gate --mode=light — Catch implementation issues'; Line 125: 'tdd-be-gate --mode=full — Catch refactoring deficiencies'; Lines 215-222: Summary table showing light→re-spawn green, full→re-spawn refactor"
+    }
+  ],
+  "summary": {
+    "assertions_total": 5,
+    "assertions_passed": 5,
+    "pass_rate": 1.0
+  }
+}

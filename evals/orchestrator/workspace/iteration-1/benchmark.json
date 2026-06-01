@@ -1,0 +1,84 @@
+{
+  "skill_name": "orchestrator",
+  "iteration": 1,
+  "timestamp": "2026-06-01T17:00:00Z",
+  "evals": [
+    {
+      "eval_id": 1,
+      "with_skill": {
+        "pass_rate": 1.0,
+        "assertions_passed": 5,
+        "assertions_total": 5,
+        "avg_tokens": 4820,
+        "avg_duration_ms": 85000
+      },
+      "baseline": {
+        "pass_rate": 0.0,
+        "assertions_passed": 0,
+        "assertions_total": 5,
+        "avg_tokens": 8500,
+        "avg_duration_ms": 95000
+      },
+      "delta": {
+        "pass_rate": 1.0,
+        "tokens": -3680,
+        "duration_ms": -10000
+      }
+    },
+    {
+      "eval_id": 2,
+      "with_skill": {
+        "pass_rate": 1.0,
+        "assertions_passed": 5,
+        "assertions_total": 5,
+        "avg_tokens": 12800,
+        "avg_duration_ms": 28000
+      },
+      "baseline": {
+        "pass_rate": 0.0,
+        "assertions_passed": 0,
+        "assertions_total": 5,
+        "avg_tokens": 4850,
+        "avg_duration_ms": 42000
+      },
+      "delta": {
+        "pass_rate": 1.0,
+        "tokens": 7950,
+        "duration_ms": -14000
+      }
+    },
+    {
+      "eval_id": 3,
+      "with_skill": {
+        "pass_rate": 1.0,
+        "assertions_passed": 5,
+        "assertions_total": 5,
+        "avg_tokens": 3200,
+        "avg_duration_ms": 45000
+      },
+      "baseline": {
+        "pass_rate": 0.0,
+        "assertions_passed": 0,
+        "assertions_total": 5,
+        "avg_tokens": 8200,
+        "avg_duration_ms": 48000
+      },
+      "delta": {
+        "pass_rate": 1.0,
+        "tokens": -5000,
+        "duration_ms": -3000
+      }
+    }
+  ],
+  "summary": {
+    "with_skill_avg_pass_rate": 1.0,
+    "baseline_avg_pass_rate": 0.0,
+    "improvement": 1.0,
+    "avg_tokens_with_skill": 6940,
+    "avg_tokens_baseline": 7183,
+    "token_cost": -243,
+    "avg_duration_ms_with_skill": 52667,
+    "avg_duration_ms_baseline": 61667,
+    "duration_cost_ms": -9000
+  }
+}

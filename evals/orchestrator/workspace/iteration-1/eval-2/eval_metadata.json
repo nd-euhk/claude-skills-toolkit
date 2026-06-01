@@ -1,0 +1,31 @@
+{
+  "eval_id": 2,
+  "skill_path": ".claude/skills/orchestrator/SKILL.md",
+  "assertions": [
+    {
+      "text": "Correctly identifies input as 'cr' (change request) workflow type and routes to CR workflow",
+      "type": "behaviour",
+      "target": "Workflow routing logic"
+    },
+    {
+      "text": "Mentions invoking sprint to pick a Done or In Review task from the board",
+      "type": "presence",
+      "target": "Phase 1: Pick Task"
+    },
+    {
+      "text": "Mentions assessing HLD and LLD impact during planning phase",
+      "type": "presence",
+      "target": "Phase 2: Plan - Impact Assessment"
+    },
+    {
+      "text": "Shows understanding that HLD and LLD phases are optional (executed only if affected)",
+      "type": "structure",
+      "target": "Optional Phase Execution"
+    },
+    {
+      "text": "Always includes IMP+TST phases regardless of HLD/LLD impact assessment",
+      "type": "presence",
+      "target": "IMP+TST always execute"
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "eval_id": 3,
+  "configuration": "baseline",
+  "assertions_evaluated": [
+    {
+      "text": "Correctly identifies input as 'cook' workflow type and routes to cook workflow",
+      "passed": false,
+      "evidence": "Mentions 'cook' keyword (line 5) but interprets it generically as 'ready-to-implement task' without routing to orchestrator's Cook workflow with TDD pipeline"
+    },
+    {
+      "text": "Mentions invoking sprint to pick a Ready task from the board",
+      "passed": false,
+      "evidence": "No sprint skill invocation or board management mentioned"
+    },
+    {
+      "text": "Mentions assessing BE and FE impact during planning phase",
+      "passed": false,
+      "evidence": "Step 2 (lines 20-26) assesses BE/FE layers but as a direct implementation decision, not as part of a formal pipeline routing assessment"
+    },
+    {
+      "text": "Describes TDD red→green→refactor→gate pipeline with correct sequencing",
+      "passed": false,
+      "evidence": "No TDD pipeline — implements validation directly then writes tests afterward (Step 4 implements backend validation, then Step 4.7 writes tests). No red/green/refactor phases."
+    },
+    {
+      "text": "Mentions gate mode routing: light after green, full after refactor",
+      "passed": false,
+      "evidence": "No gate mode routing concept at all — basic verification steps but no light/full gate distinction or mode-based re-spawn logic"
+    }
+  ],
+  "summary": {
+    "assertions_total": 5,
+    "assertions_passed": 0,
+    "pass_rate": 0.0
+  }
+}

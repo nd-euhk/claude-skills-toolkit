@@ -1,0 +1,25 @@
+C4Context
+    title System Context Diagram -- Email Validation Utility (sanitizer-service)
+
+    Person(user, "End User", "Provides email address during registration, login, or profile update")
+
+    System_Boundary(app, "User Application") {
+        System(registration, "Registration Flow", "User sign-up workflow")
+        System(login, "Login Flow", "User authentication workflow")
+        System(profile, "Profile Update Flow", "User profile management")
+    }
+
+    System_Boundary(svc, "sanitizer-service") {
+        System(email_validator, "Email Validation Utility", "Validates email format. Stateless, synchronous, no I/O.")
+    }
+
+    Rel(user, registration, "Submits email address")
+    Rel(user, login, "Provides email address")
+    Rel(user, profile, "Updates email address")
+    Rel(registration, email_validator, "Calls validate_email()")
+    Rel(login, email_validator, "Calls validate_email()")
+    Rel(profile, email_validator, "Calls validate_email()")
+
+    UpdateRelStyle(registration, email_validator, $offsetY="-40", $offsetX="-60")
+    UpdateRelStyle(login, email_validator, $offsetY="0", $offsetX="-60")
+    UpdateRelStyle(profile, email_validator, $offsetY="40", $offsetX="-60")
