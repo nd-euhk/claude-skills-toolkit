@@ -1,0 +1,36 @@
+{
+  "eval_id": 1,
+  "configuration": "baseline",
+  "assertions_evaluated": [
+    {
+      "text": "Correctly identifies input as 'feature' workflow type and routes to task workflow",
+      "passed": false,
+      "evidence": "Baseline describes a generic 'structured, phase-based methodology' without referencing any orchestrator workflow routing or task workflow pattern"
+    },
+    {
+      "text": "Mentions invoking sprint skill to pick a TODO task from the board",
+      "passed": false,
+      "evidence": "No sprint skill invocation mentioned anywhere in the baseline plan"
+    },
+    {
+      "text": "Describes the SDLC sequence: SRS → HLD → LLD → IMP+TST with gate verification at each phase",
+      "passed": false,
+      "evidence": "Has SRS, HLD, LLD phases but no gate-verifier agents, no explicit SDLC agent spawning, and implementation phase merges coding + testing without separate IMP/TST agents"
+    },
+    {
+      "text": "Mentions parallel spawning of IMP and TST agents",
+      "passed": false,
+      "evidence": "No parallel agent spawning mentioned — implementation and testing are sequential phases (Phase 2 then Phase 3)"
+    },
+    {
+      "text": "Includes gate rejection handling with re-spawn logic and 3-strike limit",
+      "passed": false,
+      "evidence": "Has basic 'gate checks' (lines 71-77) but only as verification checkpoints, no re-spawn logic or 3-strike limit"
+    }
+  ],
+  "summary": {
+    "assertions_total": 5,
+    "assertions_passed": 0,
+    "pass_rate": 0.0
+  }
+}

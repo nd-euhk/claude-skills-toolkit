@@ -1,0 +1,41 @@
+---
+title: "Domain-Service Mapping"
+status: current
+created: 2026-06-01
+last_updated: 2026-06-01
+updated_by: Architecture Agent
+depends_on:
+  - ../docs/architecture/system-architecture.md
+referenced_by:
+  - architecture.md
+  - hard-boundaries.md
+changelog:
+  - 1.0 | 2026-06-01 | Initial domain-service mapping
+---
+
+# Domain-Service Mapping
+
+> Agent reads this file to know which service owns which domain concepts and data. Every functional requirement (FR) must map to exactly one service.
+
+services:
+  - name: sanitizer-service
+    domain: validation
+    description: >-
+      Provides stateless input validation and sanitization utilities.
+      The email validation utility is a pure function within this service.
+    owns:
+      - email_validation_rules
+      - input_sanitization_rules
+    owns_data: []
+    ports: []
+    type: python-library
+
+functional_requirements:
+  - id: FR-VAL-001
+    service: sanitizer-service
+    function: validate_email
+    description: Email format validation
+  - id: FR-VAL-002
+    service: sanitizer-service
+    function: validate_email
+    description: Null and empty input handling

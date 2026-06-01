@@ -1,0 +1,36 @@
+{
+  "eval_id": 2,
+  "configuration": "baseline",
+  "assertions_evaluated": [
+    {
+      "text": "Correctly identifies input as 'cr' (change request) workflow type and routes to CR workflow",
+      "passed": false,
+      "evidence": "Baseline treats this as a generic change request document creation task, not an orchestrator CR workflow with agent orchestration"
+    },
+    {
+      "text": "Mentions invoking sprint to pick a Done or In Review task from the board",
+      "passed": false,
+      "evidence": "No sprint skill invocation or board management mentioned anywhere"
+    },
+    {
+      "text": "Mentions assessing HLD and LLD impact during planning phase",
+      "passed": false,
+      "evidence": "Has impact assessment (code, database, testing, infrastructure, security) but does not distinguish HLD vs LLD impact specifically"
+    },
+    {
+      "text": "Shows understanding that HLD and LLD phases are optional (executed only if affected)",
+      "passed": false,
+      "evidence": "No concept of optional phases based on HLD/LLD impact — has conditional/required steps for CR document creation but not for SDLC phase execution"
+    },
+    {
+      "text": "Always includes IMP+TST phases regardless of HLD/LLD impact assessment",
+      "passed": false,
+      "evidence": "No IMP or TST agent concepts — CR is treated as a document to be written, not a pipeline of implementation phases"
+    }
+  ],
+  "summary": {
+    "assertions_total": 5,
+    "assertions_passed": 0,
+    "pass_rate": 0.0
+  }
+}

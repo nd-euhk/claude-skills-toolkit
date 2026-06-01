@@ -1,0 +1,12 @@
+C4Container
+    title Container Diagram -- sanitizer-service
+
+    Container_Boundary(sanitizer_svc, "sanitizer-service (Python Package)") {
+        Component(email_validator_fn, "validate_email()", "Python function", "Email format validation. Returns bool. No I/O, no state.")
+        Component(sanitize_fn, "sanitize_input()", "Python function", "String sanitization. Returns str. No I/O, no state.")
+    }
+
+    System_Ext(user_svc, "User Service", "Registration, login, profile update flows")
+
+    Rel(user_svc, email_validator_fn, "Calls directly (in-process function call)")
+    Rel(user_svc, sanitize_fn, "Calls directly (in-process function call)")

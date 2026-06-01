@@ -1,0 +1,25 @@
+graph LR
+    title Data Flow -- Email Validation
+
+    subgraph user_flows["User Service Flows (Callers)"]
+        registration["Registration"]
+        login["Login"]
+        profile["Profile Update"]
+    end
+
+    subgraph sanitizer["sanitizer-service"]
+        validate_email["validate_email(email)"]
+        sanitize_input["sanitize_input(input)"]
+    end
+
+    registration -->|"email: str | None"| validate_email
+    login -->|"email: str | None"| validate_email
+    profile -->|"email: str | None"| validate_email
+    registration -->|"raw input: str | None"| sanitize_input
+    profile -->|"raw input: str | None"| sanitize_input
+
+    validate_email -->|"bool"| registration
+    validate_email -->|"bool"| login
+    validate_email -->|"bool"| profile
+    sanitize_input -->|"str"| registration
+    sanitize_input -->|"str"| profile

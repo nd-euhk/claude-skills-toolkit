@@ -1,0 +1,31 @@
+{
+  "eval_id": 3,
+  "skill_path": ".claude/skills/orchestrator/SKILL.md",
+  "assertions": [
+    {
+      "text": "Correctly identifies input as 'cook' workflow type and routes to cook workflow",
+      "type": "behaviour",
+      "target": "Workflow routing logic"
+    },
+    {
+      "text": "Mentions invoking sprint to pick a Ready task from the board",
+      "type": "presence",
+      "target": "Phase 1: Pick Task"
+    },
+    {
+      "text": "Mentions assessing BE and FE impact during planning phase",
+      "type": "presence",
+      "target": "Phase 2: Plan - BE/FE Impact Assessment"
+    },
+    {
+      "text": "Describes TDD red→green→refactor→gate pipeline with correct sequencing",
+      "type": "structure",
+      "target": "Phase 3: Execute TDD Pipeline"
+    },
+    {
+      "text": "Mentions gate mode routing: light after green, full after refactor",
+      "type": "presence",
+      "target": "Gate mode routing"
+    }
+  ]
+}
