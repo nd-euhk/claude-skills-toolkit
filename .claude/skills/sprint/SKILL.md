@@ -8,219 +8,151 @@ description: >-
 
 # Sprint — Roadmap, Backlog, Board Management
 
-Manage sprint documents in a 3-tier hierarchy: Roadmap (Theme/Epic) → Backlog (Feature) → Board (Task/Story). Supports top-down breakdown and bottom-up sync.
+Route sprint operations to the sprint-master agent — This skill detects the operation and spawns `Agent(sprint-master)` with the right context — keeping heavy processing out of the main agent's context.
 
 ## Quick Start
 
-### Document Hierarchy
+### Step 1: Detect Operation
+
+Parse the user's request for the operation type:
+
+| User says | Operation |
+|-----------|-----------|
+| "breakdown", "decompose" | **breakdown** → ask scope |
+| "sync", "propagate", "update roadmap from board" | **sync** |
+| "move", "update status", "change task" | **move** |
+| "create board", "new sprint board" | **create-board** |
+| "create backlog", "new backlog" | **create-backlog** |
+| "plan sprint", "setup sprint" | **plan-sprint** |
+| "update progress", "refresh board" | **update-progress** |
+| "add feature" | **add-feature** |
+
+If user intent is clear from input (e.g., "move FR-AUTH-001 to Done"), skip to Step 4 and spawn directly.
+
+### Step 2: Disambiguate Operation (Q1)
+
+If operation is unclear, ask with max 4 options:
 
 ```
-agent_docs/roadmap.md          ← Theme/Epic (WHAT & WHEN — timeline, phases, milestones)
-        │
-        ▼
-    .work/backlog.md           ← Feature (WHAT — prioritized feature list with specs)
-        │
-        ▼
-    .work/board.md             ← Task/Story (HOW & WHO — current sprint execution)
+questions: [
+  {
+    question: "What sprint operation do you need?",
+    header: "Operation",
+    options: [
+      { label: "Break down", description: "Decompose epics or features into smaller units" },
+      { label: "Sync status", description: "Propagate task status bottom-up: Board → Backlog → Roadmap" },
+      { label: "Move task", description: "Update a task's status on the board" },
+      { label: "Create", description: "Create a new board or backlog from template" }
+    ],
+    multiSelect: false
+  }
+]
 ```
 
-### When to Use
+### Step 3: Resolve Details (Q2)
 
-| Trigger | Workflow |
-|---------|----------|
-| "breakdown epic X", "create features from theme", "decompose roadmap" | [Breakdown (Top-Down)](#workflow-1-breakdown-top-down) |
-| "sync status", "update roadmap from board", "propagate status" | [Sync Status (Bottom-Up)](#workflow-2-sync-status-bottom-up) |
-| "move task X to done", "update board", "change task status" | [Update Task Status](#workflow-3-update-task-status) |
+Based on Q1 answer, ask one follow-up:
 
-### File Paths
+**If "Break down"** — ask scope:
 
-| Document | Default Path | Template |
-|----------|-------------|----------|
-| Roadmap | `agent_docs/roadmap.md` | `references/roadmap-template.md` |
-| Backlog | `.work/backlog.md` | `references/backlog-template.md` |
-| Board | `.work/board.md` | `references/board-template.md` |
+```
+questions: [
+  {
+    question: "What depth of breakdown?",
+    header: "Scope",
+    options: [
+      { label: "Full flow", description: "Epic → Features → Tasks (end to end)" },
+      { label: "Epic → Features", description: "Decompose epic into backlog features only" },
+      { label: "Feature → Tasks", description: "Decompose an existing feature into board tasks only" }
+    ],
+    multiSelect: false
+  }
+]
+```
 
-### Arguments (Human Invocation)
+Map: "Full flow" → `breakdown`, "Epic → Features" → `breakdown-epic`, "Feature → Tasks" → `breakdown-feature`.
 
-Use `/sprint:<action> <args>` to invoke directly:
+**If "Create"** — ask artifact:
 
-| Command | Args | Description |
-|---------|------|-------------|
-| `/sprint:breakdown <epic-ref>` | `phase.task` or `epic name` | Break down an epic into backlog features and board tasks |
-| `/sprint:sync` | `--direction up|down|full` (default: full) | Sync status across hierarchy levels |
-| `/sprint:move <task-id> <status>` | FR ID + target status | Move a task to a new board column |
-| `/sprint:create-board` | `--sprint N` `--goal "..."` | Create a new board from template |
-| `/sprint:create-backlog` | (none) | Create a new backlog from template |
+```
+questions: [
+  {
+    question: "What do you want to create?",
+    header: "Artifact",
+    options: [
+      { label: "Sprint board", description: "Create a new Kanban board for current sprint" },
+      { label: "Backlog", description: "Create a new prioritized backlog" },
+      { label: "Both", description: "Create board + backlog from templates" }
+    ],
+    multiSelect: false
+  }
+]
+```
+
+Map: "Sprint board" → `create-board`, "Backlog" → `create-backlog`, "Both" → spawn twice.
+
+**If "Move task"** — no Q2 needed. Ask for task ID and target status inline, then spawn.
+
+### Step 4: Spawn Sprint Agent
+
+Spawn `Agent(sprint-master)` with a self-contained prompt including: operation, target, and user request.
+
+**Prompt template:**
+
+> Sprint operation: {operation}
+> Target: {epic-ref | task-id | sprint-number}
+> User request: {original user message}
 
 **Examples:**
-```
-/sprint:breakdown 1.1                          # Break down epic 1.1 from roadmap
-/sprint:sync --direction up                    # Sync board status → backlog only
-/sprint:move FR-AUTH-001 Done                  # Move task to Done column
-/sprint:create-board --sprint 1 --goal "MVP user auth"
-```
-
-## Workflow 1: Breakdown (Top-Down)
-
-Decompose from Theme/Epic (Roadmap) → Feature (Backlog) → Task/Story (Board).
-
-### Step 1: Read Roadmap — Identify Source Theme/Epic
-
-Read `agent_docs/roadmap.md`. Find the Phase/Theme containing the epic to break down. Each row in a Phase table is an epic-level item:
-
-```markdown
-| # | Task | Service/Component | Spec | Assignee | Status |
-|---|------|-------------------|------|----------|--------|
-| 1.1 | User Authentication | auth-service | `specs/auth.md` | 🔲 Todo |
-```
-
-Output: the epic to break down (e.g., Phase 1, Task 1.1 "User Authentication").
-
-### Step 2: Create Feature in Backlog
-
-Read `.work/backlog.md`. Add new feature to the matching priority section (Must/Should/Nice-to-have). Feature format:
-
-```markdown
-### FEAT-{NNN}: {Feature Name}
-
-- **Source**: {{ epic/theme from roadmap, phase N, task N.N }}
-- **Description**: {{ 1-2 sentences }}
-- **Priority**: Must | Should | Nice-to-have
-- **Target Sprint**: Sprint {{N}}
-- **Services**: {{service, service}}
-- **Specs**:
-  - FR: `agent_docs/features/FR-{DOM}-{NNN}--{slug}.md`
-  - Impl: `agent_docs/backend/{svc}/implementation/FR-{DOMAIN}-{NNN}--{slug}-impl.md`
-  - Test: `agent_docs/backend/{svc}/test-specs/FR-{DOMAIN}-{NNN}--{slug}-test.md`
-- **Tasks**: (auto-generated when synced to board)
-- **Status**: 🔲 Backlog | 🚧 In Progress | ✅ Done
-- **CRs**: (link to CR if applicable)
-```
-
-If backlog doesn't exist, create from `references/backlog-template.md`.
-
-### Step 3: Create Task/Story on Board
-
-Read `.work/board.md`. Add tasks to the `📋 TODO` column of the current sprint. Task format:
-
-```markdown
-| 📋 TODO | FR-{DOM}-{NNN} | {Feature Name}: {Sub-task} | {assignee} | {SP} |
-```
-
-Each feature typically generates 2-5 tasks. Breakdown patterns:
-- **Backend feature**: API endpoint → Service logic → Repository → Tests → Migration
-- **Frontend feature**: Component → State management → API integration → Tests → A11y
-- **Full-stack**: Backend tasks first, Frontend tasks after
-
-### Step 4: Update Cross-References
-
-After breakdown, update backlinks:
-- In roadmap: add reference to feature ID in backlog
-- In backlog: add reference to tasks on board
-- On board: add reference to parent feature and epic
-
-## Workflow 2: Sync Status (Bottom-Up)
-
-Synchronize status bottom-up: Board (Task/Story) → Backlog (Feature) → Roadmap (Theme/Epic).
-
-### Sync Rules
-
-| Level | Rule |
-|-------|------|
-| **Board → Backlog** | Feature status = aggregate of all tasks belonging to that feature |
-| **Backlog → Roadmap** | Epic/Theme status = aggregate of all features belonging to that epic/theme |
-
-### Aggregate Logic
 
 ```
-If ALL children = ✅ Done        → Parent = ✅ Done
-If ANY child = 🚧 In Progress   → Parent = 🚧 In Progress
-If ANY child = 👀 In Review     → Parent = 🚧 In Progress
-If ANY child = ⛔ Blocked        → Parent = ⛔ Blocked + note reason
-If ANY child = 🟢 Ready         → Parent = 🚧 In Progress
-If ALL children = 🔲 Todo        → Parent = 🔲 Todo
-Default (mixed)                  → Parent = 🚧 In Progress
+// Full flow breakdown
+Agent(sprint-master, prompt: "
+  Sprint operation: breakdown
+  Target: 1.1 (User Authentication from roadmap Phase 1)
+  User request: breakdown epic 1.1 into features and tasks
+")
+
+// Epic → Features only
+Agent(sprint-master, prompt: "
+  Sprint operation: breakdown-epic
+  Target: 1.1 (User Authentication from roadmap Phase 1)
+  User request: breakdown epic 1.1 into features
+")
+
+// Feature → Tasks only
+Agent(sprint-master, prompt: "
+  Sprint operation: breakdown-feature
+  Target: FR-AUTH-001 (Login feature)
+  User request: breakdown FR-AUTH-001 into board tasks
+")
+
+// Sync
+Agent(sprint-master, prompt: "
+  Sprint operation: sync
+  User request: sync status from board to backlog
+")
+
+// Move task
+Agent(sprint-master, prompt: "
+  Sprint operation: move
+  Target: FR-AUTH-001
+  Target status: Done
+  User request: move FR-AUTH-001 to Done
+")
+
+// Create board
+Agent(sprint-master, prompt: "
+  Sprint operation: create-board
+  Flags: --sprint 1 --goal "MVP user authentication"
+  User request: create sprint 1 board for MVP auth
+")
 ```
-
-### Step 1: Read Board → Aggregate to Backlog
-
-Iterate all tasks on board. Group by feature ID. Apply aggregate logic to compute status for each feature. Update `backlog.md`.
-
-### Step 2: Read Backlog → Aggregate to Roadmap
-
-Iterate all features in backlog. Group by epic/theme (from "Source" field). Apply aggregate logic to compute status for each epic. Update `roadmap.md`.
-
-### Step 3: Report
-
-After sync, print summary report:
-
-```
-Sync Status Report:
-  Epic "User Authentication": 🚧 In Progress (2/5 features done)
-    ├─ FEAT-001 Login: ✅ Done (3/3 tasks)
-    ├─ FEAT-002 Registration: 🚧 In Progress (1/3 tasks)
-    └─ FEAT-003 Password Reset: 🔲 Todo (0/2 tasks)
-```
-
-## Workflow 3: Update Task Status
-
-Update status and move tasks between board columns.
-
-### Status Transitions
-
-```
-🔲 Todo ──→ 🟢 Ready ──→ 🚧 In Progress ──→ 👀 In Review ──→ ✅ Done
-  │            │              │                   │              │
-  └────────────┴──────────────┴───────────────────┴──────────────┘
-                              ⛔ Blocked (from any state)
-```
-
-Rules:
-- 🔲 Todo → 🟢 Ready: Task is fully specified, unblocked, and ready for execution
-- 🟢 Ready → 🚧 In Progress: Assignee starts work
-- 🟢 Ready → 🔲 Todo: Task needs more clarification, return to todo
-- Task can move from any state → ⛔ Blocked (must have reason)
-- ⛔ Blocked → returns to previous state before block
-- ✅ Done → cannot move to other states (special reopen exception)
-
-### Step 1: Locate Task
-
-Find task on board by FR ID or description. If no exact match, ask user to select from close matches.
-
-### Step 2: Validate Transition
-
-Check if transition is valid. If invalid (e.g., Todo → Done skipping Ready/In Progress), warn and ask for confirmation.
-
-### Step 3: Update Board
-
-Move the task row from old column to new column in the board table. Add timestamp if board has `Updated` column.
-
-### Step 4: (Optional) Trigger Sync
-
-Ask if user wants to sync status to backlog/roadmap. If yes, run [Workflow 2](#workflow-2-sync-status-bottom-up).
 
 ## Key Notes
 
-**Status conventions** — Use emoji prefixes:
-`🔲 Todo`, `🟢 Ready`, `🚧 In Progress`, `👀 In Review`, `✅ Done`, `⛔ Blocked`
+**Agent handles everything.** The sprint agent at `.claude/agents/sprint-master.md` owns all knowledge about artifact formats, status transitions, sync logic, and gate criteria. Do NOT duplicate that knowledge here.
 
-**Creating new files** — When a file doesn't exist, create from template in `references/`:
-- Roadmap: `references/roadmap-template.md`
-- Backlog: `references/backlog-template.md`
-- Board: `references/board-template.md`
+**Standalone usage.** When the sprint agent is spawned directly (not via this skill), it reads current state from files and determines the operation autonomously.
 
-**Granularity rules:**
-- 1 Epic (Roadmap) = 2-8 Features (Backlog)
-- 1 Feature (Backlog) = 2-5 Tasks (Board)
-- If exceeded → consider splitting epic/feature
-
-**Cross-reference format** — Each document uses frontmatter with `depends_on` and `referenced_by` for automated traceability.
-
-**Idempotency** — Breakdown and sync are idempotent. Re-running won't create duplicates if items already exist (matched by ID).
-
-## References
-
-- `references/roadmap-template.md` — Template for creating new roadmap.md
-- `references/backlog-template.md` — Template for creating new backlog.md
-- `references/board-template.md` — Template for creating new board.md
-- `references/status-transitions.md` — Complete status transition matrix
+**No file modification here.** This skill never reads or writes sprint artifacts directly. All work is delegated to the sprint agent.
