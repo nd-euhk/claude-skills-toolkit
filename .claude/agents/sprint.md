@@ -124,10 +124,10 @@ Default templates for output format. Use these unless the spawning skill specifi
 
 | Output | Template |
 |--------|----------|
-| Roadmap | `.claude/templates/agt/roadmap-TEMPLATE.md` |
+| Roadmap | `.claude/templates/sprint/roadmap-TEMPLATE.md` |
+| Backlog | `.claude/templates/sprint/backlog-TEMPLATE.md` |
+| Board | `.claude/templates/sprint/board-TEMPLATE.md` |
 | Feature Index (read-only reference) | `.claude/templates/agt/feature-index-TEMPLATE.md` |
-
-Board and backlog formats are inline in this agent's Procedure section (formats are simple Kanban/list tables — no external template needed).
 
 **Override rule**: If the spawn prompt specifies a different template path, use that instead of the defaults above.
 ## Anti-Patterns
