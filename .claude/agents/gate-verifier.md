@@ -371,6 +371,13 @@ Pick 2-3 NFRs from SRS.md. Trace them:
 
 ---
 
+## Reverse-Engineering Mode
+
+When operating in reverse-engineering mode (explore workflow), you verify artifacts produced by the explore pipeline. Gate criteria apply as written — only the artifact root differs (sandbox path provided in the spawn prompt instead of project root).
+
+- **No PRD/URD traceability:** Skip checks that require PRD/URD cross-references. Instead, verify each FR traces to a source code location where behavior was observed.
+- **All other gate criteria:** Apply as written.
+
 ## Anti-Patterns
 
 - Do NOT modify any files — this is read-only verification

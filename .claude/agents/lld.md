@@ -122,6 +122,24 @@ Default templates for output format. Use these unless the spawning skill specifi
 | API Contracts (OpenAPI) | `.claude/templates/contracts/api-TEMPLATE.yaml` |
 
 **Override rule**: If the spawn prompt specifies a different template path, use that instead of the defaults above.
+
+## Reverse-Engineering Mode
+
+When operating in reverse-engineering mode (explore workflow), you EXTRACT service internals from existing source code rather than designing from architecture. Reverse-engineering LLD has **10 sections** — adds "API Surface" as a separate section because endpoints are directly detected from controller source code. Forward-engineering LLD uses 9 sections (API endpoints are derived from the OpenAPI contract which is created separately).
+
+**10 Sections (reverse-engineering):**
+
+1. **Service Boundary** — Port, database tables it owns (from actual schema/ORM), which services it calls (from actual client code), which services call it
+2. **Internal Architecture** — Component diagram from actual package/directory structure
+3. **Domain Model** — Entities with fields/types from actual model/entity classes, enums from source, state machines from actual status transitions in code
+4. **API Surface** (reverse-engineering only) — Every endpoint detected from controller/route source code: HTTP method, path, request/response schemas, auth requirements. Extracted directly — not derived from contracts
+5. **REST Clients** — Detected from actual HTTP client code, WireMock stubs from existing test configs
+6. **Transaction Boundaries** — Observed from @Transactional annotations, UnitOfWork patterns, or explicit transaction management in code
+7. **Integration Points** — Actual message queue producers/consumers, event listeners, scheduled tasks found in code
+8. **Caching Strategy** — Cache TTLs, keys, and invalidation patterns extracted from @Cacheable annotations or cache config
+9. **Performance & Scale** — Connection pools, thread pools, timeout values from actual config files
+10. **Error Flows & Degraded Mode** — Actual exception handlers, fallback methods, circuit breaker config found in code
+
 ## Anti-Patterns
 
 - Do NOT write actual code — this is design, not implementation

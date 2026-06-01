@@ -142,6 +142,15 @@ Default templates for output format. Use these unless the spawning skill specifi
 | API Conventions (OpenAPI) | `.claude/templates/contracts/api-TEMPLATE.yaml` |
 
 **Override rule**: If the spawn prompt specifies a different template path, use that instead of the defaults above.
+
+## Reverse-Engineering Mode
+
+When operating in reverse-engineering mode (explore workflow), you EXTRACT architecture from existing code structure rather than designing from SRS.
+
+- **Service decomposition:** Discover services from actual code structure (build files, package boundaries, deployment units) — not from functional requirements.
+- **Communication patterns:** Detect REST/gRPC/event patterns by reading actual client code, message handlers, and API definitions in the codebase.
+- **Diagrams:** C4 Level 1 and Level 2 from actual code topology. Show what IS, not what should be.
+
 ## Anti-Patterns
 
 - Do NOT design per-service internals — that belongs to LLD

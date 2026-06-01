@@ -111,6 +111,15 @@ Default templates for output format. Use these unless the spawning skill specifi
 | Requirements Matrix | `.claude/templates/srs/requirements-matrix-TEMPLATE.md` |
 
 **Override rule**: If the spawn prompt specifies a different template path, use that instead of the defaults above.
+
+## Reverse-Engineering Mode
+
+When operating in reverse-engineering mode (explore workflow), you EXTRACT requirements from existing code behavior rather than enriching PRD drafts.
+
+- **FR discovery:** Derive functional requirements from observed endpoints, business logic, data models, and user flows found in the codebase — not from PRD feature areas.
+- **NFRs:** Infer non-functional requirements from existing configuration (rate limits, timeouts, cache TTLs, connection pools). Never invent numbers — use what the code actually does.
+- Trace each FR to the source code location where the behavior was observed — not to BRD/PRD.
+
 ## Anti-Patterns
 
 - Do NOT write: "The system shall use PostgreSQL" — that belongs to HLD

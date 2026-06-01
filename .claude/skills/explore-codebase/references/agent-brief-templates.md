@@ -347,13 +347,14 @@ For multi-subproject: priority order and rationale.
 ## General-Purpose Agent (Summary Writer)
 
 ```
-Consolidate codebase exploration findings from these artifacts:
-- Scout reports: {list_paths}
-- SRS: {srs_path}
-- HLD: {hld_path}
-- LLD: {lld_path}
-- IMP: {imp_path}
-- TST: {tst_path}
+Consolidate codebase exploration findings from these artifacts under {SANDBOX}/ (single project)
+or {SANDBOX_ROOT}/merged/ (multi-subproject):
+- Scout reports: {SANDBOX}/../scout-*.md
+- SRS: {SANDBOX}/docs/product/SRS.md
+- HLD: {SANDBOX}/docs/architecture/
+- LLD: {SANDBOX}/agent_docs/tech-design/
+- IMP: {SANDBOX}/agent_docs/backend/*/implementation/
+- TST: {SANDBOX}/agent_docs/backend/*/test-specs/
 
 Write to: .work/reports/explore-YYYYMMDD--{slug}.md
 
@@ -398,36 +399,123 @@ Links to each artifact:
 - [TST](path/tst--{slug}.md)
 ```
 
-## Merge Agent (SRS Merge)
+## Merge: SRS Agent
 
 ```
-Merge SRS artifacts from these sub-projects into a unified SRS:
-{subproject_1_srs_path}
-{subproject_2_srs_path}
-...
+Reverse-engineering mode. Merge all per-project SRS artifacts into a unified cross-project SRS.
 
-Output: .work/reports/explore-YYYYMMDD--{slug}/srs--{slug}.md
+Input (all per-project SRS outputs):
+  {SANDBOX_ROOT}/{project-1}/docs/product/SRS.md
+  {SANDBOX_ROOT}/{project-1}/docs/product/features/epic-*/FR-*.md
+  {SANDBOX_ROOT}/{project-1}/agent_docs/traceability/requirements-matrix.md
+  {SANDBOX_ROOT}/{project-2}/docs/product/SRS.md
+  {SANDBOX_ROOT}/{project-2}/docs/product/features/epic-*/FR-*.md
+  {SANDBOX_ROOT}/{project-2}/agent_docs/traceability/requirements-matrix.md
+  ... (all projects)
+
+Output (under {SANDBOX_ROOT}/merged/):
+  - docs/product/SRS.md                                  ← MERGE nội dung (singular)
+  - docs/product/features/epic-{domain}/FR-*.md          ← COPY nguyên file (per-entity)
+  - agent_docs/traceability/requirements-matrix.md        ← MERGE nội dung (singular)
 
 Requirements:
-1. Consolidate all functional requirements from all sub-projects
-   - Group related features across sub-projects
-   - Preserve sub-project attribution for each requirement
-
-2. Distinguish sub-project boundaries:
-   - Mark which requirements are sub-project-specific vs. cross-cutting
-   - Note API contracts at sub-project boundaries
-
-3. Identify cross-cutting concerns:
-   - Authentication/authorization spanning multiple sub-projects
-   - Shared data models or events
-   - Common infrastructure requirements
-
-4. Merge NFRs:
-   - For each NFR category, take the strictest value across all sub-projects
-   - Document which sub-project drove each threshold
-
-5. Unified traceability matrix:
-   - Map requirements to both sub-projects and architectural components
+- SRS.md: consolidate all FRs, NFRs, scope from every project into one document
+- requirements-matrix.md: merge all project matrices, add project column for attribution
+- FR-*.md: mỗi feature file duy nhất cho 1 project — copy as-is
+- Merge NFRs: take the strictest value, document which project drove each threshold
 ```
 
-The same merge pattern applies to HLD, LLD, IMP, and TST merge agents — adapt the content type while keeping the consolidation structure.
+## Merge: HLD Agent
+
+```
+Reverse-engineering mode. Merge all per-project HLD artifacts into a unified cross-project HLD.
+
+Input (all per-project HLD outputs):
+  {SANDBOX_ROOT}/{project-1}/docs/architecture/*
+  {SANDBOX_ROOT}/{project-1}/agent_docs/architecture.md
+  {SANDBOX_ROOT}/{project-1}/agent_docs/domain-service-mapping.yaml
+  {SANDBOX_ROOT}/{project-1}/agent_docs/hard-boundaries.md
+  {SANDBOX_ROOT}/{project-1}/agent_docs/contracts/*
+  {SANDBOX_ROOT}/{project-2}/docs/architecture/*
+  ... (all projects)
+
+Output (under {SANDBOX_ROOT}/merged/):
+  - docs/architecture/system-architecture.md               ← MERGE nội dung (singular)
+  - docs/architecture/diagrams/*.mermaid                   ← MERGE nội dung (singular)
+  - agent_docs/architecture.md                              ← MERGE nội dung (singular)
+  - agent_docs/domain-service-mapping.yaml                  ← MERGE nội dung (singular)
+  - agent_docs/hard-boundaries.md                           ← MERGE nội dung (singular)
+  - agent_docs/contracts/api-conventions.md                 ← MERGE nội dung (singular)
+  - agent_docs/contracts/events.md                          ← MERGE nội dung (singular)
+  - docs/architecture/ADRs/ADR-{NNN}-*.md                  ← COPY file, đánh lại NNN nếu trùng
+
+Requirements:
+- Singular files: merge service topologies, API conventions, event taxonomy từ tất cả project
+- ADRs: copy từ mỗi project, renumber NNN if collision. Flag conflicting ADR decisions for human review
+```
+
+## Merge: LLD Agent
+
+```
+Reverse-engineering mode. Merge all per-project LLD artifacts into a unified cross-project LLD.
+
+Input (all per-project LLD outputs):
+  {SANDBOX_ROOT}/{project-1}/agent_docs/tech-design/*
+  {SANDBOX_ROOT}/{project-1}/agent_docs/contracts/api-*.yaml
+  {SANDBOX_ROOT}/{project-1}/agent_docs/features/FR-*.md
+  {SANDBOX_ROOT}/{project-2}/agent_docs/tech-design/*
+  ... (all projects)
+
+Output (under {SANDBOX_ROOT}/merged/):
+  - agent_docs/tech-design/{service-name}-service.md     ← COPY file (per-service, unique)
+  - agent_docs/tech-design/cross-cutting.md              ← MERGE nội dung (singular)
+  - agent_docs/contracts/api-{domain}.yaml               ← COPY file (per-domain, unique)
+  - agent_docs/features/FR-*.md                          ← COPY file (per-FR, unique)
+
+Requirements:
+- {service}-service.md, api-{domain}.yaml, FR-*.md: tất cả per-entity → copy nguyên file
+- cross-cutting.md: tổng hợp shared concerns từ tất cả project
+- Nếu trùng tên service giữa các project → thêm project prefix
+```
+
+## Merge: IMP Agent
+
+```
+Reverse-engineering mode. Merge all per-project IMP artifacts into a unified cross-project IMP.
+
+Input (all per-project IMP outputs):
+  {SANDBOX_ROOT}/{project-1}/agent_docs/backend/*/implementation/FR-*-impl.md
+  {SANDBOX_ROOT}/{project-1}/agent_docs/frontend/*/implementation/FR-*-impl.md
+  {SANDBOX_ROOT}/{project-2}/agent_docs/backend/*/implementation/FR-*-impl.md
+  ... (all projects)
+
+Output (under {SANDBOX_ROOT}/merged/):
+  - agent_docs/backend/{service}/implementation/FR-*-impl.md   ← COPY file (per-FR, unique)
+  - agent_docs/frontend/{app}/implementation/FR-*-impl.md      ← COPY file (per-FR, unique)
+
+Requirements:
+- Toàn bộ là per-FR → copy nguyên file, tổ chức theo service/app giữ nguyên cấu trúc
+```
+
+## Merge: TST Agent
+
+```
+Reverse-engineering mode. Merge all per-project TST artifacts into a unified cross-project TST.
+
+Input (all per-project TST outputs):
+  {SANDBOX_ROOT}/{project-1}/agent_docs/backend/*/test-specs/FR-*-test.md
+  {SANDBOX_ROOT}/{project-1}/agent_docs/frontend/*/test-specs/FR-*-test.md
+  {SANDBOX_ROOT}/{project-1}/agent_docs/performance/*
+  {SANDBOX_ROOT}/{project-2}/agent_docs/backend/*/test-specs/FR-*-test.md
+  ... (all projects)
+
+Output (under {SANDBOX_ROOT}/merged/):
+  - agent_docs/backend/{service}/test-specs/FR-*-test.md      ← COPY file (per-FR, unique)
+  - agent_docs/frontend/{app}/test-specs/FR-*-test.md         ← COPY file (per-FR, unique)
+  - agent_docs/performance/nfr-mapping.md                     ← MERGE nội dung (singular)
+  - agent_docs/performance/baseline.md                        ← MERGE nội dung (singular)
+
+Requirements:
+- FR-*-test.md: tất cả per-FR → copy nguyên file
+- nfr-mapping.md + baseline.md: merge nội dung, strictest threshold, ghi rõ project drive
+```

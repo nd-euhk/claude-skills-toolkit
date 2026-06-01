@@ -194,28 +194,127 @@ Agent(srs)
   → Agent(gate-verifier) × 2 [verify imp and tst in parallel]
 ```
 
-### Brief Templates
+### Sandbox Root
 
-See `references/agent-brief-templates.md` for detailed brief templates for each agent type.
+All agents read and write under a sandbox root. Set it once and pass to every spawn brief:
 
-### Output Paths
+- **Single project:** `SANDBOX=".work/reports/explore-$(date +%Y%m%d)--{slug}"`
+- **Multi-subproject:** `SANDBOX=".work/reports/explore-$(date +%Y%m%d)--{slug}/{project-name}"`
 
-**Single project:**
+Create directories: `mkdir -p "$SANDBOX/docs/product/features" "$SANDBOX/docs/architecture/ADRs" "$SANDBOX/docs/architecture/diagrams" "$SANDBOX/agent_docs"`
+
+### Spawn Briefs
+
+Each agent operates in **reverse-engineering mode** — extracting from existing code behavior rather than enriching PRD drafts. Every brief must pass SANDBOX so the agent knows where to read inputs and write outputs. Output structure mirrors the standard SDLC layout (`docs/`, `agent_docs/`) but rooted under SANDBOX.
+
+**Agent(srs):**
 ```
-.work/reports/explore-YYYYMMDD--{slug}/srs--{slug}.md
-.work/reports/explore-YYYYMMDD--{slug}/hld--{slug}.md
-.work/reports/explore-YYYYMMDD--{slug}/lld--{slug}.md
-.work/reports/explore-YYYYMMDD--{slug}/imp--{slug}.md
-.work/reports/explore-YYYYMMDD--{slug}/tst--{slug}.md
+Reverse-engineering mode. Extract requirements from the codebase based on the scout report.
+
+Input:
+  - Scout report: {SANDBOX}/../scout-{project-name}--{slug}.md (single project)
+    or {SANDBOX}/../../scout-{project-name}--{slug}.md (multi-subproject)
+
+Output (under {SANDBOX}/):
+  - docs/product/SRS.md
+  - docs/product/features/epic-{domain}/FR-{DOMAIN}-{NNN}--{slug}.md (one per feature)
+  - agent_docs/traceability/requirements-matrix.md
+
+Templates: .claude/templates/srs/ unless overridden by spawn prompt.
 ```
 
-**Multi-subproject (sandbox):**
+**Agent(hld):**
 ```
-.work/reports/explore-YYYYMMDD--{slug}/sandbox/{project-name}/srs-{project-name}--{slug}.md
-.work/reports/explore-YYYYMMDD--{slug}/sandbox/{project-name}/hld-{project-name}--{slug}.md
-.work/reports/explore-YYYYMMDD--{slug}/sandbox/{project-name}/lld-{project-name}--{slug}.md
-.work/reports/explore-YYYYMMDD--{slug}/sandbox/{project-name}/imp-{project-name}--{slug}.md
-.work/reports/explore-YYYYMMDD--{slug}/sandbox/{project-name}/tst-{project-name}--{slug}.md
+Reverse-engineering mode. Extract architecture from the codebase based on the SRS and scout report.
+
+Input:
+  - SRS: {SANDBOX}/docs/product/SRS.md
+  - Feature files: {SANDBOX}/docs/product/features/epic-*/FR-*.md
+  - Traceability matrix: {SANDBOX}/agent_docs/traceability/requirements-matrix.md
+  - Scout report: {SANDBOX}/../scout-{project-name}--{slug}.md (adjust path for multi-subproject)
+
+Output (under {SANDBOX}/):
+  - docs/architecture/system-architecture.md
+  - docs/architecture/ADRs/ADR-001-service-decomposition.md
+  - docs/architecture/ADRs/ADR-002-api-conventions.md
+  - docs/architecture/ADRs/ADR-003-event-taxonomy.md
+  - docs/architecture/diagrams/system-context.mermaid
+  - docs/architecture/diagrams/container-diagram.mermaid
+  - docs/architecture/diagrams/data-flow.mermaid
+  - agent_docs/architecture.md
+  - agent_docs/domain-service-mapping.yaml
+  - agent_docs/hard-boundaries.md
+  - agent_docs/contracts/api-conventions.md
+  - agent_docs/contracts/events.md
+
+Templates: .claude/templates/hld/ unless overridden by spawn prompt.
+```
+
+**Agent(lld):**
+```
+Reverse-engineering mode. Extract service internals from the codebase based on the HLD. Reverse-engineering LLD has 10 sections — adds "API Surface" as a separate section because endpoints are detected directly from controller source code.
+
+Input:
+  - Architecture summary: {SANDBOX}/agent_docs/architecture.md
+  - Domain-service mapping: {SANDBOX}/agent_docs/domain-service-mapping.yaml
+  - Hard boundaries: {SANDBOX}/agent_docs/hard-boundaries.md
+  - API conventions: {SANDBOX}/agent_docs/contracts/api-conventions.md
+  - Event contracts: {SANDBOX}/agent_docs/contracts/events.md
+  - SRS: {SANDBOX}/docs/product/SRS.md
+  - Feature files: {SANDBOX}/docs/product/features/epic-*/FR-*.md
+
+Output (under {SANDBOX}/):
+  - agent_docs/tech-design/README.md
+  - agent_docs/tech-design/{service-name}-service.md (one per service, 10 sections)
+  - agent_docs/tech-design/cross-cutting.md
+  - agent_docs/contracts/api-{domain}.yaml (one per service with external APIs)
+  - agent_docs/features/FR-{DOMAIN}-{NNN}--{slug}.md (work packages, one per FR)
+
+Templates: .claude/templates/lld/ unless overridden by spawn prompt.
+```
+
+**Agent(imp):**
+```
+Reverse-engineering mode. Extract implementation patterns from the codebase based on the LLD.
+
+Input:
+  - Work packages: {SANDBOX}/agent_docs/features/FR-*.md
+  - Tech-design: {SANDBOX}/agent_docs/tech-design/{service}-service.md
+  - API contracts: {SANDBOX}/agent_docs/contracts/api-{domain}.yaml
+  - Cross-cutting: {SANDBOX}/agent_docs/tech-design/cross-cutting.md
+  - Feature files: {SANDBOX}/docs/product/features/epic-*/FR-*.md
+
+Output (under {SANDBOX}/):
+  - agent_docs/backend/{service}/implementation/FR-{DOMAIN}-{NNN}-impl.md (backend features)
+  - agent_docs/frontend/{app}/implementation/FR-{DOMAIN}-{NNN}-impl.md (frontend features)
+
+Templates: .claude/templates/impl/ unless overridden by spawn prompt.
+```
+
+**Agent(tst):**
+```
+Reverse-engineering mode. Extract test coverage from existing test code and supplement gaps — rather than writing test specs from FRs for new features.
+
+Input:
+  - Implementation specs: {SANDBOX}/agent_docs/backend/*/implementation/FR-*-impl.md
+  - Implementation specs: {SANDBOX}/agent_docs/frontend/*/implementation/FR-*-impl.md
+  - Tech-design: {SANDBOX}/agent_docs/tech-design/{service}-service.md
+  - SRS (NFR thresholds): {SANDBOX}/docs/product/SRS.md
+
+Output (under {SANDBOX}/):
+  - agent_docs/backend/{service}/test-specs/FR-{DOMAIN}-{NNN}-test.md
+  - agent_docs/frontend/{app}/test-specs/FR-{DOMAIN}-{NNN}-test.md
+  - agent_docs/performance/nfr-mapping.md
+  - agent_docs/performance/baseline.md
+
+Templates: .claude/templates/tst/ unless overridden by spawn prompt.
+```
+
+**Agent(gate-verifier):**
+```
+Reverse-engineering mode. Verify artifact at {SANDBOX}/{artifact_relative_path} of type {srs|hld|lld|imp|tst}. Skip PRD/URD traceability — verify FR traces to source code locations instead. All other gate criteria apply as written.
+
+Return: PASS with summary, or REJECT with specific reasons citing file:line evidence.
 ```
 
 ### Gate Verification
@@ -232,19 +331,145 @@ After each phase, spawn `Agent(gate-verifier)` to verify the output:
 
 ## Phase 5: Merge (Multi-Subproject Only)
 
-After all subprojects complete their SDLC pipelines in the sandbox, merge results into unified artifacts.
+After all subprojects complete their SDLC pipelines, merge per-project sandboxes into unified artifacts. Each agent type merges its own domain — Agent(srs) consolidates SRS outputs from all projects, Agent(hld) consolidates HLD, etc.
 
-Run sequentially:
+Set `SANDBOX_ROOT` to the parent of per-project sandboxes:
 ```
-Agent(srs) → Agent(gate-verifier) → Agent(hld) → Agent(gate-verifier) → Agent(lld) → Agent(gate-verifier) → [Agent(imp) + Agent(tst)] parallel → [Agent(gate-verifier) × 2]
+SANDBOX_ROOT=".work/reports/explore-$(date +%Y%m%d)--{slug}"
 ```
 
-**Brief for each merge agent (see `references/agent-brief-templates.md`):**
-- Input: list of paths to each subproject's artifact
-- Output: unified artifact at `.work/reports/explore-YYYYMMDD--{slug}/{type}--{slug}.md`
-- Requirements: consolidate all functional requirements, distinguish sub-project boundaries, identify cross-cutting concerns, merge NFRs (take the strictest value)
+Create merged directory: `mkdir -p "$SANDBOX_ROOT/merged/docs/product/features" "$SANDBOX_ROOT/merged/docs/architecture/ADRs" "$SANDBOX_ROOT/merged/docs/architecture/diagrams" "$SANDBOX_ROOT/merged/agent_docs"`
 
-Gate verify and re-spawn logic same as Phase 4.
+### Merge Flow
+
+Each merge agent reads all per-project artifacts of its type and produces a single unified output. Run sequentially with gate verification:
+
+```
+Agent(srs) → Agent(gate-verifier)
+→ Agent(hld) → Agent(gate-verifier)
+→ Agent(lld) → Agent(gate-verifier)
+→ Agent(imp) + Agent(tst) [parallel] → Agent(gate-verifier) × 2 [parallel]
+```
+
+Two types of files determine how each agent handles its merge:
+- **Singular files** (SRS.md, system-architecture.md, domain-service-mapping.yaml, cross-cutting.md, nfr-mapping.md, etc.): written by every project → **MERGE nội dung**
+- **Per-entity files** (FR-*.md, {service}-service.md, *-impl.md, *-test.md, api-*.yaml): mỗi project có file riêng → **COPY nguyên file**
+
+### Merge Spawn Briefs
+
+**Agent(srs) — merge:**
+```
+Reverse-engineering mode. Merge all per-project SRS artifacts into a unified cross-project SRS.
+
+Input (all per-project SRS outputs):
+  {SANDBOX_ROOT}/{project-1}/docs/product/SRS.md
+  {SANDBOX_ROOT}/{project-1}/docs/product/features/epic-*/FR-*.md
+  {SANDBOX_ROOT}/{project-1}/agent_docs/traceability/requirements-matrix.md
+  {SANDBOX_ROOT}/{project-2}/docs/product/SRS.md
+  ... (all projects)
+
+Output (under {SANDBOX_ROOT}/merged/):
+  - docs/product/SRS.md                                  ← MERGE nội dung (singular)
+  - docs/product/features/epic-{domain}/FR-*.md          ← COPY nguyên file (per-entity)
+  - agent_docs/traceability/requirements-matrix.md        ← MERGE nội dung (singular)
+
+Requirements:
+- SRS.md: consolidate all FRs, NFRs, scope from every project into one document
+- requirements-matrix.md: merge all project matrices, add project column for attribution
+- FR-*.md: mỗi feature file duy nhất cho 1 project — copy as-is
+- Merge NFRs: take the strictest value, document which project drove each threshold
+```
+
+**Agent(hld) — merge:**
+```
+Reverse-engineering mode. Merge all per-project HLD artifacts into a unified cross-project HLD.
+
+Input (all per-project HLD outputs):
+  {SANDBOX_ROOT}/{project-1}/docs/architecture/*
+  {SANDBOX_ROOT}/{project-1}/agent_docs/architecture.md
+  {SANDBOX_ROOT}/{project-1}/agent_docs/domain-service-mapping.yaml
+  {SANDBOX_ROOT}/{project-1}/agent_docs/hard-boundaries.md
+  {SANDBOX_ROOT}/{project-1}/agent_docs/contracts/*
+  {SANDBOX_ROOT}/{project-2}/docs/architecture/*
+  ... (all projects)
+
+Output (under {SANDBOX_ROOT}/merged/):
+  - docs/architecture/system-architecture.md               ← MERGE nội dung (singular)
+  - docs/architecture/diagrams/*.mermaid                   ← MERGE nội dung (singular)
+  - agent_docs/architecture.md                              ← MERGE nội dung (singular)
+  - agent_docs/domain-service-mapping.yaml                  ← MERGE nội dung (singular)
+  - agent_docs/hard-boundaries.md                           ← MERGE nội dung (singular)
+  - agent_docs/contracts/api-conventions.md                 ← MERGE nội dung (singular)
+  - agent_docs/contracts/events.md                          ← MERGE nội dung (singular)
+  - docs/architecture/ADRs/ADR-{NNN}-*.md                  ← COPY file, đánh lại NNN nếu trùng
+
+Requirements:
+- Singular files: merge service topologies, API conventions, event taxonomy từ tất cả project
+- ADRs: copy từ mỗi project, renumber NNN if collision. Flag conflicting ADR decisions for human review
+```
+
+**Agent(lld) — merge:**
+```
+Reverse-engineering mode. Merge all per-project LLD artifacts into a unified cross-project LLD.
+
+Input (all per-project LLD outputs):
+  {SANDBOX_ROOT}/{project-1}/agent_docs/tech-design/*
+  {SANDBOX_ROOT}/{project-1}/agent_docs/contracts/api-*.yaml
+  {SANDBOX_ROOT}/{project-1}/agent_docs/features/FR-*.md
+  {SANDBOX_ROOT}/{project-2}/agent_docs/tech-design/*
+  ... (all projects)
+
+Output (under {SANDBOX_ROOT}/merged/):
+  - agent_docs/tech-design/{service-name}-service.md     ← COPY file (per-service, unique)
+  - agent_docs/tech-design/cross-cutting.md              ← MERGE nội dung (singular)
+  - agent_docs/contracts/api-{domain}.yaml               ← COPY file (per-domain, unique)
+  - agent_docs/features/FR-*.md                          ← COPY file (per-FR, unique)
+
+Requirements:
+- {service}-service.md, api-{domain}.yaml, FR-*.md: tất cả per-entity → copy nguyên file
+- cross-cutting.md: tổng hợp shared concerns từ tất cả project
+- Nếu trùng tên service giữa các project → thêm project prefix
+```
+
+**Agent(imp) — merge:**
+```
+Reverse-engineering mode. Merge all per-project IMP artifacts into a unified cross-project IMP.
+
+Input (all per-project IMP outputs):
+  {SANDBOX_ROOT}/{project-1}/agent_docs/backend/*/implementation/FR-*-impl.md
+  {SANDBOX_ROOT}/{project-1}/agent_docs/frontend/*/implementation/FR-*-impl.md
+  {SANDBOX_ROOT}/{project-2}/agent_docs/backend/*/implementation/FR-*-impl.md
+  ... (all projects)
+
+Output (under {SANDBOX_ROOT}/merged/):
+  - agent_docs/backend/{service}/implementation/FR-*-impl.md   ← COPY file (per-FR, unique)
+  - agent_docs/frontend/{app}/implementation/FR-*-impl.md      ← COPY file (per-FR, unique)
+
+Requirements:
+- Toàn bộ là per-FR → copy nguyên file, tổ chức theo service/app giữ nguyên cấu trúc
+```
+
+**Agent(tst) — merge:**
+```
+Reverse-engineering mode. Merge all per-project TST artifacts into a unified cross-project TST.
+
+Input (all per-project TST outputs):
+  {SANDBOX_ROOT}/{project-1}/agent_docs/backend/*/test-specs/FR-*-test.md
+  {SANDBOX_ROOT}/{project-1}/agent_docs/frontend/*/test-specs/FR-*-test.md
+  {SANDBOX_ROOT}/{project-1}/agent_docs/performance/*
+  {SANDBOX_ROOT}/{project-2}/agent_docs/backend/*/test-specs/FR-*-test.md
+  ... (all projects)
+
+Output (under {SANDBOX_ROOT}/merged/):
+  - agent_docs/backend/{service}/test-specs/FR-*-test.md      ← COPY file (per-FR, unique)
+  - agent_docs/frontend/{app}/test-specs/FR-*-test.md         ← COPY file (per-FR, unique)
+  - agent_docs/performance/nfr-mapping.md                     ← MERGE nội dung (singular)
+  - agent_docs/performance/baseline.md                        ← MERGE nội dung (singular)
+
+Requirements:
+- FR-*-test.md: tất cả per-FR → copy nguyên file
+- nfr-mapping.md + baseline.md: merge nội dung, strictest threshold, ghi rõ project drive
+```
 
 ## Phase 6: Sprint Integration
 
@@ -278,17 +503,18 @@ See `references/sprint-integration.md` for detailed integration logic.
 
 ## Phase 7: Summary
 
-Spawn `Agent(general-purpose)` to write the summary to `.work/reports/explore-YYYYMMDD--{slug}.md`.
+Spawn `Agent(general-purpose)` to write the summary.
 
 **Brief:**
 ```
-Consolidate codebase exploration findings from these artifacts:
-- Scout reports: {list_paths}
-- SRS: {srs_path}
-- HLD: {hld_path}
-- LLD: {lld_path}
-- IMP: {imp_path}
-- TST: {tst_path}
+Consolidate codebase exploration findings from these artifacts under {SANDBOX}/ (single project)
+or {SANDBOX_ROOT}/merged/ (multi-subproject):
+- Scout reports: {SANDBOX}/../scout-*.md
+- SRS: {SANDBOX}/docs/product/SRS.md
+- HLD: {SANDBOX}/docs/architecture/
+- LLD: {SANDBOX}/agent_docs/tech-design/
+- IMP: {SANDBOX}/agent_docs/backend/*/implementation/
+- TST: {SANDBOX}/agent_docs/backend/*/test-specs/
 
 Write to: .work/reports/explore-YYYYMMDD--{slug}.md
 
