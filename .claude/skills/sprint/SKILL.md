@@ -4,7 +4,6 @@ description: >-
   Manage roadmap, backlog, and board documents. Use when breaking down
   themes/epics into features then tasks/stories, syncing status bottom-up
   from board to roadmap, or updating task status on the board.
-version: 1.0.1
 ---
 
 # Sprint — Roadmap, Backlog, Board Management
@@ -190,15 +189,7 @@ Find task on board by FR ID or description. If no exact match, ask user to selec
 
 ### Step 2: Validate Transition
 
-Check if transition is valid against the status flow diagram above.
-
-**Valid transition** → proceed to Step 3.
-
-**Invalid transition** (e.g., Todo → Done skipping Ready/In Progress/Review):
-1. **REJECT the transition** — do NOT move the task
-2. Log the rejection with reason in `transition_log.md`
-3. Only apply if user explicitly confirms override after warning
-4. **When no user is available to confirm (automated/agent context): always REJECT** — never override on your own
+Check if transition is valid. If invalid (e.g., Todo → Done skipping Ready/In Progress), warn and ask for confirmation.
 
 ### Step 3: Update Board
 
@@ -226,8 +217,6 @@ Ask if user wants to sync status to backlog/roadmap. If yes, run [Workflow 2](#w
 **Cross-reference format** — Each document uses frontmatter with `depends_on` and `referenced_by` for automated traceability.
 
 **Idempotency** — Breakdown and sync are idempotent. Re-running won't create duplicates if items already exist (matched by ID).
-
-**Transition validation** — Invalid status transitions (skipping states) must always be REJECTED, not applied with warnings. Todo → Done without Ready/In Progress/Review is always invalid. Only apply invalid transitions if user explicitly confirms override.
 
 ## References
 
