@@ -4,8 +4,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Purpose
 
-This repository is a **Claude Code plugin** that bundles reusable skills for creating skills and plugins. The plugin is named **skills-toolkit** and provides Agent Skills that can be auto-activated by Claude or invoked directly with `/skills-toolkit:skill-name` slash commands.
-
 **CRITICAL MINDSET:** Skills are instructions FOR CLAUDE, not documentation FOR PEOPLE. When evaluating or improving a skill, the question is always: "Will this help Claude understand and execute the task?" not "Will people find this easy to read?"
 
 **Plugin structure:** This project is organized as a Claude Code plugin with `.claude-plugin/plugin.json` manifest and `skills/` directory for Agent Skills. Skills control invocation behavior through frontmatter (see [Control who invokes a skill](#control-who-invokes-a-skill) below).
@@ -54,12 +52,12 @@ allowed-tools: Read,Write,Bash(*)   # Optional: principle of least privilege
 ### Agent Skills (in `skills/`)
 Skills are discoverable and invocable via both auto-activation and direct `/` commands:
 
-- **skill-composer** - Create NEW Claude Code skills from scratch following best practices. Claude auto-activates when detecting skill creation tasks; users can invoke directly with `/skills-toolkit:skill-composer`.
-- **skill-refiner** - Improve and validate EXISTING Claude Code skills for clarity, efficiency, and production readiness. Claude auto-activates when detecting skill refinement/validation tasks; users can invoke directly with `/skills-toolkit:skill-refiner`.
-- **skill-tester** - Empirically test and benchmark skills using evaluation-driven development. Two modes: Quick Workflow (fast pass/fail) or Full Pipeline (baseline comparison, metrics, iteration tracking). Users can invoke with `/skills-toolkit:skill-tester`.
-- **plugin-creator** - Create, convert, and validate Claude Code plugins. Claude auto-activates when detecting plugin-related tasks; users can invoke directly with `/skills-toolkit:plugin-creator`.
-- **subagent-creator** - Create, validate, and refine Claude Code subagents. Claude auto-activates for subagent delegation tasks; users can invoke with `/skills-toolkit:subagent-creator`.
-- **hook-creator** - Create, validate, and refine hooks for automating workflows. Claude auto-activates for hook-related work; users can invoke with `/skills-toolkit:hook-creator`.
+- **skill-composer** - Create NEW Claude Code skills from scratch following best practices. Claude auto-activates when detecting skill creation tasks; users can invoke directly with `/skill-composer`.
+- **skill-refiner** - Improve and validate EXISTING Claude Code skills for clarity, efficiency, and production readiness. Claude auto-activates when detecting skill refinement/validation tasks; users can invoke directly with `/skill-refiner`.
+- **skill-tester** - Empirically test and benchmark skills using evaluation-driven development. Two modes: Quick Workflow (fast pass/fail) or Full Pipeline (baseline comparison, metrics, iteration tracking). Users can invoke with `/skill-tester`.
+- **plugin-creator** - Create, convert, and validate Claude Code plugins. Claude auto-activates when detecting plugin-related tasks; users can invoke directly with `/plugin-creator`.
+- **subagent-creator** - Create, validate, and refine Claude Code subagents. Claude auto-activates for subagent delegation tasks; users can invoke with `/subagent-creator`.
+- **hook-creator** - Create, validate, and refine hooks for automating workflows. Claude auto-activates for hook-related work; users can invoke with `/hook-creator`.
 
 No separate command files are needed—skills use frontmatter to control invocation behavior.
 
@@ -137,14 +135,14 @@ After creating a skill, test it empirically using **skill-tester**:
 
 **Quick Workflow** (fast validation):
 ```bash
-/skills-toolkit:skill-tester
+/skill-tester
 # Select skill → Choose "Quick Workflow" → Create test cases → View pass/fail
 ```
 Time: ~2-5 minutes. No baseline, just verify skill works.
 
 **Full Pipeline** (comprehensive benchmarking):
 ```bash
-/skills-toolkit:skill-tester
+/skill-tester
 # Select skill → Choose "Full Pipeline" → Create test cases → See metrics
 ```
 Time: ~5-15 minutes. Includes baseline comparison, token usage, timing deltas.
@@ -255,7 +253,7 @@ When authoring skill examples that show code blocks within code blocks, use thes
    - Default: Both Claude auto-activation and `/` command invocation enabled
    - `disable-model-invocation: true` - Only users can invoke (e.g., for `/deploy`, `/commit`)
    - `user-invocable: false` - Only Claude can invoke (e.g., for background context skills)
-4. Test locally: `claude --plugin-dir . /skills-toolkit:skill-name`
+4. Test locally: `claude --plugin-dir . /skill-name`
 5. Install plugin: `claude plugin install .`
 
 ## Version Release Process
