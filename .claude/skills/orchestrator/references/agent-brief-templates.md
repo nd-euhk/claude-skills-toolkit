@@ -19,8 +19,8 @@ Constraints: [specific rules, gate criteria to meet]
 Context: Task {task-id}: {task-title} — {task-description from sprint}
 Inputs: Plan file at .work/plans/{plan-file}
 Task: Transform the business requirements from the plan into precise, testable software specifications with Gherkin Scenario Outlines, quantified NFRs, and full traceability matrices.
-Output: Write SRS to projects/{project}/specs/srs.md (or the standard location for this repo)
-Constraints: Follow srs agent conventions. Output will be gate-verified for completeness, traceability, and testability.
+Output: Agent will use its default template at `.claude/templates/srs/`
+Constraints: Output will be gate-verified for completeness, traceability, and testability.
 ```
 
 ## HLD Agent Brief
@@ -29,7 +29,7 @@ Constraints: Follow srs agent conventions. Output will be gate-verified for comp
 Context: Task {task-id}: {task-title}
 Inputs: SRS at {srs-output-path}, Plan at .work/plans/{plan-file}
 Task: Design system architecture with C4 diagrams, Architecture Decision Records, bounded context mapping, and service decomposition.
-Output: Write HLD to projects/{project}/specs/hld.md
+Output: Agent will use its default format (see hld agent ## Templates section)
 Constraints: No implementation details, no code, no per-service internals. Output must reference all SRS requirements.
 ```
 
@@ -39,7 +39,7 @@ Constraints: No implementation details, no code, no per-service internals. Outpu
 Context: Task {task-id}: {task-title}
 Inputs: HLD at {hld-output-path}, SRS at {srs-output-path}
 Task: Produce per-service technical design with domain models, transaction boundaries, REST client specs, caching strategies, error flows, and feature work packages.
-Output: Write LLD to projects/{project}/specs/lld.md
+Output: Agent will use its default format (see lld agent ## Templates section)
 Constraints: Service internals only. No new architectural decisions — follow HLD boundaries.
 ```
 
@@ -49,7 +49,7 @@ Constraints: Service internals only. No new architectural decisions — follow H
 Context: Task {task-id}: {task-title}
 Inputs: LLD at {lld-output-path}, HLD at {hld-output-path}
 Task: Write implementation specifications for each feature covering execution flow, business rules, data impact, error mapping, and security considerations.
-Output: Write IMP to projects/{project}/specs/imp.md
+Output: Agent will use `.claude/templates/impl/impl-spec-backend-TEMPLATE.md` or `.claude/templates/impl/impl-spec-frontend-TEMPLATE.md`
 Constraints: Specifications only — no actual code. References LLD work packages.
 ```
 
@@ -59,7 +59,7 @@ Constraints: Specifications only — no actual code. References LLD work package
 Context: Task {task-id}: {task-title}
 Inputs: IMP at {imp-output-path}, LLD at {lld-output-path}
 Task: Write test specifications with concrete test cases for unit, integration, E2E, and performance testing following TDD-first approach.
-Output: Write TST to projects/{project}/specs/tst.md
+Output: Agent will use `.claude/templates/tst/test-spec-backend-TEMPLATE.md` or `.claude/templates/tst/test-spec-frontend-TEMPLATE.md`
 Constraints: Test specifications only — no implementation code. References IMP specs for feature behavior.
 ```
 

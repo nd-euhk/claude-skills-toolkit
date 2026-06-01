@@ -127,6 +127,18 @@ Scan all `docs/product/features/epic-*/FR-*.md` and `docs/product/SRS.md`:
 - [ ] Phase 5 backfill complete (no "TBD" references to architecture)
 - [ ] No implementation details: no class names, no database schemas, no code snippets
 
+## Templates
+
+Default templates for output format. Use these unless the spawning skill specifies otherwise.
+
+| Output | Template |
+|--------|----------|
+| System Architecture | Use format defined in this agent's Procedure section |
+| ADR | Follow context/decision/rationale/consequences structure (see Procedure) |
+| Domain-Service Mapping | `.claude/templates/agt/agent-routing-TEMPLATE.md` (reference for routing overlay pattern) |
+| API Conventions | `.claude/templates/contracts/events-TEMPLATE.md` (reference for contract patterns) |
+
+**Override rule**: If the spawn prompt specifies a different template path, use that instead of the defaults above.
 ## Anti-Patterns
 
 - Do NOT design per-service internals — that belongs to LLD

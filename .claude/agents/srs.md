@@ -100,6 +100,17 @@ Run this checklist and report results:
 
 If any gate fails, fix the issue before completing.
 
+## Templates
+
+Default templates for output format. Use these unless the spawning skill specifies otherwise.
+
+| Output | Template |
+|--------|----------|
+| FR file | `.claude/templates/srs/FR-TEMPLATE.md` |
+| SRS | `.claude/templates/srs/SRS-TEMPLATE.md` |
+| Requirements Matrix | `.claude/templates/srs/requirements-matrix-TEMPLATE.md` |
+
+**Override rule**: If the spawn prompt specifies a different template path, use that instead of the defaults above.
 ## Anti-Patterns
 
 - Do NOT write: "The system shall use PostgreSQL" — that belongs to HLD

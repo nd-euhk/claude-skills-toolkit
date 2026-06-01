@@ -118,6 +118,18 @@ Current sprint status (Kanban-style). Format:
 - [ ] Backlog priority order matches MoSCoW from PRD
 - [ ] No feature appears in "Ready for Implementation" unless SRS+HLD+LLD+IMP+TST are all complete
 
+## Templates
+
+Default templates for output format. Use these unless the spawning skill specifies otherwise.
+
+| Output | Template |
+|--------|----------|
+| Roadmap | `.claude/templates/agt/roadmap-TEMPLATE.md` |
+| Feature Index | `.claude/templates/agt/feature-index-TEMPLATE.md` |
+| Agent Routing | `.claude/templates/agt/agent-routing-TEMPLATE.md` |
+| AGENTS.md | `.claude/templates/agt/AGENTS-TEMPLATE.md` |
+
+**Override rule**: If the spawn prompt specifies a different template path, use that instead of the defaults above.
 ## Anti-Patterns
 
 - Do NOT add features to board that haven't passed spec phases

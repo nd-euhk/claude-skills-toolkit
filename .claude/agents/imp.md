@@ -78,6 +78,17 @@ Read each work package's routing overlay:
 - [ ] Error mapping covers at least: validation error, not-found, unauthorized, internal error
 - [ ] Business rules use WHEN/THEN format and trace to Gherkin scenarios
 
+## Templates
+
+Default templates for output format. Use these unless the spawning skill specifies otherwise.
+
+| Output | Template |
+|--------|----------|
+| Backend Impl Spec | `.claude/templates/impl/impl-spec-backend-TEMPLATE.md` |
+| Frontend Impl Spec | `.claude/templates/impl/impl-spec-frontend-TEMPLATE.md` |
+| Migration Spec | `.claude/templates/impl/migration-spec-TEMPLATE.md` |
+
+**Override rule**: If the spawn prompt specifies a different template path, use that instead of the defaults above.
 ## Anti-Patterns
 
 - Do NOT write code snippets in the spec — describe what the code must do, not how to write it

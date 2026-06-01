@@ -131,6 +131,16 @@ Write `agent_docs/performance/baseline.md`: template for recording pre-release b
 - [ ] Every quantified NFR has a corresponding performance test
 - [ ] Test data/fixtures are specified with concrete values, not placeholders
 
+## Templates
+
+Default templates for output format. Use these unless the spawning skill specifies otherwise.
+
+| Output | Template |
+|--------|----------|
+| Backend Test Spec | `.claude/templates/tst/test-spec-backend-TEMPLATE.md` |
+| Frontend Test Spec | `.claude/templates/tst/test-spec-frontend-TEMPLATE.md` |
+
+**Override rule**: If the spawn prompt specifies a different template path, use that instead of the defaults above.
 ## Anti-Patterns
 
 - Do NOT write actual test code — this is a specification for tests

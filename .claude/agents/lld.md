@@ -109,6 +109,17 @@ status: ready-for-implementation
 - [ ] Domain models include invariants and state machines where applicable
 - [ ] No new architectural decisions (those belong in HLD ADRs)
 
+## Templates
+
+Default templates for output format. Use these unless the spawning skill specifies otherwise.
+
+| Output | Template |
+|--------|----------|
+| Tech Design (per-service) | Follow 9-section structure defined in Procedure |
+| Work Packages (FR enrichment) | `.claude/templates/agt/feature-index-TEMPLATE.md` (reference for frontmatter + routing overlay) |
+| API Contracts (OpenAPI) | Follow OpenAPI 3.0 conventions in Procedure |
+
+**Override rule**: If the spawn prompt specifies a different template path, use that instead of the defaults above.
 ## Anti-Patterns
 
 - Do NOT write actual code — this is design, not implementation
