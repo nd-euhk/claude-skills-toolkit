@@ -5,7 +5,7 @@ Pick a Ready task and implement it using TDD (red → green → refactor → gat
 ## Phase 1: Pick Task
 
 1. Invoke `Skill(sprint)` to pick a task from the board with status **Ready**
-2. If no Ready tasks, report and stop
+2. If no Ready tasks, report to human: "No Ready tasks on the board. Run the task workflow first to move a TODO task through SRS→HLD→LLD, or move an existing In Review task to Ready." Then stop.
 3. Capture task details and review existing SRS/HLD/LLD/IMP/TST artifacts from prior phases
 
 ## Phase 2: Plan (skip if --auto)
@@ -78,6 +78,8 @@ Write report to `.work/reports/cook-YYYYMMDD-{FR-name}--{slug}.md` containing:
 - BE results: test count, implementation summary, gate results (light + full), re-spawn count
 - FE results: test count, implementation summary, gate results (light + full), re-spawn count
 - Overall status (Success / Partial / Failed)
+
+After writing the report, invoke `Skill(sprint)` to update the task status: **Ready → Done** (or **Ready → Blocked** if tests failed and need investigation).
 
 ## Phase 5: Next Steps
 
