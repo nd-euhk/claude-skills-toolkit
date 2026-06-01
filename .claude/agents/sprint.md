@@ -126,8 +126,12 @@ Default templates for output format. Use these unless the spawning skill specifi
 |--------|----------|
 | Roadmap | `.claude/templates/agt/roadmap-TEMPLATE.md` |
 | Feature Index | `.claude/templates/agt/feature-index-TEMPLATE.md` |
-| Agent Routing | `.claude/templates/agt/agent-routing-TEMPLATE.md` |
-| AGENTS.md | `.claude/templates/agt/AGENTS-TEMPLATE.md` |
+| Agent Routing Table | `.claude/templates/agt/agent-routing-TEMPLATE.md` |
+| AGENTS.md (project config) | `.claude/templates/agt/AGENTS-TEMPLATE.md` |
+| Project Overview | `.claude/templates/supporting/project-overview-TEMPLATE.md` |
+| Conventions | `.claude/templates/supporting/conventions-TEMPLATE.md` |
+| User Context | `.claude/templates/supporting/user-context-TEMPLATE.md` |
+| Service-Feature Matrix | `.claude/templates/supporting/service-feature-matrix-TEMPLATE.md` |
 
 **Override rule**: If the spawn prompt specifies a different template path, use that instead of the defaults above.
 ## Anti-Patterns

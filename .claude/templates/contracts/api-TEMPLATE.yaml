@@ -1,0 +1,529 @@
+# OpenAPI Contract Templates
+#
+# Mục đích: Chuẩn hóa API contract giữa Backend và Frontend.
+# Mỗi domain tạo 1 file: api-{domain}.yaml
+# AI agent đọc file này biết chính xác request/response schema.
+#
+# Cách dùng:
+# 1. Copy file này thành api-{domain}.yaml
+# 2. Thay {{placeholders}} bằng giá trị thực tế
+# 3. Đảm bảo khớp với error-handling-TEMPLATE.md error codes
+# 4. Frontend và Backend cùng reference file này
+#
+# References:
+#   - impl-spec-backend-TEMPLATE.md → depends_on contracts/api-{domain}.yaml
+#   - api-routing-TEMPLATE.md → depends_on contracts/api-*.yaml
+#   - error-handling-TEMPLATE.md → error response format
+
+openapi: "3.1.0"
+
+info:
+  title: "{{project_name}} — {{Domain}} API"
+  version: "1.0.0"
+  description: |
+    API contract cho domain **{{Domain}}** của dự án {{project_name}}.
+
+    ## Conventions
+    - Base path: `/api/v1`
+    - Authentication: Bearer JWT (RS256)
+    - Error format: Xem `error-handling-TEMPLATE.md` §1
+    - Pagination: page/size/sort query params
+    - Date format: ISO 8601 UTC
+  contact:
+    name: "{{team_name}}"
+
+servers:
+  - url: "http://localhost:8080/api/v1"
+    description: "Development"
+  - url: "https://staging.{{domain}}/api/v1"
+    description: "Staging"
+  - url: "https://{{domain}}/api/v1"
+    description: "Production"
+
+tags:
+  - name: "{{Domain}}"
+    description: "{{Domain}} resource management"
+
+security:
+  - BearerAuth: []
+
+# ─────────────────────────────────────────────────────────────────
+# PATHS — CRUD pattern cho 1 domain resource
+# ─────────────────────────────────────────────────────────────────
+paths:
+
+  # ── LIST + CREATE ────────────────────────────────────────────
+  /{{resources}}:
+    get:
+      tags: ["{{Domain}}"]
+      operationId: "list{{Resources}}"
+      summary: "List {{resources}} với pagination và filtering"
+      description: |
+        Trả về danh sách {{resources}} theo điều kiện filter.
+        - Pagination: page-based (0-indexed)
+        - Sort: field,direction (e.g., `createdAt,desc`)
+        - Filter: query parameters
+      security:
+        - BearerAuth: []
+        # Hoặc bỏ security cho public endpoints:
+        # security: []
+      parameters:
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/SizeParam"
+        - $ref: "#/components/parameters/SortParam"
+        # Domain-specific filters:
+        - name: "{{filterField}}"
+          in: query
+          required: false
+          schema:
+            type: string
+          description: "Filter by {{filterField}}"
+        - name: "search"
+          in: query
+          required: false
+          schema:
+            type: string
+          description: "Full-text search"
+      responses:
+        "200":
+          description: "Paginated list of {{resources}}"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Paginated{{Resource}}Response"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+    post:
+      tags: ["{{Domain}}"]
+      operationId: "create{{Resource}}"
+      summary: "Create a new {{resource}}"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Create{{Resource}}Request"
+      responses:
+        "201":
+          description: "{{Resource}} created successfully"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/{{Resource}}Response"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  # ── GET + UPDATE + DELETE by ID ──────────────────────────────
+  /{{resources}}/{id}:
+    parameters:
+      - $ref: "#/components/parameters/ResourceId"
+
+    get:
+      tags: ["{{Domain}}"]
+      operationId: "get{{Resource}}"
+      summary: "Get {{resource}} by ID"
+      responses:
+        "200":
+          description: "{{Resource}} details"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/{{Resource}}Response"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    put:
+      tags: ["{{Domain}}"]
+      operationId: "replace{{Resource}}"
+      summary: "Full replace {{resource}} (all fields required)"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Create{{Resource}}Request"
+      responses:
+        "200":
+          description: "{{Resource}} replaced"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/{{Resource}}Response"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    patch:
+      tags: ["{{Domain}}"]
+      operationId: "update{{Resource}}"
+      summary: "Partial update {{resource}} (changed fields only)"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Update{{Resource}}Request"
+      responses:
+        "200":
+          description: "{{Resource}} updated"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/{{Resource}}Response"
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    delete:
+      tags: ["{{Domain}}"]
+      operationId: "delete{{Resource}}"
+      summary: "Delete {{resource}}"
+      description: |
+        Soft delete hoặc hard delete tuỳ business rule.
+        → Xem tech-design §3 Domain Model — deletion strategy.
+      responses:
+        "204":
+          description: "{{Resource}} deleted"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ── BULK OPERATIONS (optional) ───────────────────────────────
+  # /{{resources}}/bulk:
+  #   post:
+  #     operationId: "bulk{{Resource}}Action"
+  #     summary: "Bulk action on multiple {{resources}}"
+  #     requestBody:
+  #       content:
+  #         application/json:
+  #           schema:
+  #             $ref: "#/components/schemas/Bulk{{Resource}}Request"
+
+  # ── FILE UPLOAD (optional) ───────────────────────────────────
+  # /{{resources}}/{id}/upload:
+  #   post:
+  #     operationId: "upload{{Resource}}File"
+  #     requestBody:
+  #       content:
+  #         multipart/form-data:
+  #           schema:
+  #             type: object
+  #             properties:
+  #               file:
+  #                 type: string
+  #                 format: binary
+
+# ─────────────────────────────────────────────────────────────────
+# COMPONENTS
+# ─────────────────────────────────────────────────────────────────
+components:
+
+  # ── Security Schemes ─────────────────────────────────────────
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT token obtained from `POST /api/v1/auth/login`.
+        Access token TTL: 15 minutes.
+        Refresh via `POST /api/v1/auth/refresh`.
+
+  # ── Parameters ───────────────────────────────────────────────
+  parameters:
+    ResourceId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: "UUID of the {{resource}}"
+
+    PageParam:
+      name: page
+      in: query
+      required: false
+      schema:
+        type: integer
+        default: 0
+        minimum: 0
+      description: "Page number (0-indexed)"
+
+    SizeParam:
+      name: size
+      in: query
+      required: false
+      schema:
+        type: integer
+        default: 20
+        minimum: 1
+        maximum: 100
+      description: "Number of items per page (max 100)"
+
+    SortParam:
+      name: sort
+      in: query
+      required: false
+      schema:
+        type: string
+        default: "createdAt,desc"
+      description: "Sort: field,direction (e.g., `name,asc`, `createdAt,desc`)"
+
+  # ── Schemas ──────────────────────────────────────────────────
+  schemas:
+
+    # ── Request DTOs ───────────────────────────────────────────
+    Create{{Resource}}Request:
+      type: object
+      required:
+        - "{{requiredField1}}"
+        - "{{requiredField2}}"
+      properties:
+        "{{requiredField1}}":
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: "{{field description}}"
+          example: "{{example value}}"
+        "{{requiredField2}}":
+          type: string
+          description: "{{field description}}"
+          example: "{{example value}}"
+        "{{optionalField}}":
+          type: string
+          description: "{{field description}}"
+          nullable: true
+
+    Update{{Resource}}Request:
+      type: object
+      description: "Partial update — chỉ gửi fields cần thay đổi"
+      properties:
+        "{{field1}}":
+          type: string
+          minLength: 1
+          maxLength: 255
+        "{{field2}}":
+          type: string
+
+    # ── Response DTOs ──────────────────────────────────────────
+    "{{Resource}}Response":
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        "{{field1}}":
+          type: string
+        "{{field2}}":
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+          readOnly: true
+        updatedAt:
+          type: string
+          format: date-time
+          readOnly: true
+      example:
+        id: "550e8400-e29b-41d4-a716-446655440000"
+        "{{field1}}": "{{example}}"
+        "{{field2}}": "{{example}}"
+        createdAt: "2026-01-15T10:30:00Z"
+        updatedAt: "2026-01-15T14:00:00Z"
+
+    # ── Pagination Wrapper ─────────────────────────────────────
+    Paginated{{Resource}}Response:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: "#/components/schemas/{{Resource}}Response"
+        page:
+          type: integer
+          description: "Current page number"
+        size:
+          type: integer
+          description: "Items per page"
+        totalElements:
+          type: integer
+          format: int64
+          description: "Total items across all pages"
+        totalPages:
+          type: integer
+          description: "Total number of pages"
+        first:
+          type: boolean
+        last:
+          type: boolean
+
+    # ── Error Schemas ──────────────────────────────────────────
+    # → Phải khớp với methodology/API-DESIGN-STANDARDS.md §6
+    # → Format: Flat ApiErrorResponse, KHÔNG nested trong `error` object
+
+    ApiErrorResponse:
+      type: object
+      required:
+        - status
+        - code
+        - message
+        - path
+        - timestamp
+        - traceId
+      properties:
+        status:
+          type: integer
+          description: "HTTP status code"
+          example: 400
+        code:
+          type: string
+          description: "Application error code (UPPER_SNAKE_CASE)"
+          example: "VALIDATION_ERROR"
+        message:
+          type: string
+          description: "Human-readable error message"
+          example: "Request validation failed"
+        path:
+          type: string
+          description: "Request path"
+          example: "/api/v1/{{resources}}"
+        timestamp:
+          type: string
+          format: date-time
+          description: "ISO 8601 timestamp"
+          example: "2026-01-30T10:30:00.123456Z"
+        traceId:
+          type: string
+          description: "Distributed trace ID for debugging"
+          example: "abc123def456"
+        details:
+          type: object
+          nullable: true
+          description: "Additional context — errors[] cho validation, resourceType/resourceId cho 404, v.v."
+          properties:
+            errors:
+              type: array
+              nullable: true
+              description: "Only present for VALIDATION_ERROR (400)"
+              items:
+                $ref: "#/components/schemas/FieldError"
+
+    FieldError:
+      type: object
+      properties:
+        field:
+          type: string
+          example: "email"
+        rejectedValue:
+          description: "The rejected value (masked for sensitive fields)"
+          example: "not-an-email"
+        message:
+          type: string
+          example: "Email không đúng định dạng"
+
+  # ── Reusable Responses ───────────────────────────────────────
+  responses:
+    ValidationError:
+      description: "Validation failed — input data invalid"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiErrorResponse"
+          example:
+            status: 400
+            code: "VALIDATION_ERROR"
+            message: "Request validation failed"
+            path: "/api/v1/{{resources}}"
+            timestamp: "2026-01-15T10:30:00Z"
+            traceId: "abc123"
+            details:
+              errors:
+                - field: "{{field}}"
+                  rejectedValue: ""
+                  message: "Không được để trống"
+
+    Unauthorized:
+      description: "Authentication required or token expired"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiErrorResponse"
+          example:
+            status: 401
+            code: "TOKEN_EXPIRED"
+            message: "Phiên đăng nhập hết hạn"
+            path: "/api/v1/{{resources}}"
+            timestamp: "2026-01-15T10:30:00Z"
+            traceId: "abc123"
+            details: {}
+
+    Forbidden:
+      description: "Insufficient permissions"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiErrorResponse"
+          example:
+            status: 403
+            code: "ACCESS_DENIED"
+            message: "Không có quyền truy cập"
+            path: "/api/v1/{{resources}}"
+            timestamp: "2026-01-15T10:30:00Z"
+            traceId: "abc123"
+            details: {}
+
+    NotFound:
+      description: "Resource not found"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiErrorResponse"
+          example:
+            status: 404
+            code: "DATA_NOT_FOUND"
+            message: "{{Resource}} không tìm thấy"
+            path: "/api/v1/{{resources}}/123"
+            timestamp: "2026-01-15T10:30:00Z"
+            traceId: "abc123"
+            details:
+              resourceType: "{{Resource}}"
+              resourceId: "123"
+
+    Conflict:
+      description: "Resource already exists or business rule violation"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiErrorResponse"
+          example:
+            status: 409
+            code: "DUPLICATE_ENTRY"
+            message: "Dữ liệu đã tồn tại"
+            path: "/api/v1/{{resources}}"
+            timestamp: "2026-01-15T10:30:00Z"
+            traceId: "abc123"
+            details:
+              field: "{{field}}"
+              value: "{{value}}"

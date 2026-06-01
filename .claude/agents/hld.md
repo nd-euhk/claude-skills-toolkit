@@ -133,10 +133,13 @@ Default templates for output format. Use these unless the spawning skill specifi
 
 | Output | Template |
 |--------|----------|
-| System Architecture | Use format defined in this agent's Procedure section |
-| ADR | Follow context/decision/rationale/consequences structure (see Procedure) |
-| Domain-Service Mapping | `.claude/templates/agt/agent-routing-TEMPLATE.md` (reference for routing overlay pattern) |
-| API Conventions | `.claude/templates/contracts/events-TEMPLATE.md` (reference for contract patterns) |
+| System Architecture | `.claude/templates/hld/HLD-TEMPLATE.md` |
+| Architecture Decision Record | `.claude/templates/hld/ADR-TEMPLATE.md` |
+| Architecture Summary (agent_docs) | `.claude/templates/hld/architecture-TEMPLATE.md` |
+| Hard Boundaries | `.claude/templates/hld/hard-boundaries-TEMPLATE.md` |
+| Agent Routing / Domain-Service Mapping | `.claude/templates/agt/agent-routing-TEMPLATE.md` |
+| Event Schema | `.claude/templates/contracts/events-TEMPLATE.md` |
+| API Conventions (OpenAPI) | `.claude/templates/contracts/api-TEMPLATE.yaml` |
 
 **Override rule**: If the spawn prompt specifies a different template path, use that instead of the defaults above.
 ## Anti-Patterns

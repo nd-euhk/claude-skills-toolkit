@@ -86,7 +86,9 @@ Default templates for output format. Use these unless the spawning skill specifi
 |--------|----------|
 | Backend Impl Spec | `.claude/templates/impl/impl-spec-backend-TEMPLATE.md` |
 | Frontend Impl Spec | `.claude/templates/impl/impl-spec-frontend-TEMPLATE.md` |
-| Migration Spec | `.claude/templates/impl/migration-spec-TEMPLATE.md` |
+| Database Migration Spec | `.claude/templates/impl/migration-spec-TEMPLATE.md` |
+| Error Codes (reference) | `.claude/templates/contracts/error-codes-TEMPLATE.md` |
+| Event Schema (reference) | `.claude/templates/supporting/event-schema-TEMPLATE.md` |
 
 **Override rule**: If the spawn prompt specifies a different template path, use that instead of the defaults above.
 ## Anti-Patterns

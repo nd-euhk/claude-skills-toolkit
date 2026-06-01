@@ -139,6 +139,8 @@ Default templates for output format. Use these unless the spawning skill specifi
 |--------|----------|
 | Backend Test Spec | `.claude/templates/tst/test-spec-backend-TEMPLATE.md` |
 | Frontend Test Spec | `.claude/templates/tst/test-spec-frontend-TEMPLATE.md` |
+| Error Codes (reference) | `.claude/templates/contracts/error-codes-TEMPLATE.md` |
+| Event Schema (reference) | `.claude/templates/supporting/event-schema-TEMPLATE.md` |
 
 **Override rule**: If the spawn prompt specifies a different template path, use that instead of the defaults above.
 ## Anti-Patterns

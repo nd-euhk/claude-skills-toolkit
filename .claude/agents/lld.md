@@ -115,9 +115,11 @@ Default templates for output format. Use these unless the spawning skill specifi
 
 | Output | Template |
 |--------|----------|
-| Tech Design (per-service) | Follow 9-section structure defined in Procedure |
-| Work Packages (FR enrichment) | `.claude/templates/agt/feature-index-TEMPLATE.md` (reference for frontmatter + routing overlay) |
-| API Contracts (OpenAPI) | Follow OpenAPI 3.0 conventions in Procedure |
+| Per-Service Tech Design | `.claude/templates/lld/lld-TEMPLATE.md` |
+| Spec Boundary Rules | `.claude/templates/lld/SPEC-BOUNDARIES.md` |
+| Feature Work Packages | `.claude/templates/agt/feature-index-TEMPLATE.md` |
+| Error Codes | `.claude/templates/contracts/error-codes-TEMPLATE.md` |
+| API Contracts (OpenAPI) | `.claude/templates/contracts/api-TEMPLATE.yaml` |
 
 **Override rule**: If the spawn prompt specifies a different template path, use that instead of the defaults above.
 ## Anti-Patterns
