@@ -1,7 +1,9 @@
 ---
 name: sprint-master
 description: >-
-  Manage sprint artifacts: roadmap, backlog, and board. Use when updating the
+  Manage sprint artifacts: roadmap, backlog, and board. Use when adding tasks
+  to the board, adding features to the backlog, adding epics/themes to the
+  roadmap, creating or initializing artifacts from templates, updating the
   project roadmap, managing the sprint backlog, organizing the work board,
   planning sprint scope, prioritizing features for upcoming sprints, or tracking
   feature progress across phases. Sprint management only — no technical specs,
@@ -100,10 +102,62 @@ Before making changes, read the current state:
 1. Copy from template at `.claude/templates/sprint/backlog-TEMPLATE.md`
 2. Write to `.work/backlog.md`
 
-### When asked to add a feature
-1. Add to backlog with MoSCoW priority
-2. If it belongs in upcoming sprint, add to roadmap
-3. Do NOT add to board until it has implementation and test specs
+### When asked to create a roadmap
+1. Copy from template at `.claude/templates/sprint/roadmap-TEMPLATE.md`
+2. Fill in project name, timeline, phases
+3. Write to `agent_docs/roadmap.md`
+
+### When asked to add a task to the board
+1. Read `.work/board.md` — create if missing from template at `.claude/templates/sprint/board-TEMPLATE.md`
+2. Read `.work/backlog.md` — verify the parent feature exists by FR-ID
+3. Create task entry following the board template format:
+   - FR-ID: `FR-{DOM}-{NNN}` of the parent feature
+   - Feature column: `{Feature name}: {Sub-task summary}`
+   - Task description: clear, single-person action
+   - Assignee: person name or "ai-agent"
+   - SP: Story Points (Fibonacci: 1, 2, 3, 5, 8)
+   - Status: `🔲 Todo` (start in TODO column)
+   - Updated: current date
+4. Add task row to the 🔲 Todo section of the Sprint Board table
+5. Update Task Summary counts at the top of the board
+6. Update cross-reference: backlog feature → board task (increment "Tasks" count)
+
+### When asked to add a feature to the backlog
+1. Read `.work/backlog.md` — create if missing from template at `.claude/templates/sprint/backlog-TEMPLATE.md`
+2. Determine the feature's MoSCoW priority from context or by reading `docs/product/SRS.md`
+3. Choose the FR-ID: `FR-{DOM}-{NNN}` (domain prefix + next available number)
+4. Add feature entry under the appropriate priority section (Must / Should / Nice-to-have):
+   - Source: epic/theme reference from roadmap
+   - Description: 1-2 sentences (user/business value)
+   - Priority: Must | Should | Nice-to-have
+   - Target Sprint: current or next sprint
+   - Services: affected services
+   - Specs: paths to FR, Impl, Test docs (can be "—" if not yet created)
+   - Tasks: — (not yet broken down)
+   - Status: 🔲 Backlog
+   - CRs: —
+5. Add entry to the Feature → Epic Mapping traceability table at the bottom of the backlog
+6. Update Priority Summary counts at the top of the backlog
+7. If the feature belongs in an upcoming sprint, also add it to the Feature → Phase Mapping in `agent_docs/roadmap.md`
+8. Do NOT add to `.work/board.md` until it has completed all spec phases (SRS+HLD+LLD+IMP+TST)
+
+### When asked to add an epic/theme to the roadmap
+1. Read `agent_docs/roadmap.md` — create if missing from template at `.claude/templates/sprint/roadmap-TEMPLATE.md`
+2. Determine the next available Phase number
+3. Add entry to the Phase Overview table with:
+   - Phase: `{N}. {Epic/Theme Name}`
+   - Sprint: assigned sprint number
+   - Period: estimated weeks
+   - Services: affected services
+   - Features: "—" (not yet decomposed)
+   - Status: 🔲 Todo
+4. Create a new Phase section below with:
+   - Goal: 1-sentence outcome description
+   - Verify: quick verification method
+   - Task breakdown table (initial rows for the epic's tasks)
+5. Update the Dependencies Between Phases diagram to include the new phase
+6. Update the Feature → Phase Mapping table if any features are known
+7. Update the Timeline diagram if the new phase extends the timeline
 
 ## Status Transitions
 
