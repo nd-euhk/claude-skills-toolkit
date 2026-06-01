@@ -114,6 +114,8 @@ Before making changes, read the current state:
                               ⛔ Blocked (from any state)
 ```
 
+**CRITICAL — Todo Emoji:** The Todo status MUST use `🔲 Todo` (black square button emoji), NEVER `📋 TODO` (clipboard emoji). Applies to ALL documents: board Task Summary, board Sprint Board table, backlog features, roadmap phases. `📋` is incorrect — always write `🔲 Todo`.
+
 Valid transitions:
 - 🔲 Todo → 🟢 Ready: Task is fully specified and unblocked
 - 🟢 Ready → 🚧 In Progress: Assignee starts work

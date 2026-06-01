@@ -38,7 +38,7 @@ changelog:
 
 | Status | Count |
 |--------|-------|
-| 📋 TODO | {{N}} |
+| 🔲 Todo | {{N}} |
 | 🟢 Ready | {{N}} |
 | 🚧 In Progress | {{N}} |
 | 👀 In Review | {{N}} |
@@ -59,7 +59,7 @@ changelog:
 
 | Status | FR ID | Feature | Task | Assignee | SP | Updated |
 |--------|-------|---------|------|----------|-----|---------|
-| 📋 TODO | | | | | | |
+| 🔲 Todo | | | | | | |
 | 🟢 Ready | | | | | | |
 | 🚧 In Progress | | | | | | |
 | 👀 In Review | | | | | | |
@@ -68,7 +68,7 @@ changelog:
 
 <!--
   TEMPLATE DATA ROWS — copy and fill in:
-  | 📋 TODO | FR-{DOM}-{NNN} | {Feature name}: {Sub-task} | {Task description} | {name/ai-agent} | {SP} | {{date}} |
+  | 🔲 Todo | FR-{DOM}-{NNN} | {Feature name}: {Sub-task} | {Task description} | {name/ai-agent} | {SP} | {{date}} |
   | 🟢 Ready | FR-{DOM}-{NNN} | {Feature name}: {Sub-task} | {Task description} | {name/ai-agent} | {SP} | {{date}} |
   | 🚧 In Progress | FR-{DOM}-{NNN} | {Feature name}: {Sub-task} | {Task description} | {name/ai-agent} | {SP} | {{date}} |
   | 👀 In Review | FR-{DOM}-{NNN} | {Feature name}: {Sub-task} | {Task description} | {name/ai-agent} | {SP} | {{date}} |
