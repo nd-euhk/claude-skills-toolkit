@@ -2,12 +2,12 @@
 
 Tracks exploration pipeline progress with Task tools. Each phase is a task with `blockedBy` forming the sequential chain. Gate rejection triggers re-spawn with the same task staying in_progress. Max 3 retries per phase.
 
-**Metadata convention**: `phase`, `service` (for lld-service), `fr_id` (for IMP/TST), `effort` (5m-20m).
+**Metadata convention**: `phase` (repomix, scout, srs, hld, lld, imp, tst, sprint, summary), `service` (for lld-service), `fr_id` (for IMP/TST), `effort` (5m-20m).
 **Fallback**: If Task tools unavailable, proceed sequentially — pipeline works identically, only tracking is lost.
 
 ## Unified Parallel Spawn Rule
 
-All parallel agent spawns (Explore, lld-service, imp, tst, gate-verifier) use the same logic:
+All parallel agent spawns (scout, lld-service, imp, tst, gate-verifier) use the same logic. This is the authoritative copy — SKILL.md references this section.
 
 ```
 GIVEN: total = number of agents to spawn
@@ -36,12 +36,15 @@ Count services/FRs at runtime. Create tasks in 2 waves:
 ### Wave 1 — Immediately after Phase 1 (sub-project count known)
 
 ```
-TaskCreate("Scout: {sub-project-1}") × N_subprojects  [parallel, max 15]
-TaskCreate("SRS")                                       [blockedBy: all scout tasks]
-TaskCreate("Gate-SRS")                                  [blockedBy: srs]
-TaskCreate("HLD")                                       [blockedBy: gate-srs]
-TaskCreate("Gate-HLD")                                  [blockedBy: hld]
+TaskCreate("Repomix: {sub-project-1}") × N_subprojects  [sequential]
+TaskCreate("Scout: {sub-project-1}") × N_subprojects     [parallel, max 15, blockedBy: repomix-{sub-project-1}]
+TaskCreate("SRS")                                          [blockedBy: all scout tasks]
+TaskCreate("Gate-SRS")                                     [blockedBy: srs]
+TaskCreate("HLD")                                          [blockedBy: gate-srs]
+TaskCreate("Gate-HLD")                                     [blockedBy: hld]
 ```
+
+Repomix tasks run sequentially (CLI-bound). Scout tasks run in parallel (max 15 concurrent), each blocked by its corresponding repomix task. SRS is blocked by all scout tasks completing.
 
 ### Wave 2 — After HLD + SRS output is available (N services and M FRs known)
 
@@ -67,7 +70,7 @@ Gate rejection keeps task in_progress. After 3 retries, complete with rejection 
 
 ## Single Sub-Project
 
-Skip parallel — 1 task per phase. Creates simpler sequential chain. Per-service parallel adds overhead with no benefit.
+Skip parallel — 1 repomix task, 1 scout task, 1 task per phase. Creates simpler sequential chain. Per-service parallel adds overhead with no benefit.
 
 ## Mode Variants
 

@@ -5,6 +5,7 @@ description: >-
   Invoke when there is a concrete bug, error, or CI failure.
   Trigger phrases: fix the bug, resolve error, debug, test failure,
   CI failing, type error, lint error, runtime error, not working.
+version: 1.0.0
 user-invocable: true
 when_to_use: "Invoke when there is a concrete bug, error, or CI failure."
 category: utilities
@@ -113,7 +114,7 @@ flowchart TD
     I --> J
     J --> K[Step 5: Verify + Prevent]
     K -->|Pass + Prevention in place| L[Step 6: Finalize]
-    K -->|Fail, <3 attempts| D
+    K -->|Fail, &lt;3 attempts| D
     K -->|Fail, 3+ attempts| M[Question Architecture]
     M --> N[Discuss with User]
     L --> O[Report + Docs + Journal]
@@ -171,7 +172,7 @@ flowchart TD
 **Purpose:** Understand the affected codebase BEFORE forming any hypotheses.
 
 **Mandatory skill chain:**
-1. Activate Launch 2-3 parallel `Explore` subagents
+1. Activate Skill(scout) to scout codebase
 2. Discover: affected files, dependencies, related tests, recent changes (`git log`)
 
 **Quick mode:** Minimal scout — locate affected file(s) and their direct dependencies only.
@@ -185,11 +186,12 @@ flowchart TD
 
 **Mandatory skill chain:**
 1. **Capture pre-fix state:** Record exact error messages, failing test output, stack traces, log snippets. This becomes the baseline for Step 5 verification.
-2. Activate `debugging` skill (systematic-debugging + root-cause-tracing techniques).
-3. Activate `sequential-thinking` skill — form hypotheses through structured reasoning, NOT guessing.
-4. Spawn parallel `Explore` subagents to test each hypothesis against codebase evidence.
-5. If 2+ hypotheses fail → auto-activate `problem-solving` skill for alternative approaches.
-6. Create diagnosis report: confirmed root cause, evidence chain, affected scope.
+2. **FR Trace (Phase 1 — Observe):** Map affected files to FR(s) using tiered cascade (IMP doc lookup → test spec lookup → git log → human fallback). Read FR Gherkin scenarios to establish expected behavior. Skip for type errors, lint, or infrastructure bugs. See `references/diagnosis-protocol.md` Phase 1 for full cascade details.
+3. Activate `debugging` skill (systematic-debugging + root-cause-tracing techniques).
+4. Activate `sequential-thinking` skill — form hypotheses through structured reasoning, NOT guessing.
+5. Spawn parallel `Explore` subagents to test each hypothesis against codebase evidence.
+6. If 2+ hypotheses fail → auto-activate `problem-solving` skill for alternative approaches.
+7. Create diagnosis report: confirmed root cause, evidence chain, affected scope, FR trace table.
 
 See `references/diagnosis-protocol.md` for full methodology.
 
@@ -242,11 +244,62 @@ See `references/prevention-gate.md` for prevention requirements.
 
 ### Step 6: Finalize (MANDATORY — never skip)
 
-1. Report summary: confidence score, root cause, changes, files, prevention measures, side-effect sweep results
+1. **Write bug summary report** to `.work/bugs/BUG-YYYYMMDD-{FR-ID}--{slug}.md`:
+
+   **Frontmatter (REQUIRED):**
+   ```yaml
+   ---
+   title: "BUG-{NNN}: {Short Description}"
+   severity: critical | high | medium | low
+   status: diagnosed | fixed | verified | resolved | wont-fix
+   created: YYYY-MM-DD
+   updated: YYYY-MM-DD
+   affected_fr:
+     - "{FR-ID}: {FR title}"
+     - "{FR-ID}: {FR title}"
+   root_cause: "{1-line root cause summary}"
+   workflow: quick | standard | deep
+   mode: autonomous | review | quick | parallel
+   artifacts:
+     - context-snippets.json
+     - risk-gate.json
+     - verification.json
+     - review-decision.json
+   confidence_score: X/10
+   review_score: X/10
+   changelog:
+     - diagnosed | YYYY-MM-DD | Root cause identified: {summary}
+     - fixed | YYYY-MM-DD | Fix implemented in {N} files
+     - verified | YYYY-MM-DD | All tests pass, side-effect sweep clean
+     - resolved | YYYY-MM-DD | Sprint sync complete, committed, journaled
+   ---
+   ```
+   - `affected_fr` is an array: one bug may affect multiple FRs (shared utilities, cross-cutting concerns).
+   - Use `affected_fr: []` for infrastructure/config bugs with no FR mapping.
+
+   **Report Body:**
+   - **FR Trace**: Table mapping each affected FR-ID to confidence level and evidence source
+     ```markdown
+     | FR-ID | Confidence | Source |
+     |-------|-----------|--------|
+     | FR-T-003 | HIGH | IMP doc: `agent_docs/backend/sanitizer/implementation/FR-T-003-impl.md` |
+     | FR-AUTH-001 | HIGH | Test spec: `agent_docs/backend/auth/test-specs/FR-AUTH-001-test.md` |
+     | (none) | — | Infrastructure/config bug — no FR affected |
+     ```
+   - **Root cause**: Exact root cause with evidence chain (file:line citations)
+   - **Symptom vs cause**: What the user saw vs what was actually wrong
+   - **Fix applied**: What was changed, in which files, with rationale
+   - **Blast radius**: All code paths affected, verification results per path
+   - **Side-effect sweep results**: Public contracts checked (signatures, schemas, APIs, env vars), all clear
+   - **Prevention measures**: Tests added, guards added, defense-in-depth layers applied
+   - **Artifacts modified**: Table of all files changed with status (Created/Updated/Unchanged)
+   - **Gate artifacts**: List of all `.work/bugs/{BUG-ID}/` artifacts produced with summaries
+   - **Final status**: `Resolved` (committed + sprint-synced) or `Wont-Fix` (with reason)
+
 2. **Activate `sprint` skill (MANDATORY)** → sync plan/task status (if fix is part of a plan), update progress, hydrate Claude Tasks, generate status report → update documents if changes warrant (NON-OPTIONAL)
-4. `TaskUpdate` → mark ALL Claude Tasks `completed` (skip if Task tools unavailable)
-5. Ask user if they want to commit via `git-manager` subagent
-6. Use `journal-writer` agent to write a concise technical journal entry upon completion
+3. `TaskUpdate` → mark ALL Claude Tasks `completed` (skip if Task tools unavailable)
+4. Ask user if they want to commit via `git-manager` subagent
+5. Use `journal-writer` agent to write a concise technical journal entry upon completion
 
 ---
 
@@ -255,7 +308,7 @@ See `references/prevention-gate.md` for prevention requirements.
 See `references/skill-activation-matrix.md` for complete matrix.
 
 **Always activate (ALL workflows):**
-- Launch parallel Agent(Explore) to scout (Step 1) — understand before diagnosing
+- Active Skill(scout) to scout (Step 1) — understand before diagnosing
 - `debugging` (Step 2) — systematic root cause investigation
 - `sequential-thinking` (Step 2) — structured hypothesis formation
 
@@ -287,24 +340,16 @@ Unified step markers:
 Load as needed:
 
 **Core references:**
-- `references/diagnosis-protocol.md` - Structured diagnosis methodology (NEW)
-- `references/prevention-gate.md` - Prevention requirements after fix (NEW)
-- `references/complexity-assessment.md` - Classification criteria
-- `references/task-orchestration.md` - Native Claude Task patterns for moderate+ workflows
-- `references/review-cycle.md` - Review logic (autonomous vs HITL)
-- `references/skill-activation-matrix.md` - When to activate each skill
-- `references/parallel-exploration.md` - Parallel Explore/Bash/Task coordination patterns
+- `references/diagnosis-protocol.md` — Structured diagnosis methodology with hypothesis testing
+- `references/prevention-gate.md` — Defense-in-depth prevention requirements after fix
+- `references/complexity-assessment.md` — Classification criteria for issue routing
+- `references/task-orchestration.md` — TaskCreate/TaskUpdate patterns for moderate+ workflows
+- `references/review-cycle.md` — Mode-specific review logic (autonomous vs HITL)
+- `references/skill-activation-matrix.md` — When to activate each skill/subagent
+- `references/parallel-exploration.md` — Parallel Explore/Bash coordination patterns
 
 **Workflow references:**
-- `references/workflow-quick.md` - Quick: scout → diagnose → fix → verify+prevent → review
-- `references/workflow-standard.md` - Standard: full pipeline with Tasks
-- `references/workflow-deep.md` - Deep: research + brainstorm + plan with Tasks
-- `references/workflow-specialized.md` - Domain-specific workflows: CI/CD, test failures, log analysis, type errors (consolidates the 4 specialized workflows below)
-
-**Mode selection** is inlined in Step 0 above.
-- `references/mode-selection.md` - AskUserQuestion format for mode
-- `../_shared/references/workflow-artifacts.md` - Review artifact schema and validator contract
-- `references/workflow-ci.md` - GitHub Actions/CI failures (→ see also workflow-specialized.md)
-- `references/workflow-logs.md` - Application log analysis (→ see also workflow-specialized.md)
-- `references/workflow-test.md` - Test suite failures (→ see also workflow-specialized.md)
-- `references/workflow-types.md` - TypeScript type errors (→ see also workflow-specialized.md)
+- `references/workflow-quick.md` — Quick: scout → diagnose → fix → verify+prevent → review
+- `references/workflow-standard.md` — Standard: full pipeline with Tasks
+- `references/workflow-deep.md` — Deep: research + brainstorm + plan with Tasks
+- `references/workflow-specialized.md` — Domain-specific: CI/CD, test failures, log analysis, type errors

@@ -1,17 +1,18 @@
 ---
 name: scout
 description: Fast codebase scouting using parallel agents. Use for file discovery, task context gathering, quick searches across directories
+version: 1.0.0
 user-invocable: true
 when_to_use: "Invoke for fast file discovery and codebase orientation."
 category: dev-tools
 keywords: [codebase, scouting, file-discovery, search]
 argument-hint: "[search-target]"
+allowed-tools: Read, Bash, Grep, Glob, Agent, TaskCreate, TaskUpdate, TaskList, Write
 ---
 
 # Scout
 
-Fast, token-efficient codebase scouting using parallel agents to find files needed for tasks.
-Scout using built-in Explore subagents in parallel (`./references/scouting.md`)
+Fast, token-efficient codebase scouting using parallel Explore subagents to find files needed for tasks.
 
 ## When to Use
 
@@ -23,19 +24,17 @@ Scout using built-in Explore subagents in parallel (`./references/scouting.md`)
 
 ## Quick Start
 
-1. Analyze user prompt to identify search targets
-2. Use a wide range of Grep and Glob patterns to find relevant files and estimate scale of the codebase
-3. Spawn parallel agents with divided directories
-4. Collect results into concise report
-
-## Configuration
+1. Analyze user prompt to identify search targets and key directories
+2. Estimate scale — use Grep and Glob to gauge codebase size and locate relevant file patterns
+3. Spawn parallel Explore subagents with divided directory scopes (see `references/scouting.md`)
+4. Aggregate results into a scout report saved to `.work/scouts/`
 
 ## Workflow
 
 ### 1. Analyze Task
 - Parse user prompt for search targets
-- Identify key directories, patterns, file types, lines of code
-- Determine optimal SCALE value of subagents to spawn
+- Identify key directories, patterns, file types
+- Determine optimal number of subagents to spawn based on codebase size
 
 ### 2. Divide and Conquer
 - Split codebase into logical segments per agent
@@ -44,41 +43,61 @@ Scout using built-in Explore subagents in parallel (`./references/scouting.md`)
 
 ### 3. Register Scout Tasks
 - **Skip if:** Agent count ≤ 2 (overhead exceeds benefit)
-- **Skip if:** Task tools unavailable (VSCode extension) — use `TodoWrite` instead
+- **Skip if:** Task tools unavailable (VSCode extension) — skip task tracking entirely
 - `TaskList` first — check for existing scout tasks in session
 - If not found, `TaskCreate` per agent with scope metadata
-- See `references/task-management-scouting.md` for patterns and examples
+- See `references/task-management-scouting.md` for task registration patterns, metadata schema, and lifecycle management
 
 ### 4. Spawn Parallel Agents
 
-**Notes:**
 - `TaskUpdate` each task to `in_progress` before spawning its agent (skip if Task tools unavailable)
-- Prompt detailed instructions for each subagent with exact directories or files it should read
-- Remember that each subagent has less than 200K tokens of context window
-- Amount of subagents to-be-spawned depends on the current system resources available and amount of files to be scanned
-- Each subagent must return a detailed summary report to a main agent
+- Spawn all Explore subagents in a single `Agent` tool call for parallel execution
+- Each subagent gets a distinct directory scope with no overlap
+- See `references/scouting.md` for prompt templates, directory division strategies, and file reading with chunking
+
+**Scale guidelines:**
+- Small codebase (<50 files): 2-3 agents
+- Medium codebase (50-200 files): 4-6 agents
+- Large codebase (200+ files): 6-8 agents
 
 ### 5. Collect Results
-- Output of each scout agents save to: `.work/scouts/scout-YYYYMMDD-{topic}--{slug}.md`
-- `TaskUpdate` completed tasks; log timed-out agents in report (skip if Task tools unavailable)
-- Aggregate findings into single report
-- List unresolved questions at end
+- Aggregate findings from all agents into a single report
+- Save report to: `.work/scouts/scout-YYYYMMDD-{topic}--{slug}.md`
+- `TaskUpdate` completed tasks; note timed-out agents in report (skip if Task tools unavailable)
+- List unresolved questions at end of report
+
+**Error handling:** If an agent times out (3 min), skip it and aggregate available results. If `TaskCreate` fails, log a warning and continue without task tracking — scout remains fully functional.
 
 ## Report Format
 
 ```markdown
-# Scout Report
+# Scout Report: {topic}
+
+## Summary
+- Total files found: N
+- Agents spawned: N
+- Agents completed: N (N timed out)
 
 ## Relevant Files
-- `path/to/file.ts` - Brief description
+- `path/to/file.ts` - Brief description of what it contains and why it's relevant
 - ...
 
+## Patterns Observed
+- Key architectural patterns, conventions, or structures found
+
+## Directory Map
+```
+src/
+├── auth/       - Authentication logic
+├── api/        - API route handlers
+└── models/     - Data models
+```
+
 ## Unresolved Questions
-- Any gaps in findings
+- Any gaps in findings or areas needing deeper investigation
 ```
 
 ## References
 
-- `references/scouting.md` - Using Explore subagents
-- `references/task-management-scouting.md` - Claude Task patterns for scout coordination
-
+- `references/scouting.md` — Prompt templates, directory division strategies, parallel execution patterns, and chunked file reading
+- `references/task-management-scouting.md` — TaskCreate/TaskUpdate patterns, metadata schema, agent lifecycle, and integration with cook/planning

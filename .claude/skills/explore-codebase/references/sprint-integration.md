@@ -6,6 +6,19 @@ Detailed logic for integrating exploration results with sprint artifacts (roadma
 
 Sprint integration runs after the SDLC pipeline completes. It uses `Skill(sprint)` exclusively — never modify sprint files directly.
 
+## Multi-Pattern Project Context
+
+Universal Project Discovery (Phase 1) detects sub-projects via 4 patterns. Sprint artifacts should reflect this topology:
+
+| Pattern | Sprint Handling |
+|---------|----------------|
+| **Git Submodule** | Mỗi submodule có thể có features riêng. Themes/epics từ SRS nên được tag với submodule name để traceability. |
+| **Nested Git Repo** | Mỗi nested repo là 1 project độc lập (có git history riêng, thường trong .gitignore). Themes/epics nên tách riêng cho từng nested repo. |
+| **Monorepo Directory** | Dùng chung git history repo cha. Themes có thể gộp chung nhưng features nên tag theo directory. |
+| **Single Project** | Sprint artifacts chuẩn — không cần tagging đặc biệt. |
+
+**Nguyên tắc chung:** Scout reports từ mỗi sub-project là input cho sprint. Nếu multi-project, roadmap nên có section riêng cho từng project. Backlog có thể gộp chung hoặc tách — tùy quy mô. Hỏi human nếu > 3 projects.
+
 ## Step 1: Check Current State
 
 ```bash
@@ -74,6 +87,8 @@ Invoke `Skill(sprint)` to cross-reference with SRS features and HLD architecture
 - New tasks/stories from IMP → link to parent features
 - New architectural decisions from HLD → add as tasks if they require implementation
 
+**Multi-project handling:** Khi cross-reference, group features theo sub-project source (submodule, nested repo, hoặc monorepo directory). Feature từ nested repo không nên merge với feature từ repo chính — giữ ranh giới rõ ràng để human biết feature đến từ đâu.
+
 ## Edge Cases
 
 **SRS and HLD not generated (architect-only mode):**
@@ -84,3 +99,9 @@ Invoke `Skill(sprint)` to cross-reference with SRS features and HLD architecture
 - Case B (backup) protects human modifications
 - Case C (verify) preserves human changes, only adds missing entries
 - Never remove or reorder human-added entries without asking
+
+**Multi-pattern projects (submodules + nested repos + monorepo):**
+- Mỗi sub-project có thể có SRS features và HLD services riêng
+- Khi merge vào sprint, giữ traceability: feature → source sub-project
+- Nếu nested repo có git history riêng → có thể cần sprint artifacts riêng
+- Hỏi human nếu phát hiện > 3 sub-projects: "Create unified sprint or separate board per project?"

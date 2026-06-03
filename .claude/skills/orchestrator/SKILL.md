@@ -83,4 +83,4 @@ Each reference file contains: agent spawning order, gate rejection handling, re-
 
 **Error recovery.** Agent error (not gate reject): log, ask human retry/skip. Never auto-retry on errors.
 
-**Report paths.** `mkdir -p .work/plans .work/reports` before writing.
+**Report paths.** `mkdir -p .work/plans .work/reports .work/tasks .work/cooks .work/change-requests` before writing.

@@ -58,7 +58,7 @@ If an agent fails gate verification **3 times consecutively**, stop and report t
 
 ## Phase 4: Summary
 
-Write summary report to `.work/reports/task-YYYYMMDD-{FR-name}--{slug}.md` containing:
+Write summary report to `.work/tasks/task-YYYYMMDD-{FR-name}--{slug}.md` containing:
 - Task ID, title, and description
 - SRS summary (key requirements captured)
 - HLD summary (architecture decisions)

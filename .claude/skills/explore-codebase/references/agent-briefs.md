@@ -4,9 +4,11 @@ Self-contained prompt templates for each agent type used in explore-codebase Pha
 
 Each SDLC agent already knows when to use Skill(sequential-thinking) and Skill(problem-solving) — do NOT add Skill instructions to their briefs.
 
-## Phase 2: Agent(Explore) — One Per Sub-Project, Max 15 Concurrent
+## Phase 2: Agent(Explore) — DEPRECATED as of v3.0.0
 
-Agent(Explore) is **read-only** (no Write/Edit tools). Research and return findings — the orchestrator handles file writing to .work/reports/scout-YYYYMMDD--{project-name}--{slug}.md
+**DEPRECATED as of v3.0.0.** The scout skill (`Skill(scout)`) handles Agent(Explore) spawning internally. This brief is retained ONLY as a fallback if the scout skill fails for a specific sub-project (see SKILL.md Phase 2 error handling).
+
+Agent(Explore) is **read-only** (no Write/Edit tools). Research and return findings — the orchestrator handles file writing to .work/scouts/scout-YYYYMMDD--{project-name}--{slug}.md
 
 ```
 Explore the sub-project at {path}. Research thoroughly and return your findings in this message.
@@ -26,12 +28,12 @@ Do NOT attempt to write files — you are read-only. Return all findings in your
 ## Phase 4: Agent(srs)
 
 ```
-Context: Exploring codebase {project-name}. Scout reports at .work/reports/scout-YYYYMMDD-*--{slug}.md summarize {N} sub-project(s).
+Context: Exploring codebase {project-name}. {N} scout report(s) from this exploration run ({run_date}, slug: {slug}). Each report covers one sub-project — they may interact but have independent codebases, technologies, and requirements.
 
-Inputs:
-  - All scout reports: .work/reports/scout-YYYYMMDD-*--{slug}.md
+Inputs — read these exact files (not globs):
+{scout_report_paths}
 
-Task: Extract requirements from the codebase. Read scout reports first. If any area lacks detail, explore the codebase directly using Read, Bash, and Glob to gather missing information.
+Task: Extract requirements from the codebase. Read all scout reports first. Treat each as a source of functional and non-functional requirements. If any area lacks detail, explore the codebase directly using Read, Bash, and Glob.
 
 Constraints: Reverse-engineering mode — extract from code, not from imagination. Use your default templates.
 ```
@@ -39,10 +41,10 @@ Constraints: Reverse-engineering mode — extract from code, not from imaginatio
 ## Phase 4: Agent(hld)
 
 ```
-Context: Exploring codebase {project-name}. Prior phase SRS is complete and gate-verified.
+Context: Exploring codebase {project-name}. Prior phase SRS is complete and gate-verified. {N} scout report(s) from this exploration run ({run_date}, slug: {slug}).
 
-Inputs:
-  - All scout reports: .work/reports/scout-YYYYMMDD-*--{slug}.md
+Inputs — read these exact files (not globs):
+{scout_report_paths}
   - SRS output from prior phase
 
 Task: Design system architecture with C4 diagrams, Architecture Decision Records (minimum 3: service decomposition, API conventions, event taxonomy), bounded context mapping, and service decomposition. Read prior phase output and scout reports. If any area lacks detail, explore the codebase directly.
@@ -55,8 +57,8 @@ Constraints: Reverse-engineering mode. Architecture only — no implementation d
 ```
 Context: Exploring codebase {project-name}. Prior phases SRS and HLD are complete and gate-verified. Designing service {service-name} ({N} of {total} services). Other {N-1} services are handled by parallel sibling agents. System-wide merge (index + cross-cutting) runs after all services complete.
 
-Inputs:
-  - Scout report: .work/reports/scout-YYYYMMDD-{service-name}--{slug}.md
+Inputs — read these exact files (not globs):
+  - Scout report for this service: {scout_report_path}
   - HLD output from prior phase (for boundaries + cross-service context)
 
 Task: Design {service-name} internals only. Write: (1) tech-design/{service-name}-service.md (9 sections), (2) contracts/api-{domain}.yaml, (3) feature work packages for this service's FRs. Do NOT write README.md or cross-cutting.md — those are lld-merge scope.

@@ -4,13 +4,14 @@ Templates for all report types produced during codebase exploration.
 
 ## Scout Report
 
-Agent(Explore) researches sub-project and returns findings. The orchestrator writes the report file.
+**As of v3.0.0**, scout reports are produced by the scout skill (`Skill(scout)`) which spawns Agent(Explore) subagents internally. The orchestrator invokes the scout skill per sub-project; results land in `.work/scouts/scout-YYYYMMDD-{project-name}--{slug}.md`. This template serves as the expected format specification passed to the scout skill via its search-target argument.
 
 ```markdown
 # {Project Name} — Scout Report
 
 **Date:** YYYY-MM-DD
-**Source:** Agent(Explore) analysis of {path}
+**Source:** Scout skill analysis of {path}
+**Repomix snapshot:** .work/repomix/{project-name}--{slug}.xml
 
 ## Overview
 
@@ -237,7 +238,7 @@ Written by Agent(general-purpose) as the final deliverable.
 
 ## 9. Detailed Artifacts
 
-- [Scout Reports](.work/reports/)
+- [Scout Reports](.work/scouts/)
 - Software Requirements Specification
 - High-Level Design (architecture, ADRs, diagrams)
 - Low-Level Design (tech-design, work packages)

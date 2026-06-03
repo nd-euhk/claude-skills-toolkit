@@ -2,7 +2,7 @@
 
 Mode-aware review handling for fixes.
 
-Shared artifact contract: `../../_shared/references/workflow-artifacts.md`.
+Artifact contract: write review artifacts to `.work/bugs/{BUG-ID}/` (context-snippets.json, risk-gate.json, verification.json, review-decision.json).
 
 ## Required Review Artifacts
 
@@ -14,11 +14,7 @@ Before finalize, commit, ship, push, PR, or deploy, produce:
 - `review-decision.json`: code-reviewer decision
 - `adversarial-validation.json`: required for auto/high-risk/large-diff/ship-like work
 
-Run:
-
-```bash
-node claude/hooks/workflow-artifact-gate.cjs --stage finalize --artifact-dir <artifact-dir>
-```
+Write all artifacts to `.work/bugs/{BUG-ID}/` as specified in SKILL.md Step 5.
 
 ## Autonomous Mode
 

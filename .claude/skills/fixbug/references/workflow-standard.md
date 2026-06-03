@@ -21,14 +21,14 @@ T6 = TaskCreate(subject="Finalize",               activeForm="Finalizing",      
 `TaskUpdate(T1, status="in_progress")`
 
 **Mandatory skill chain:**
-1. Activate Launch 2-3 parallel `Explore` subagents.
+1. Activate Skill(scout) or launch 2-3 parallel `Explore` subagents.
 2. Map: affected files, module boundaries, dependencies, related tests, recent git changes.
 
 **Pattern:** In SINGLE message, launch 2-3 Explore agents:
 ```
-Task("Explore", "Find [area1] files related to issue", "Scout area1")
-Task("Explore", "Find [area2] patterns/usage", "Scout area2")
-Task("Explore", "Find [area3] tests/dependencies", "Scout area3")
+Agent(description="Scout area1", prompt="Find [area1] files related to issue", subagent_type="Explore")
+Agent(description="Scout area2", prompt="Find [area2] patterns/usage", subagent_type="Explore")
+Agent(description="Scout area3", prompt="Find [area3] tests/dependencies", subagent_type="Explore")
 ```
 
 See `references/parallel-exploration.md` for patterns.
@@ -72,12 +72,12 @@ Fix the ROOT CAUSE per diagnosis findings. Not symptoms.
 2. **Regression test:** Add/update test(s) covering the fixed issue. Test MUST fail without fix, pass with fix.
 3. **Side-effect sweep (HARD-GATE-NO-SIDE-EFFECTS):** Walk each dependent caller of changed functions from Step 1 blast-radius. Run tests in modules that share files/contracts. Confirm public contracts (signatures, schemas, APIs, env vars) unchanged. See SKILL.md HARD-GATE-NO-SIDE-EFFECTS.
 4. **Defense-in-depth:** Apply prevention layers where applicable (see `references/prevention-gate.md`).
-5. **Parallel verification:** Launch `Bash` agents:
+5. **Parallel verification:** Launch `Bash` commands:
 ```
-Task("Bash", "Run typecheck", "Verify types")
-Task("Bash", "Run lint", "Verify lint")
-Task("Bash", "Run build", "Verify build")
-Task("Bash", "Run tests", "Verify tests")
+Bash(command="bun run typecheck", description="Verify types")
+Bash(command="bun run lint", description="Verify lint")
+Bash(command="bun run build", description="Verify build")
+Bash(command="bun test", description="Verify tests")
 ```
 
 **On regression / side effect:** `AskUserQuestion` with 2-4 concrete options (revert / narrow scope / update dependents / accept). Never silently patch.
@@ -118,4 +118,4 @@ See `references/review-cycle.md` for mode-specific handling.
 | 6 | `sprint`, `git-manager` |
 
 **Rules:** Don't skip steps. Validate before proceeding. One phase at a time.
-**Frontend:** Use project-native browser tests, Playwright, or Cypress to verify. `agent-browser` and `chrome-devtools-mcp` may also be available if configured.
+**Frontend:** Use Skill(`agent-browser`), Skill(`chrome-profile`), Chrome MCP / `chrome-devtools-mcp`, or any relevant project-native browser tests to verify.

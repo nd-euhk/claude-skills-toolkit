@@ -1,12 +1,12 @@
 # Internal Scouting with Explore Subagents
 
-Use Explore subagents when SCALE >= 6 or external tools unavailable.
+Use Explore subagents when you need parallel codebase search. Spawn via the `Agent` tool.
 
 ## How It Works
 
-Spawn multiple `Explore` subagents via `Task` tool to search codebase in parallel.
+Spawn multiple `Explore` subagents via the `Agent` tool to search the codebase in parallel.
 
-## Task Tool Configuration
+## Agent Configuration
 
 ```
 subagent_type: "Explore"
@@ -43,7 +43,7 @@ Split codebase logically:
 - `api/` - API routes
 
 ### Parallel Execution
-- Spawn all agents in single `Task` tool call
+- Spawn all agents in a single `Agent` tool call
 - Each agent gets distinct directory scope
 - No overlap between agents
 
@@ -86,29 +86,26 @@ chunks = ceil(total_lines / 500)
 lines_per_chunk = ceil(total_lines / chunks)
 ```
 
-### Step 3: Spawn Parallel Bash Agents
+### Step 3: Read Files in Parallel
 
-**Small files (<500 lines each):**
-```
-Task 1: subagent_type="Bash", prompt="cat file1.ts file2.ts"
-Task 2: subagent_type="Bash", prompt="cat file3.ts file4.ts"
-```
+**Small files (<500 lines each) — use Read tool directly:**
+Read each file with the `Read` tool. Batch independent reads in a single message for parallel execution.
 
-**Large file (>500 lines) - use sed for ranges:**
+**Large file (>500 lines) — use Read with offset/limit:**
 ```
-Task 1: subagent_type="Bash", prompt="sed -n '1,500p' large-file.ts"
-Task 2: subagent_type="Bash", prompt="sed -n '501,1000p' large-file.ts"
-Task 3: subagent_type="Bash", prompt="sed -n '1001,1500p' large-file.ts"
+Read file_path="large-file.ts" offset=1 limit=500
+Read file_path="large-file.ts" offset=501 limit=500
+Read file_path="large-file.ts" offset=1001 limit=500
 ```
 
 ### Chunking Decision Tree
 ```
 File < 500 lines     → Read entire file
-File 500-1500 lines  → Split into 2-3 chunks
-File > 1500 lines    → Split into ceil(lines/500) chunks
+File 500-1500 lines  → Split into 2-3 Read calls with offset/limit
+File > 1500 lines    → Split into ceil(lines/500) Read calls
 ```
 
-Spawn all in single message for parallel execution.
+Execute all reads in a single message for parallel execution.
 
 ## Result Aggregation
 

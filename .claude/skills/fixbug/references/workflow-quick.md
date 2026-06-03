@@ -28,10 +28,10 @@ Implement the fix directly.
 - Follow existing patterns
 
 **Parallel Verification:**
-Launch `Bash` agents in parallel:
+Launch verification commands in parallel:
 ```
-Task("Bash", "Run typecheck", "Verify types")
-Task("Bash", "Run lint", "Verify lint")
+Bash(command="bun run typecheck", description="Verify types")
+Bash(command="bun run lint", description="Verify lint")
 ```
 
 **Before/After comparison:** Re-run the EXACT command from pre-fix state capture. Compare output.

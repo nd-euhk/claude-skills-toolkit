@@ -86,7 +86,7 @@ TaskCreate(subject: "Scout src/auth/ for auth files",
 
 // Step 4: Spawn agents
 TaskUpdate(taskId1, { status: "in_progress" })
-// ... spawn all Explore subagents in single Task tool call
+// ... spawn all Explore subagents in single Agent tool call
 
 // Step 5: Collect
 TaskUpdate(taskId1, { status: "completed" })  // report received

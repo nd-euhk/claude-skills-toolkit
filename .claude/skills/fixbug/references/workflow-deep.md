@@ -25,9 +25,9 @@ T9 = TaskCreate(subject="Finalize & docs",               activeForm="Finalizing"
 
 **Mandatory:** Launch 2-3 `Explore` subagents in parallel:
 ```
-Task("Explore", "Find error origin and affected components", "Trace error")
-Task("Explore", "Find module boundaries and dependencies", "Map deps")
-Task("Explore", "Find related tests and similar patterns", "Find patterns")
+Agent(description="Trace error", prompt="Find error origin and affected components", subagent_type="Explore")
+Agent(description="Map deps", prompt="Find module boundaries and dependencies", subagent_type="Explore")
+Agent(description="Find patterns", prompt="Find related tests and similar patterns", subagent_type="Explore")
 ```
 
 Map: all affected files, module boundaries, call chains, test coverage gaps.
@@ -151,4 +151,4 @@ See `references/review-cycle.md` for mode-specific handling.
 | 8 | `sprint`, `git-manager` |
 
 **Rules:** Don't skip steps. Validate before proceeding. One phase at a time.
-**Frontend:** Use project-native browser tests, Playwright, or Cypress to verify UI changes. If unavailable, manually verify in browser.
+**Frontend:** Use Skill(`agent-browser`), Skill(`chrome-profile`), Chrome MCP / `chrome-devtools-mcp`, or any relevant project-native browser tests to verify.

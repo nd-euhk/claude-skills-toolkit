@@ -73,7 +73,7 @@ If an agent fails gate verification **3 times consecutively**, stop and report t
 
 ## Phase 4: Summary
 
-Write report to `.work/reports/cook-YYYYMMDD-{FR-name}--{slug}.md` containing:
+Write report to `.work/cooks/cook-YYYYMMDD-{FR-name}--{slug}.md` containing:
 - Task ID, title
 - BE results: test count, implementation summary, gate results (light + full), re-spawn count
 - FE results: test count, implementation summary, gate results (light + full), re-spawn count

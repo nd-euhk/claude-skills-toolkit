@@ -30,7 +30,38 @@ Read, don't assume. Use `debugging` (systematic-debugging Phase 1).
 - Where does it occur? (file, line, function)
 - When did it start? (check `git log`, `git bisect`)
 - Can it be reproduced consistently?
-- What is the expected vs actual behavior?
+- **FR Trace** (for business logic bugs — SKIP for type errors, lint errors, config/infra bugs, or when expected behavior is already clear from user's bug report):
+
+  Map affected files (from scout results) to Functional Requirements to establish what the code SHOULD do. Use a tiered cascade:
+
+  **Tier 1 — IMP doc reverse lookup (CONFIDENCE=HIGH):**
+  ```
+  grep -rl "Location: {affected_file_path}" agent_docs/backend/*/implementation/FR-*-impl.md agent_docs/frontend/*/implementation/FR-*-impl.md
+  ```
+  Parse `FR-{DOMAIN}-{NNN}` from matching filenames. If found → auto-accept, skip remaining tiers.
+
+  **Tier 2 — Test spec lookup (CONFIDENCE=HIGH):**
+  ```
+  grep -rl "Test file: {affected_test_file}" agent_docs/backend/*/test-specs/FR-*-test.md agent_docs/frontend/*/test-specs/FR-*-test.md
+  ```
+  If found → combine with Tier 1 results (dedup). Both tiers are explicit contracts from the SDLC pipeline.
+
+  **Tier 3 — Git commit parsing (CONFIDENCE=LOW):**
+  Parse `git log --oneline -20` for FR-ID patterns (e.g., `FR-AUTH-001`). If found → treat as hint only, do NOT auto-accept.
+
+  **Tier 4 — Human fallback:**
+  When all automated tiers fail, use `AskUserQuestion`:
+  - Header: "Affected FR"
+  - Options: auto-detected candidates from file-path heuristics + "None (config/infrastructure)" + "Unknown (let me type)"
+  - If user selects "None" → `affected_fr: []` in BUG report (infrastructure bug)
+
+  **After FR(s) found:** Read each affected FR's doc at `docs/product/features/{epic-slug}/FR-{DOMAIN}-{NNN}--{slug}.md` or `agent_docs/features/FR-{DOMAIN}-{NNN}--{slug}.md`. Load Gherkin scenarios to establish expected behavior before forming hypotheses. If Gherkin scenarios conflict with observed behavior → this gap IS the bug.
+
+  **Multi-FR handling:** A shared utility or cross-cutting concern may affect multiple FRs (e.g., `sanitizer.py` → FR-T-003 + FR-AUTH-001 + FR-AUTH-002). Trace ALL affected FRs. The BUG report's `affected_fr` field accepts an array.
+
+- **Expected behavior** (from FR Gherkin scenarios, or user input, or both): what the code SHOULD do
+- **Actual behavior** (from observation): what the code DOES do
+- **Gap:** Expected vs Actual — this difference IS the bug definition
 
 ### Phase 2: Hypothesize — Why might this happen?
 
@@ -58,9 +89,9 @@ Spawn parallel `Explore` subagents to test each hypothesis simultaneously:
 
 ```
 // Launch in SINGLE message — max 3 parallel agents
-Task("Explore", "Test hypothesis A: [specific search/check]", "Verify H-A")
-Task("Explore", "Test hypothesis B: [specific search/check]", "Verify H-B")
-Task("Explore", "Test hypothesis C: [specific search/check]", "Verify H-C")
+Agent(description="Verify H-A", prompt="Test hypothesis A: [specific search/check]", subagent_type="Explore")
+Agent(description="Verify H-B", prompt="Test hypothesis B: [specific search/check]", subagent_type="Explore")
+Agent(description="Verify H-C", prompt="Test hypothesis C: [specific search/check]", subagent_type="Explore")
 ```
 
 **For each hypothesis result:**
@@ -102,6 +133,13 @@ If 3+ fix attempts fail after diagnosis:
 **Issue:** [one-line description]
 **Pre-fix state captured:** Yes/No
 
+### FR Trace
+| FR-ID | Confidence | Source |
+|-------|-----------|--------|
+| FR-T-003 | HIGH | IMP doc: `agent_docs/backend/sanitizer/implementation/FR-T-003-impl.md` |
+| FR-AUTH-001 | HIGH | Test spec: `agent_docs/backend/auth/test-specs/FR-AUTH-001-test.md` |
+| (empty) | — | Infrastructure/config bug — no FR affected |
+
 ### Root Cause
 [Clear explanation of the root cause, traced back to origin]
 
@@ -129,5 +167,7 @@ For trivial issues (type errors, lint, syntax), abbreviated diagnosis:
 1. Read error message
 2. Locate affected file(s) via scout results
 3. Identify root cause (usually obvious for simple issues)
-4. Skip parallel hypothesis testing
-5. Still capture pre-fix state for verification
+4. **Skip FR trace** — type/lint errors don't need FR context (expected behavior is self-evident: "code should compile/type-check")
+5. Skip parallel hypothesis testing
+6. Still capture pre-fix state for verification
+7. Still record `affected_fr` for the BUG report (may be `[]` if no FR context available)

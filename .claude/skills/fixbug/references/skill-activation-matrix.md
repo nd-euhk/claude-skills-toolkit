@@ -6,7 +6,7 @@ When to activate each skill and tool during fixing workflows.
 
 | Skill/Tool | Step | Reason |
 |------------|------|--------|
-| parallel `Explore` agents | Step 1 | Understand codebase context before diagnosing — launch 2-3 in single message |
+| `scout` | Step 1 | Understand codebase context before diagnosing — launch 2-3 in single message |
 | `debugging` skill | Step 2 | Systematic root cause investigation |
 | `sequential-thinking` skill | Step 2 | Structured hypothesis formation — NO guessing |
 | `sprint` skill | Step 6 | MANDATORY sync-back and progress tracking, every fix |
@@ -66,7 +66,7 @@ See `references/parallel-exploration.md` for detailed patterns.
 | Step | Mandatory Chain |
 |------|----------------|
 | Step 0: Mode | `AskUserQuestion` (unless auto/quick detected) |
-| Step 1: Scout | Launch 2-3 parallel `Explore` → map files, deps, tests |
+| Step 1: Scout | Active Skill(scout)  → map files, deps, tests |
 | Step 2: Diagnose | Capture pre-fix state → `debugging` → `sequential-thinking` → parallel `Explore` hypotheses → (`problem-solving` if 2+ fail) |
 | Step 3: Assess | Classify complexity → create Tasks (moderate+) |
 | Step 4: Fix | Implement per workflow → follow root cause |

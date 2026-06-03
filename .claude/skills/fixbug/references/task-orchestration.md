@@ -82,7 +82,7 @@ TaskCreate(subject="[Issue B] Verify",     metadata={issue: "B", step: 4}, addBl
 TaskCreate(subject="Integration verify",   addBlockedBy=[A-step4, B-step4])
 ```
 
-Spawn `fullstack-developer` subagents per issue tree. Each agent:
+Spawn `Agent(subagent_type="fullstack-developer", ...)` per issue tree. Each agent:
 1. Claims tasks via `TaskUpdate(status="in_progress")`
 2. Completes tasks via `TaskUpdate(status="completed")`
 3. Blocked tasks auto-unblock when dependencies resolve
