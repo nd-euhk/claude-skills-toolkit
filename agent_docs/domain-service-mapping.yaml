@@ -1,0 +1,70 @@
+services:
+  - name: explore-codebase
+    domain: sdlc-pipeline
+    owns: [pipeline-config, agent-briefs, scout-reports]
+    ports: []
+
+  - name: orchestrator
+    domain: sdlc-pipeline
+    owns: [orchestration-rules, workflow-definitions]
+    ports: []
+
+  - name: sprint
+    domain: sdlc-pipeline
+    owns: [roadmap, backlog, board, sprint-state]
+    ports: []
+
+  - name: skill-composer
+    domain: skill-authoring
+    owns: [skill-creation-patterns, template-references, frontmatter-spec]
+    ports: []
+
+  - name: skill-refiner
+    domain: skill-authoring
+    owns: [quality-standards, refinement-checklists, validation-rules]
+    ports: []
+
+  - name: skill-tester
+    domain: skill-authoring
+    owns: [test-cases, benchmark-metrics, evaluation-workspaces]
+    ports: []
+
+  - name: plugin-creator
+    domain: plugin-management
+    owns: [plugin-manifest, directory-layout, marketplace-config]
+    ports: []
+
+  - name: hook-creator
+    domain: component-authoring
+    owns: [event-matchers, decision-schemas, hook-scripts]
+    ports: []
+
+  - name: subagent-creator
+    domain: component-authoring
+    owns: [tool-scoping, permission-modes, agent-definitions]
+    ports: []
+
+  - name: debugging
+    domain: support
+    owns: [debugging-heuristics, root-cause-patterns]
+    ports: []
+
+  - name: git
+    domain: support
+    owns: [commit-conventions, worktree-isolation]
+    ports: []
+
+  - name: problem-solving
+    domain: support
+    owns: [problem-solving-frameworks, creative-techniques]
+    ports: []
+
+  - name: sequential-thinking
+    domain: support
+    owns: [analysis-patterns, step-decomposition]
+    ports: []
+
+  - name: ask-user-question
+    domain: support
+    owns: [question-patterns, interaction-workflows]
+    ports: []

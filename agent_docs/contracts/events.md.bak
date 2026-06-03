@@ -1,0 +1,33 @@
+# Event Conventions
+
+## Event Naming Convention
+
+Events use Claude Code's built-in event system:
+- `SessionStart` — Fired when Claude session begins
+- `PreToolUse` — Fired before a tool is used
+- `PostToolUse` — Fired after a tool is used
+- `Stop` — Fired when Claude stops
+
+## Event Envelope
+
+```json
+{
+  "event": "SessionStart",
+  "hooks": [
+    {
+      "type": "command",
+      "name": "ensure-claude-md",
+      "command": "./.claude/hooks/ensure-claude-md.sh",
+      "timeout": 3000,
+      "onError": "warn"
+    }
+  ]
+}
+```
+
+## Publishing and Subscribing Rules
+
+- Hooks subscribe to events via `.claude/hooks.json`
+- Matcher patterns filter tool-specific hooks (e.g., `Write|Edit`)
+- Hook scripts execute synchronously by default
+- `onError: warn` allows continuation; `onError: fail` blocks the triggering action

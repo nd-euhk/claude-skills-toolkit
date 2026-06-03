@@ -106,10 +106,10 @@ Frontend fix   → frontend-verification.md (Chrome/devtools)
 
 - **Database:** `psql` for PostgreSQL queries and diagnostics
 - **CI/CD:** `gh` CLI for GitHub Actions logs and pipeline debugging
-- **Codebase:** `ck:docs-seeker` skill for package/plugin docs; `ck:repomix` skill for codebase summary
-- **Scouting:** `/ck:scout` or `/ck:scout ext` for finding relevant files
-- **Frontend:** Chrome browser or `ck:chrome-devtools` skill for visual verification (screenshots, console, network)
-- **Skills:** Activate `ck:problem-solving` skill when stuck on complex issues
+- **Codebase:** `/repomix` skill for codebase summary
+- **Scouting:** `/scout` for finding relevant files
+- **Frontend:** Chrome browser or `chrome-devtools` skill for visual verification (screenshots, console, network)
+- **Skills:** Activate `problem-solving` skill when stuck on complex issues
 
 ## Red Flags
 
@@ -122,8 +122,3 @@ Stop and follow process if thinking:
 
 **All mean:** Return to systematic process.
 
-## Workflow Position
-
-**Typically follows:** `/ck:scout` (after locating relevant code)
-**Typically precedes:** `/ck:fix` (fix the diagnosed issue), `/ck:brainstorm` (explore solutions for complex problems)
-**Related:** `/ck:scout` (discover before debugging), `/ck:fix` (fix after diagnosing)

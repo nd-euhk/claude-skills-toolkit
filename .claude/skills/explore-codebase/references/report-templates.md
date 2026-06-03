@@ -4,7 +4,7 @@ Templates for all report types produced during codebase exploration.
 
 ## Scout Report
 
-Written per sub-project by Agent(general-purpose) using Explore agent output.
+Agent(Explore) researches sub-project and returns findings. The orchestrator writes the report file.
 
 ```markdown
 # {Project Name} — Scout Report
@@ -73,7 +73,6 @@ project/
 
 ### Observed Patterns
 - **{pattern_name}:** {evidence from code structure}
-- **{pattern_name}:** {evidence from code structure}
 
 ### Architecture Style
 {layered | hexagonal | microservices | CQRS | event-driven | modular monolith}
@@ -108,19 +107,18 @@ Written by Agent(general-purpose) after plan mode approval.
 
 ## Execution Order
 
-{For multi-subproject: explain priority order and dependencies between sub-project analyses.}
+{For multi-subproject: explain priority order.}
 
 ## Phase Plan
 
-| Phase | Sub-project | Expected Output | Depends On |
-|-------|------------|-----------------|------------|
-| Scout | {name} | `scout-{name}--{slug}.md` | — |
-| SRS | {name} | `srs-{name}--{slug}.md` | Scout |
-| HLD | {name} | `hld-{name}--{slug}.md` | SRS |
-| LLD | {name} | `lld-{name}--{slug}.md` | HLD |
-| IMP | {name} | `imp-{name}--{slug}.md` | LLD |
-| TST | {name} | `tst-{name}--{slug}.md` | LLD, IMP |
-| Merge | All | `{type}--{slug}.md` | All sub-projects |
+| Phase | Expected Output | Depends On |
+|-------|-----------------|------------|
+| Scout | `scout-*--{slug}.md` | — |
+| SRS | SRS artifacts | Scout |
+| HLD | HLD artifacts | SRS |
+| LLD | LLD artifacts | HLD |
+| IMP | IMP artifacts | LLD |
+| TST | TST artifacts | LLD, IMP |
 
 ## Risks and Mitigations
 
@@ -208,7 +206,7 @@ Written by Agent(general-purpose) as the final deliverable.
 ### Key Execution Flows
 | Feature | Flow Summary | Complexity |
 |---------|-------------|------------|
-| {feature} | {brief description of the implementation approach} | Low/Med/High |
+| {feature} | {brief description} | Low/Med/High |
 
 ### Critical Business Rules
 - {rule} — {enforcement point}
@@ -227,9 +225,9 @@ Written by Agent(general-purpose) as the final deliverable.
 
 | Artifact | Status | Link |
 |----------|--------|------|
-| Roadmap | {Created | Updated | Verified} | [roadmap.md](.work/sprint/roadmap.md) |
-| Backlog | {Created | Updated | Verified} | [backlog.md](.work/sprint/backlog.md) |
-| Board | {Created | Updated | Verified} | [board.md](.work/sprint/board.md) |
+| Roadmap | {Created / Updated / Verified} | [roadmap.md](.work/sprint/roadmap.md) |
+| Backlog | {Created / Updated / Verified} | [backlog.md](.work/sprint/backlog.md) |
+| Board | {Created / Updated / Verified} | [board.md](.work/sprint/board.md) |
 
 ## 8. Risks and Recommendations
 
@@ -239,10 +237,10 @@ Written by Agent(general-purpose) as the final deliverable.
 
 ## 9. Detailed Artifacts
 
-- [Scout Reports](.work/reports/explore-YYYYMMDD--{slug}/)
-- [Software Requirements Specification](.work/reports/explore-YYYYMMDD--{slug}/srs--{slug}.md)
-- [High-Level Design](.work/reports/explore-YYYYMMDD--{slug}/hld--{slug}.md)
-- [Low-Level Design](.work/reports/explore-YYYYMMDD--{slug}/lld--{slug}.md)
-- [Implementation Specifications](.work/reports/explore-YYYYMMDD--{slug}/imp--{slug}.md)
-- [Test Specifications](.work/reports/explore-YYYYMMDD--{slug}/tst--{slug}.md)
+- [Scout Reports](.work/reports/)
+- Software Requirements Specification
+- High-Level Design (architecture, ADRs, diagrams)
+- Low-Level Design (tech-design, work packages)
+- Implementation Specifications
+- Test Specifications (test specs, performance)
 ```

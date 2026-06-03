@@ -10,8 +10,8 @@
 
 ## Done
 - **T-000**: Project setup and initial scaffolding
+- **T-003**: Input sanitizer - sanitize user input in registration endpoint (BE only, simple validation utility)
 
 ## Ready
-- **T-003**: Input sanitizer - sanitize user input in registration endpoint (BE only, simple validation utility)
 
 ## Blocked

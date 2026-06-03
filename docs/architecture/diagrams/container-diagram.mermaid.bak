@@ -1,0 +1,15 @@
+C4Container
+    title Container Diagram - toolkit
+
+    Container(skills, "Agent Skills", "Markdown", "14 skills providing task-specific instructions for Claude")
+    Container(agents, "SDLC Sub-Agents", "Markdown", "Specialized agents for SRS, HLD, LLD, IMP, TST, gate-verification")
+    Container(hooks, "Hooks", "Shell/CLI", "Event-driven automation scripts")
+    Container(eval_system, "Evaluation System", "JSON/Markdown", "Empirical skill testing and benchmarking")
+    Container(docs, "Agent Docs", "Markdown", "Reference documentation for AI agents")
+    Container(work_artifacts, "Work Artifacts", "Markdown", "Runtime outputs: board, backlog, plans, reports")
+
+    Rel(skills, agents, "Spawns via Agent()")
+    Rel(hooks, skills, "Triggers on Claude events")
+    Rel(eval_system, skills, "Tests skill behavior")
+    Rel(agents, docs, "Produces documentation")
+    Rel(skills, work_artifacts, "Manages sprint artifacts")

@@ -1,0 +1,53 @@
+# ADR-002: API Conventions
+
+## Context
+
+The toolkit integrates components through several mechanisms: skills invoke agents via `Agent()` tool calls, hooks trigger via Claude Code events, eval engine reads/writes files. A unified API convention is needed to ensure consistency across all integration points.
+
+Alternatives considered:
+- **A: Ad-hoc interfaces** — Each integration defines its own format
+- **B: REST-like API** — Define HTTP-like request/response model for inter-component communication
+- **C: Document-driven contracts** — All communication via structured Markdown/JSON files with defined schemas
+
+## Decision
+
+We will use **Document-driven contracts (Option C)** as the primary integration pattern, supplemented by structured brief protocols for agent spawning.
+
+**Agent Brief Protocol:**
+- Format: Context → Inputs → Task → Constraints
+- No output paths specified (agents use default templates)
+- Re-spawn briefs include RETRY #{N} header with gate feedback
+
+**File-based Contracts:**
+- Scout reports: `.work/reports/scout-{name}--{slug}.md` with defined sections
+- Eval configs: `evals/{skill}/evals.json` with assertions array
+- Sprint artifacts: `.work/board.md`, `.work/backlog.md`, `agent_docs/roadmap.md`
+
+**Hook Event Protocol:**
+- Event matchers defined in `.claude/hooks.json`
+- Hook scripts receive event context via environment variables
+- OnError: "warn" (non-blocking) or "fail" (blocking)
+
+**Versioning Strategy:**
+- Semantic versioning per skill (MAJOR.MINOR.PATCH)
+- Independent from plugin version
+- Plugin version bumps whenever any component changes
+
+**Error Format:**
+- Gate rejection: structured report with verdict, findings table, specific evidence
+- Agent errors: logged with phase context, human asked to retry/skip
+
+## Rationale
+
+- **No runtime**: The toolkit has no running server, so REST/gRPC is impossible. File-based contracts are the only viable option.
+- **Claude Code native**: The `Agent()` tool call is the only inter-component communication mechanism available within Claude Code's architecture.
+- **Simplicity**: Structured Markdown is both human-readable and machine-parseable. No serialization library needed.
+- **Discoverability**: Contract locations are conventions, not configurations. Agents know where to find scout reports without being told explicit paths.
+
+## Consequences
+
+- **Positive**: Zero runtime dependencies. All contracts are static files.
+- **Positive**: Easy to inspect and debug. Read the Markdown file to see what an agent received.
+- **Negative**: No runtime type checking. Contract violations are caught by gate-verifier, not compiler.
+- **Negative**: File naming conventions must be strictly followed. Typos cause silent failures (agent won't find input).
+- **Negative**: No real-time communication. All data exchange is batch-oriented (phase output → next phase input).

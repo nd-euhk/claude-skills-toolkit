@@ -3,29 +3,24 @@
   "skill_path": ".claude/skills/orchestrator/SKILL.md",
   "assertions": [
     {
-      "text": "Correctly identifies input as 'feature' workflow type and routes to task workflow",
-      "type": "behaviour",
-      "target": "Workflow routing logic"
-    },
-    {
-      "text": "Mentions invoking sprint skill to pick a TODO task from the board",
+      "text": "Skill nhận diện đúng workflow='task' từ input (feature/task/story → Task Workflow)",
       "type": "presence",
-      "target": "Phase 1: Pick Task"
+      "target": "SKILL.md Step 1: Parse Arguments"
     },
     {
-      "text": "Describes the SDLC sequence: SRS → HLD → LLD → IMP+TST with gate verification at each phase",
+      "text": "Skill phát hiện --auto flag và bỏ qua EnterPlanMode",
+      "type": "quality",
+      "target": "SKILL.md Step 2: Route to Workflow (--auto branch)"
+    },
+    {
+      "text": "Skill parse description='add user authentication with JWT' từ free-text input",
+      "type": "presence",
+      "target": "SKILL.md Step 1 description extraction"
+    },
+    {
+      "text": "Skill route đến đúng workflow reference file (references/task-workflow.md)",
       "type": "structure",
-      "target": "Phase 3: Execute SDLC Pipeline"
-    },
-    {
-      "text": "Mentions parallel spawning of IMP and TST agents",
-      "type": "presence",
-      "target": "Parallel IMP+TST"
-    },
-    {
-      "text": "Includes gate rejection handling with re-spawn logic and 3-strike limit",
-      "type": "presence",
-      "target": "Re-spawn loop safety"
+      "target": "references/ directory integrity"
     }
   ]
 }

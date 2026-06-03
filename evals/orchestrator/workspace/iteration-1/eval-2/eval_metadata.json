@@ -3,29 +3,29 @@
   "skill_path": ".claude/skills/orchestrator/SKILL.md",
   "assertions": [
     {
-      "text": "Correctly identifies input as 'cr' (change request) workflow type and routes to CR workflow",
-      "type": "behaviour",
-      "target": "Workflow routing logic"
-    },
-    {
-      "text": "Mentions invoking sprint to pick a Done or In Review task from the board",
+      "text": "Skill load board và xác định ready tasks để cook",
       "type": "presence",
-      "target": "Phase 1: Pick Task"
+      "target": "SKILL.md Cook workflow: load board"
     },
     {
-      "text": "Mentions assessing HLD and LLD impact during planning phase",
-      "type": "presence",
-      "target": "Phase 2: Plan - Impact Assessment"
-    },
-    {
-      "text": "Shows understanding that HLD and LLD phases are optional (executed only if affected)",
+      "text": "Skill spawn TDD agents BE+FE song song cho mỗi ready task",
       "type": "structure",
-      "target": "Optional Phase Execution"
+      "target": "SKILL.md Cook workflow: parallel BE+FE tracks"
     },
     {
-      "text": "Always includes IMP+TST phases regardless of HLD/LLD impact assessment",
+      "text": "Skill gate-verify mỗi TDD phase (RED→GREEN→REFACTOR) cho cả BE và FE",
+      "type": "quality",
+      "target": "SKILL.md Cook workflow gate verification"
+    },
+    {
+      "text": "Skill cập nhật board status sau khi task hoàn thành",
       "type": "presence",
-      "target": "IMP+TST always execute"
+      "target": "SKILL.md Cook workflow board update"
+    },
+    {
+      "text": "Skill dùng Task tools để track pipeline progress (metadata phase, effort, priority)",
+      "type": "presence",
+      "target": "SKILL.md Task Management section"
     }
   ]
 }

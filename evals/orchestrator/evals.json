@@ -1,28 +1,19 @@
 {
   "skill_name": "orchestrator",
   "skill_path": ".claude/skills/orchestrator/SKILL.md",
-  "description": "Orchestrate SDLC workflows end-to-end: task (feature/task/story), change request (cr), and cook (TDD implementation).",
+  "description": "Orchestrate SDLC workflows: Task (feature/task/story), CR (change request), Cook (ready tasks → implementation)",
   "evals": [
     {
       "id": 1,
-      "name": "Task Workflow Routing",
-      "prompt": "I need to build a new feature: user authentication with email/password login. Start a new feature for this.",
-      "expected_output": "Orchestrator correctly identifies 'feature' workflow type, invokes sprint to pick a TODO task, enters plan mode (or auto mode if --auto), then spawns SRS→HLD→LLD→IMP+TST agents with gate verification at each phase. Output includes clear phase sequencing, gate-verifier calls after each design phase, and parallel IMP+TST spawning.",
-      "files": []
+      "name": "Parse workflow type and route to correct workflow",
+      "prompt": "Dùng orchestrator để tạo feature mới: 'add user authentication with JWT', tự động.",
+      "expected_output": "Skill trích xuất workflow='task', description='add user authentication with JWT', flag --auto, route đến references/task-workflow.md."
     },
     {
       "id": 2,
-      "name": "Change Request Workflow Routing",
-      "prompt": "I need to make a change request: the payment service API needs a new 'refund' endpoint added to the existing REST API. Create a CR for this.",
-      "expected_output": "Orchestrator correctly identifies 'cr' workflow type, invokes sprint to pick a Done/In Review task, enters plan mode to assess HLD and LLD impact, then conditionally spawns HLD→LLD→IMP+TST agents. Output shows understanding that CR workflow has optional phases (HLD/LLD only if affected by the change), always executes IMP+TST, and adds CR task to board.",
-      "files": []
-    },
-    {
-      "id": 3,
-      "name": "Cook Workflow Routing",
-      "prompt": "I have a task that's Ready for implementation: 'Add input validation to user registration form'. Cook this task.",
-      "expected_output": "Orchestrator correctly identifies 'cook' workflow type, invokes sprint to pick a Ready task, enters plan mode to assess BE/FE impact, then runs TDD pipeline (red→green→refactor→gate) for affected layers. Output shows understanding of TDD sequence, gate mode routing (light after green, full after refactor), and parallel BE+FE when both affected.",
-      "files": []
+      "name": "Cook workflow execution with parallel BE+FE TDD",
+      "prompt": "Dùng orchestrator cook để triển khai các task đã sẵn sàng trên board, tự động.",
+      "expected_output": "Skill load board, xác định ready tasks, spawn TDD agents (BE+FE) song song, gate-verify mỗi phase, cập nhật board sau completion. Dùng Task tools pipeline tracking."
     }
   ]
 }

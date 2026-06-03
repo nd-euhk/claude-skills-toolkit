@@ -1,0 +1,11 @@
+C4Context
+    title System Context Diagram - Claude Code Plugin Toolkit
+
+    Person(user, "Developer", "Uses Claude Code with toolkit plugin")
+    System(toolkit, "Claude Code Plugin Toolkit", "Provides SDLC automation skills, agents, hooks, and evaluation infrastructure")
+    System_Ext(claude, "Claude Code", "Host CLI and execution environment")
+    System_Ext(git, "Git", "Version control and worktree management")
+
+    Rel(user, claude, "Invokes skills via /")
+    Rel(claude, toolkit, "Loads plugin, executes skills")
+    Rel(toolkit, git, "Manages worktrees, commits")

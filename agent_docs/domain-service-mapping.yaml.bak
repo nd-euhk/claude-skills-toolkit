@@ -1,0 +1,25 @@
+services:
+  - name: skill-orchestrator
+    domain: skill-management
+    owns: [skills, invocation-rules, pipeline-state]
+    ports: []
+  - name: agent-executor
+    domain: agent-execution
+    owns: [agents, templates, gate-criteria]
+    ports: []
+  - name: hook-engine
+    domain: hook-automation
+    owns: [hooks, event-matchers, hook-scripts]
+    ports: []
+  - name: eval-engine
+    domain: evaluation
+    owns: [eval-configs, benchmarks, assertions, iterations]
+    ports: []
+  - name: sprint-manager
+    domain: sprint-planning
+    owns: [roadmap, backlog, board, sprint-status]
+    ports: []
+  - name: doc-generator
+    domain: documentation
+    owns: [architecture, features, tech-design, contracts]
+    ports: []

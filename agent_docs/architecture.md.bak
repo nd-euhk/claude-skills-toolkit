@@ -1,0 +1,28 @@
+# Architecture Summary (for AI Agents)
+
+## Service List
+
+| Service | Purpose |
+|---------|---------|
+| Skill Orchestrator | Workflow control: parses arguments, routes to mode, spawns agents, manages re-spawn |
+| Agent Executor | Domain execution: generates SDLC artifacts (SRS, HLD, LLD, IMP, TST) |
+| Hook Engine | Event automation: responds to Claude Code lifecycle events |
+| Eval Engine | Empirical testing: benchmarks skills against baselines with assertions |
+| Sprint Manager | Planning tools: manages roadmap, backlog, board artifacts |
+| Doc Generator | Output production: writes architecture docs, feature specs, tech-design |
+
+## Communication Rules
+
+- Skill Orchestrator → Agent Executor: via `Agent()` tool call with structured brief
+- Hook Engine → Claude Code: via shell script exit codes + stdout
+- Eval Engine → Skills: via file-based assertions (read eval config, compare output)
+- Sprint Manager → Doc Generator: via shared file state (board.md, backlog.md)
+
+## Key Constraints
+
+1. Never specify output paths in agent briefs — agents know their templates
+2. Gate-verifier reads only; never modifies files
+3. Maximum 3 re-spawns per phase on gate rejection
+4. Re-spawn the preceding phase agent, not the gate
+5. All scout reports referenced as shared input
+6. No sandbox — agents operate directly on project filesystem

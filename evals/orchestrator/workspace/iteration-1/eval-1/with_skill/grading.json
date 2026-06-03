@@ -3,34 +3,29 @@
   "configuration": "with_skill",
   "assertions_evaluated": [
     {
-      "text": "Correctly identifies input as 'feature' workflow type and routes to task workflow",
+      "text": "Skill nhận diện đúng workflow='task' từ input (feature/task/story → Task Workflow)",
       "passed": true,
-      "evidence": "Line 8: 'Workflow type: feature — matches the feature|task|story pattern', Line 12: 'route to references/task-workflow.md'"
+      "evidence": "response.md line 8: 'Workflow type: feature -- matches the feature|task|story pattern in the router'."
     },
     {
-      "text": "Mentions invoking sprint skill to pick a TODO task from the board",
+      "text": "Skill phát hiện --auto flag và bỏ qua EnterPlanMode",
       "passed": true,
-      "evidence": "Line 16: 'Invoke Skill(sprint) to pick a task from the board with status TODO'"
+      "evidence": "response.md line 10: '--auto flag: Present (tu dong = automatic). Plan Mode is SKIPPED.' + Step 3: 'Phase 2 -- Plan Mode: SKIPPED (--auto present)'."
     },
     {
-      "text": "Describes the SDLC sequence: SRS → HLD → LLD → IMP+TST with gate verification at each phase",
+      "text": "Skill parse description='add user authentication with JWT' từ free-text input",
       "passed": true,
-      "evidence": "Lines 41-177: Complete SRS→gate→HLD→gate→LLD→gate→IMP+TST(parallel)→gate sequence with explicit gate-verifier agent spawns"
+      "evidence": "response.md line 9: 'Description: add user authentication with JWT'. Được dùng làm context cho toàn bộ pipeline."
     },
     {
-      "text": "Mentions parallel spawning of IMP and TST agents",
+      "text": "Skill route đến đúng workflow reference file (references/task-workflow.md)",
       "passed": true,
-      "evidence": "Line 140: 'Spawn Agent(imp) and Agent(tst) simultaneously in a single message'"
-    },
-    {
-      "text": "Includes gate rejection handling with re-spawn logic and 3-strike limit",
-      "passed": true,
-      "evidence": "Lines 185-208: Detailed gate rejection flow with re-spawn briefs, 'If the same agent fails gate verification 3 times consecutively: Stop the pipeline immediately'"
+      "evidence": "response.md line 12: 'route to references/task-workflow.md and execute the Task Workflow pipeline'. Pick TODO → SRS→gate→HLD→gate→LLD→gate→IMP+TST→gate→sprint → Summary."
     }
   ],
   "summary": {
-    "assertions_total": 5,
-    "assertions_passed": 5,
+    "assertions_total": 4,
+    "assertions_passed": 4,
     "pass_rate": 1.0
   }
 }

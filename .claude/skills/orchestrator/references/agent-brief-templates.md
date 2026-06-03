@@ -13,6 +13,8 @@ Output: [where to write, what format]
 Constraints: [specific rules, gate criteria to meet]
 ```
 
+Each SDLC agent already knows when to use Skill(sequential-thinking) and Skill(problem-solving) — do NOT add Skill instructions to their briefs.
+
 ## SRS Agent Brief
 
 ```

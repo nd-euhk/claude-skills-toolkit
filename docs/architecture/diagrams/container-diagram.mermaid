@@ -1,0 +1,48 @@
+C4Container
+    title Container Diagram - toolkit Plugin
+
+    Container_Boundary(toolkit, "Toolkit Plugin") {
+        Container(skill_core, "Core SDLC Skills", "SKILL.md + references/", "explore-codebase, orchestrator, sprint -- drive the document-driven SDLC pipeline")
+        Container(skill_authoring, "Skill Authoring Skills", "SKILL.md + references/", "skill-composer, skill-refiner, skill-tester -- create, improve, test Agent Skills")
+        Container(skill_plugin, "Plugin Management", "SKILL.md + references/", "plugin-creator -- orchestrates component creation via delegation")
+        Container(skill_component, "Component Authoring", "SKILL.md + references/", "hook-creator, subagent-creator -- create hooks and subagents")
+        Container(skill_support, "Support Skills", "SKILL.md", "debugging, git, problem-solving, sequential-thinking, ask-user-question")
+
+        Container(agents_sdlc, "SDLC Agents", "Markdown agent definitions", "srs, hld, lld, imp, tst -- produce structured docs; gate-verifier -- checks outputs")
+        Container(agents_ops, "Operations Agents", "Markdown agent definitions", "sprint-master, git-manager, debugger, tdd-backend, tdd-frontend")
+
+        Container(templates, "Templates (30 files)", "Markdown/YAML", "10 categories: hld, lld, srs, tst, impl, sprint, contracts, agt, cr, supporting")
+        Container(hooks, "Hooks", "Bash", "ensure-claude-md.sh (SessionStart)")
+        Container(evals, "Evals Framework", "Directory tree", "Test cases, workspace dirs, benchmark.json per skill")
+    }
+
+    System_Ext(claude_runtime, "Claude Code Runtime", "Node.js process")
+    System_Ext(project_fs, "Project Filesystem", "agent_docs/ + docs/ + .work/ + projects/")
+    System_Ext(git_system, "Git", "Version control + worktrees")
+    System_Ext(ref_project, "Reference Project", "Python package")
+    Container_Boundary(ref, "sanitizer-service") {
+        Container(ref_src, "sanitizer.py", "Python", "validate_email(), sanitize_input(), validate_not_empty()")
+        Container(ref_tests, "pytest suite", "Python", "Test coverage for all FR scenarios")
+        Container(ref_docs, "Docs", "Markdown/Mermaid", "SRS, HLD, ADRs, diagrams")
+    }
+
+    Rel(claude_runtime, skill_core, "Invokes on trigger")
+    Rel(claude_runtime, skill_authoring, "Invokes on trigger")
+    Rel(claude_runtime, skill_plugin, "Invokes on trigger")
+    Rel(claude_runtime, skill_component, "Invokes on trigger")
+    Rel(claude_runtime, skill_support, "Invokes on trigger")
+    Rel(claude_runtime, hooks, "SessionStart event")
+    Rel(skill_core, agents_sdlc, "Spawns via Agent()")
+    Rel(skill_core, agents_ops, "Spawns via Agent()")
+    Rel(agents_sdlc, templates, "Uses for output format")
+    Rel(agents_ops, templates, "Uses for output format")
+    Rel(agents_sdlc, project_fs, "Reads scout reports, writes architecture docs")
+    Rel(agents_ops, project_fs, "Manages sprint artifacts")
+    Rel(skill_authoring, project_fs, "Creates/edits skills in .claude/skills/")
+    Rel(skill_component, project_fs, "Creates hooks and subagents")
+    Rel(skill_plugin, skill_authoring, "Delegates via Agent()")
+    Rel(skill_plugin, skill_component, "Delegates via Agent()")
+    Rel(agents_ops, git_system, "Worktree isolation, commits")
+    Rel(skill_authoring, evals, "skill-tester writes benchmarks")
+    Rel(ref_src, ref_tests, "Tested by")
+    Rel(ref_src, project_fs, "Referenced from toolkit docs")

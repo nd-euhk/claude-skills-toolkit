@@ -1,0 +1,49 @@
+flowchart TD
+    subgraph Input
+        DEV[Developer] -->|"/explore-codebase architect --auto"| EC[explore-codebase Skill]
+    end
+
+    subgraph Phase1_Scout["Phase 1: Scout"]
+        EC -->|git submodule status| SCOUT[Detect 1 sub-project: toolkit]
+    end
+
+    subgraph Phase2_Explore["Phase 2: Explore"]
+        SCOUT -->|spawn Agent| EXPLORE[Agent: Explore]
+        EXPLORE -->|write| SR[.work/reports/scout-toolkit--explore-codebase.md]
+    end
+
+    subgraph Phase3_Plan["Phase 3: Plan -- SKIPPED (--auto)"]
+        SR -.->|skip| PLAN[Plan Mode]
+    end
+
+    subgraph Phase4_HLD["Phase 4: HLD"]
+        SR -->|read| HLD[Agent: HLD]
+        HLD -->|write| SA[docs/architecture/system-architecture.md]
+        HLD -->|write| ADR[ADR-001, 002, 003<br/>docs/architecture/ADRs/]
+        HLD -->|write| DIAG[system-context, container, data-flow<br/>docs/architecture/diagrams/]
+        HLD -->|write| AGT[agent_docs/architecture.md<br/>agent_docs/domain-service-mapping.yaml<br/>agent_docs/hard-boundaries.md]
+        HLD -->|write| CTX[agent_docs/contracts/<br/>api-conventions.md<br/>events.md]
+    end
+
+    subgraph Phase4_Gate["Phase 4: Gate Verify HLD"]
+        SA -->|read| GATE[Agent: gate-verifier]
+        ADR -->|read| GATE
+        DIAG -->|read| GATE
+        AGT -->|read| GATE
+        CTX -->|read| GATE
+        GATE -->|PASS| SUMMARY_PHASE[Proceed to Summary]
+        GATE -.->|REJECT| HLD_RETRY[Re-spawn HLD<br/>max 3 retries]
+        HLD_RETRY -.->|retry| HLD
+    end
+
+    subgraph Phase6_Summary["Phase 6: Summary"]
+        SUMMARY_PHASE -->|spawn| SUMM[Agent: general-purpose]
+        SR -->|read| SUMM
+        SA -->|read| SUMM
+        ADR -->|read| SUMM
+        SUMM -->|write| SUM_REPORT[.work/reports/explore-YYYYMMDD--toolkit.md]
+    end
+
+    subgraph Output
+        SUM_REPORT -->|final artifact| DEV
+    end

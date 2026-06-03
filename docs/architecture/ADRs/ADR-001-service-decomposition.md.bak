@@ -1,0 +1,35 @@
+# ADR-001: Service Decomposition
+
+## Context
+
+The toolkit codebase contains 14 Agent Skills, 9 SDLC sub-agents, hooks, evaluation infrastructure, and sprint artifact management. These could be organized as a single monolith, separate modules, or independent plugins. The decomposition must balance development velocity with component isolation.
+
+Alternatives considered:
+- **A: Monolithic plugin** — All functionality in single skill file with inline agents
+- **B: Flat skill directory** — Skills in flat directory, agents separate
+- **C: Layered decomposition** — Skills (orchestration), Agents (domain), Hooks (automation), Eval (testing) as distinct layers
+
+## Decision
+
+We will use **Layered Decomposition (Option C)** with six services derived from actual code structure:
+
+1. **Skill Orchestrator** — 14 skills in `.claude/skills/`, each self-contained with SKILL.md, references/, scripts/
+2. **Agent Executor** — 9 agents in `.claude/agents/`, each with frontmatter + body instructions
+3. **Hook Engine** — Shell hooks in `.claude/hooks/`, registered via hooks.json
+4. **Eval Engine** — Evaluation configs and workspace iteration directories in `evals/`
+5. **Sprint Manager** — Sprint artifacts (board.md, backlog.md) and roadmap in `agent_docs/` + `.work/`
+6. **Doc Generator** — Architecture docs, feature specs, tech-design in `agent_docs/` + `docs/`
+
+## Rationale
+
+- **Code structure alignment**: The directory structure naturally separates these concerns. Skills in `.claude/skills/`, agents in `.claude/agents/`, hooks in `.claude/hooks/`. Forcing them into a single module would fight the existing architecture.
+- **Independent evolution**: Skills can be added/removed without touching agents. New agents can be created without modifying skills (skills spawn them generically).
+- **Testability**: Each layer can be evaluated independently. Eval engine tests skills without running full agent pipeline.
+- **Bounded context**: Each layer has distinct ubiquitous language. Skills speak of "invocation" and "trigger phrases"; agents speak of "briefs" and "gate criteria".
+
+## Consequences
+
+- **Positive**: Loose coupling between orchestration (skills) and execution (agents). Skills don't need to know agent internals.
+- **Positive**: New skill types can be added by creating a directory with SKILL.md — no code changes required.
+- **Negative**: Cross-layer coordination requires discipline. Skills must match agent names correctly.
+- **Negative**: Version tracking across 6 services requires coordinated plugin version bumps.

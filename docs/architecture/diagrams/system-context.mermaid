@@ -1,0 +1,30 @@
+C4Context
+    title System Context Diagram - Claude Code Plugin Toolkit
+
+    Person(developer, "Developer", "Uses Claude Code CLI with the toolkit plugin installed")
+    Person(reviewer, "Code Reviewer", "Reviews PRs using toolkit-generated SDLC artifacts")
+
+    System_Ext(claude_cli, "Claude Code CLI", "Host runtime -- provides Agent, Skill, Bash, Read, Write tools")
+
+    System_Boundary(toolkit_plugin, "Toolkit Plugin") {
+        System(skills_layer, "Skills Layer", "14 Agent Skills for SDLC automation, component authoring, support tasks")
+        System(agents_layer, "Agents Layer", "11 sub-agents for SDLC phases, gate verification, sprint, git, debugging, TDD")
+        System(templates_layer, "Templates Layer", "30 document templates across 10 categories for consistent artifact generation")
+        System(hooks_layer, "Hooks Layer", "Shell scripts triggered by Claude Code lifecycle events")
+        System(evals_layer, "Evaluation Layer", "Empirical testing infrastructure for skill benchmarking")
+    }
+
+    System_Ext(git, "Git", "Version control -- worktree isolation, conventional commits")
+    System_Ext(filesystem, "Filesystem", "Artifact storage: agent_docs/, docs/, .work/, projects/")
+
+    Rel(developer, claude_cli, "Invokes skills via /slash-commands or auto-trigger")
+    Rel(reviewer, claude_cli, "Reviews PRs with generated SDLC artifacts")
+    Rel(claude_cli, skills_layer, "Loads SKILL.md on trigger match, dispatches tasks")
+    Rel(skills_layer, agents_layer, "Spawns sub-agents via Agent() tool")
+    Rel(skills_layer, templates_layer, "References default output templates")
+    Rel(agents_layer, templates_layer, "Uses templates for structured output format")
+    Rel(agents_layer, filesystem, "Reads scout reports, writes architecture/design docs")
+    Rel(skills_layer, filesystem, "Reads/writes sprint artifacts (.work/board.md, .work/backlog.md)")
+    Rel(hooks_layer, claude_cli, "Event bindings via hooks.json (SessionStart -> ensure-claude-md)")
+    Rel(claude_cli, git, "Worktree isolation, commit management")
+    Rel(skills_layer, evals_layer, "skill-tester runs test cases, writes benchmark.json")

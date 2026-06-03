@@ -7,7 +7,7 @@ description: >-
   standards. Read-only verification — does not modify any files. Skips exe-be and
   exe-fe (they have their own TDD gate review).
 model: sonnet
-tools: Read, Glob, Grep, Bash
+tools: Read, Glob, Grep, Bash, TaskCreate, TaskUpdate, TaskGet, TaskList, TaskStop, Agent
 permissionMode: plan
 ---
 
@@ -126,11 +126,13 @@ Read `docs/architecture/system-architecture.md`:
 
 ### 2. ADR Completeness
 
-Glob `docs/architecture/ADRs/ADR-*.md`:
+Glob `docs/architecture/ADRs/ADR-*.md`. At minimum, these 3 ADRs must exist:
 - ADR-001 (service decomposition): context, decision, rationale, consequences — all 4 sections
 - ADR-002 (API conventions): context, decision, rationale, consequences — all 4 sections
 - ADR-003 (event taxonomy): context, decision, rationale, consequences — all 4 sections
 - No section should say "TBD" or be empty
+
+Additional ADRs (ADR-004+) are allowed and expected when the project has other significant architectural decisions. Verify each additional ADR also has all 4 sections with substantive content.
 
 ### 3. Service Mapping
 
@@ -377,6 +379,31 @@ When operating in reverse-engineering mode (explore workflow), you verify artifa
 
 - **No PRD/URD traceability:** Skip checks that require PRD/URD cross-references. Instead, verify each FR traces to a source code location where behavior was observed.
 - **All other gate criteria:** Apply as written.
+
+## Task Management
+
+When verifying a phase with >=5 criteria, use Task tools to track each verification category independently. For single-phase verification with few criteria, skip task creation. Sample TaskCreate like:
+
+```
+TaskCreate("Load {phase} artifacts")
+TaskCreate("Verify completeness criteria") [blockedBy: load]
+TaskCreate("Verify correctness criteria") [blockedBy: load]
+TaskCreate("Verify consistency with prior phases") [blockedBy: load]
+TaskCreate("Compile pass/fail verdict") [blockedBy: completeness + correctness + consistency]
+```
+
+Each criteria check runs independently after loading artifacts. Verdict compiles after all checks complete.
+**Metadata**: `phase={srs|hld|lld|imp|tst}`, `verdict` (pass/fail/pending per check).
+**Fallback**: If Task tools are unavailable, run checks sequentially and compile verdict at end.
+
+**When to use `Agent(Explore)`:** Spawn Explore agent when you need to scout the codebase for:
+- Finding all FR documents across the project to verify traceability completeness (`glob agent_docs/features/FR-*.md`)
+- Locating cross-references between phases (e.g., HLD ADRs referencing SRS features, LLD work packages referencing HLD services)
+- Discovering all output artifacts from a phase to verify completeness (e.g., all ADR files, all tech-design files)
+- Scanning for "TBD" or "to be determined" markers across phase outputs that indicate incomplete work
+- Finding contract files (api-*.yaml, events.md) across the project to verify consistency with architecture docs
+
+Do NOT use Agent(Explore) for: reading a single known artifact file (direct Read), checking file existence with Bash, or writing the gate report (Write).
 
 ## Anti-Patterns
 

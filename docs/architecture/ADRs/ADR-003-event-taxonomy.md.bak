@@ -1,0 +1,77 @@
+# ADR-003: Event Taxonomy
+
+## Context
+
+The toolkit uses Claude Code's built-in event system for hook-driven automation. Claude Code provides lifecycle events (SessionStart, PreToolUse, PostToolUse, Stop) and tool-level events (Write, Edit, Bash, Read). The toolkit also has internal phase transitions (SRS→HLD→LLD→IMP→TST→Sprint) and gate verification events (pass/reject). These need a taxonomy to ensure consistent naming, handling, and routing.
+
+Alternatives considered:
+- **A: Flat event naming** — All events use Claude Code raw names with no categorization
+- **B: Namespaced event taxonomy** — Events grouped by source: lifecycle hooks, tool hooks, pipeline events
+- **C: Domain-driven event taxonomy** — Events categorized by domain function: domain events, integration events, notification events
+
+## Decision
+
+We will use a **hybrid taxonomy** that combines namespaced categorization (Option B) for hook events with domain-driven semantics (Option C) for pipeline events.
+
+### Event Types
+
+**Domain Events** (pipeline state changes):
+- `pipeline.phase.completed` — {phase: srs|hld|lld|imp|tst}
+- `pipeline.phase.rejected` — {phase, gate_feedback, retry_count}
+- `pipeline.completed` — {total_phases}
+- `pipeline.stopped` — {reason}
+
+**Integration Events** (cross-service communication):
+- `agent.spawned` — {agent_name, brief_summary}
+- `agent.completed` — {agent_name, artifacts_generated}
+- `gate.verified` — {phase, verdict, issue_count}
+- `sprint.updated` — {artifact, changes}
+
+**Notification Events** (human-visible signals):
+- `scout.completed` — {sub_project_count, report_paths}
+- `summary.generated` — {report_path, phase_summary}
+- `error.occurred` — {phase, error_message, recovery_option}
+
+### Event Schema Format
+
+All events use a structured JSON envelope:
+
+```json
+{
+  "event_id": "uuid",
+  "event_type": "domain|integration|notification",
+  "event_name": "pipeline.phase.completed",
+  "timestamp": "ISO-8601",
+  "source": "service_name",
+  "payload": {},
+  "correlation_id": "uuid"
+}
+```
+
+### Naming Convention
+
+- Lowercase with dots as separators
+- Pattern: `{category}.{entity}.{action}`
+- Examples: `pipeline.phase.completed`, `agent.spawned`, `scout.completed`
+- Past-tense verbs for completed actions, present for in-progress
+
+### Event Routing
+
+- **Hook events** (SessionStart, PreToolUse, etc.): Routed via `.claude/hooks.json` configuration. Subscribed hooks execute in registration order.
+- **Pipeline events**: Routed via the skill orchestrator. The orchestrator reads gate-verifier output and decides to re-spawn or proceed.
+- **Notification events**: Written to `.work/reports/` as structured files for human review. No real-time notification transport (no Slack, no email).
+
+## Rationale
+
+- **Clarity without runtime**: The toolkit has no event bus, no message queue. Events are conceptual constructs materialized through file outputs and tool calls. The taxonomy provides conceptual clarity for the pipeline orchestration logic.
+- **Consistency**: A unified naming convention across hooks and pipeline phases ensures all agents and skills use the same language when referencing state transitions.
+- **Extensibility**: New event types can be added without changing existing event handlers. The taxonomy is documentation, not code.
+- **Claude Code compatibility**: Hook events use Claude Code's native event system as-is. The taxonomy does not modify Claude Code behavior — it supplements it with pipeline-level event concepts.
+
+## Consequences
+
+- **Positive**: All pipeline state transitions are explicitly named. Skills can reference event names in their orchestration logic.
+- **Positive**: The event schema provides a consistent structure for gate-verifier reports, agent spawns, and pipeline status tracking.
+- **Negative**: No runtime enforcement. Event taxonomy is a convention, not a type system. Incorrect event names cause logic errors caught only by gate verification.
+- **Negative**: Notification events have no transport. They are written to files but not actively pushed. Humans must read files to see notifications.
+- **Negative**: Event correlation across async boundaries is manual. The `correlation_id` field enables tracing but requires discipline to use consistently.

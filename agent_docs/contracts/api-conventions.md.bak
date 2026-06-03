@@ -1,0 +1,42 @@
+# API Conventions
+
+## URL Structure (for Agent Briefs)
+
+Agent briefs follow a structured format rather than URLs:
+
+```
+Spawn: Agent({name})
+Brief:
+  Context: {state summary}
+  Inputs: {files to read}
+  Task: {work to do}
+  Constraints: {limitations}
+```
+
+## Response Format
+
+Agents produce outputs to their default template paths. No explicit response format — output is file-based.
+
+## Error Format
+
+```
+Gate Verification Report: {phase}
+
+**Verdict:** {PASS / FAIL with N issues}
+
+### Findings
+| # | Criterion | Result | Evidence |
+|---|-----------|--------|----------|
+```
+
+## Authentication
+
+No authentication required. All operations within Claude Code session boundary.
+
+## Pagination / Filtering / Sorting
+
+Not applicable. File-based system with full reads.
+
+## Rate Limiting
+
+Not applicable. Single-agent execution per phase.

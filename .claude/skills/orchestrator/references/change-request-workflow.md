@@ -60,15 +60,63 @@ Spawn `Agent(imp)` and `Agent(tst)` simultaneously. Both must complete before ru
 
 ## Phase 4: Summary
 
-Write report to `.work/reports/cr-YYYYMMDD-{FR-name}--{slug}.md` containing:
-- Task ID, title, and description
-- Impact assessment results (HLD affected: yes/no, LLD affected: yes/no)
-- HLD changes (if applicable)
-- LLD changes (if applicable)
-- IMP summary (implementation scope)
-- TST summary (test coverage)
-- Gate verification results per phase
-- Final status (Ready / Blocked)
+Write report to `.work/change-requests/cr-NNN-YYYYMMDD-{FR-name}--{slug}.md`.
+
+### Frontmatter (REQUIRED)
+
+Every CR summary report MUST include full YAML frontmatter:
+
+```yaml
+---
+title: "CR-{NNN}: {Short Description}"
+type: NEW | CHANGE
+status: planned | in-progress | implemented | verified | ready | blocked | done
+created: YYYY-MM-DD
+updated: YYYY-MM-DD
+requested_by: {name/role}
+approved_by: {name/role}
+target_sprint: Sprint {N}
+source_task: "{task-id}: {task-title}"
+hld_affected: true | false
+lld_affected: true | false
+phases_executed:
+  - hld          # only if hld_affected is true
+  - lld          # only if lld_affected is true
+  - imp
+  - tst
+depends_on: []
+referenced_by: []
+changelog:
+  - planned | YYYY-MM-DD | Created from {task-id}
+  - in-progress | YYYY-MM-DD | Impact assessment completed
+  - implemented | YYYY-MM-DD | IMP+TST produced
+  - verified | YYYY-MM-DD | All gates passed
+  - ready | YYYY-MM-DD | Sprint sync complete
+---
+```
+
+**Frontmatter field rules:**
+- `title`: Follow CR-TEMPLATE.md naming convention `CR-{NNN}: {Short Description}`
+- `type`: `NEW` if adding new behavior to existing feature; `CHANGE` if modifying existing behavior
+- `status`: Reflects current pipeline state — starts as `planned`, progresses through `in-progress` → `implemented` → `verified` → `ready` (or `blocked`)
+- `hld_affected` / `lld_affected`: Must match the plan's impact assessment exactly
+- `phases_executed`: List only phases that actually ran (HLD/LLD conditional; IMP+TST always)
+- `source_task`: The Done/In Review task picked in Phase 1
+- `changelog`: Append an entry each time `status` changes
+
+### Report Body
+
+After frontmatter, the report body MUST contain:
+
+- **Task context**: Task ID, title, and original description from sprint board
+- **Impact assessment**: HLD affected (yes/no + rationale), LLD affected (yes/no + rationale), phases to execute (list)
+- **HLD changes** (if applicable): Architecture decisions modified, ADRs created/superseded, diagrams updated
+- **LLD changes** (if applicable): Design sections changed, domain model updates, API contract modifications
+- **IMP summary**: Implementation scope, files created/modified, key logic changes
+- **TST summary**: Test coverage, test types (unit/integration/e2e), test count per type
+- **Gate verification results per phase** (pass/reject/re-spawn count for each executed phase)
+- **Artifacts modified**: Table of all files changed with status (Created/Updated/Unchanged)
+- **Final status**: `Ready` (sprint-synced) or `Blocked` (with reason and dependency list)
 
 ## Phase 5: Next Steps
 

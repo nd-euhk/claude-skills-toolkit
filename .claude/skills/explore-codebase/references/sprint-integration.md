@@ -27,12 +27,12 @@ Invoke `Skill(sprint)` with context from SRS and HLD:
 ```
 Create sprint artifacts for the explored codebase:
 
-From SRS ({srs_path}):
+From SRS:
 - Themes come from functional area groupings
 - Epics come from Gherkin feature groups
 - Features come from individual Gherkin scenarios
 
-From HLD ({hld_path}):
+From HLD:
 - Services map to component ownership
 - ADRs inform architectural decisions in the backlog
 
@@ -53,25 +53,12 @@ Files exist but don't match the sprint skill's expected template format.
 **Action: Backup and recreate**
 
 ```bash
-# Backup existing files
 cp .work/sprint/roadmap.md .work/sprint/roadmap.md.bak
 cp .work/sprint/backlog.md .work/sprint/backlog.md.bak
 cp .work/sprint/board.md .work/sprint/board.md.bak
 ```
 
-Then create new artifacts as in Case A.
-
-Notify human:
-```
-Existing sprint artifacts at .work/sprint/ don't match the expected template format.
-Backed up as:
-  - roadmap.md.bak
-  - backlog.md.bak
-  - board.md.bak
-
-New artifacts created from exploration results. Please recheck the backup files
-for any manual entries that need to be migrated.
-```
+Then create new artifacts as in Case A. Notify human about backup files.
 
 ### Case C: Files Exist, Template Match
 
@@ -79,68 +66,19 @@ Files exist and match the sprint skill's template format.
 
 **Action: Verify and update**
 
-Invoke `Skill(sprint)` to:
-1. Load existing roadmap, backlog, board
-2. Cross-reference with SRS features and HLD architecture:
+Invoke `Skill(sprint)` to cross-reference with SRS features and HLD architecture:
 
-```
-Verify existing sprint artifacts against exploration results:
-
-For each theme/epic/feature/task/story in the board:
-- Found in SRS? → mark as "Verified"
-- NOT found in SRS? → flag for human review (may be obsolete)
-
-For each feature in SRS:
-- Found in board? → skip (already tracked)
-- NOT found in board? → add as new with status "Discovered"
-- Found but changed? → update description, mark for review
-```
-
-**Adding new entries:**
-- New features from SRS → add to backlog and board as "Discovered"
+- Features found in both board and SRS → mark as "Verified"
+- Features in SRS but NOT in board → add as new with status "Discovered"
+- Features in board but NOT in SRS → flag for human review (may be obsolete)
 - New tasks/stories from IMP → link to parent features
 - New architectural decisions from HLD → add as tasks if they require implementation
-
-**Linking:**
-- Ensure each new task/story links to its parent feature
-- Ensure each new feature links to its parent epic
-- Ensure each new epic links to its parent theme
-
-## Sprint Skill Invocation Patterns
-
-### Create New Board
-```
-Skill(sprint) with instruction: "Create a new sprint board for the explored codebase.
-Use features from {srs_path} as the feature list. Set all to 'Discovered' status."
-```
-
-### Update Existing Board
-```
-Skill(sprint) with instruction: "Update the existing sprint board at .work/sprint/board.md.
-Add these new features discovered from codebase exploration: {feature_list}.
-Verify these existing features are still valid: {existing_feature_list}."
-```
-
-### Verify Roadmap
-```
-Skill(sprint) with instruction: "Verify the roadmap at .work/sprint/roadmap.md
-against the system architecture in {hld_path}. Ensure themes align with bounded contexts
-and epics align with services/modules."
-```
 
 ## Edge Cases
 
 **SRS and HLD not generated (architect-only mode):**
 - Only update roadmap with architectural themes
 - Skip backlog and board updates (no features to add)
-
-**Single sub-project with no sprint artifacts:**
-- Same as Case A — create new
-
-**Multiple sub-projects:**
-- Merge phase already consolidated SRS and HLD
-- Sprint integration runs once on the consolidated artifacts
-- Each feature should reference its source sub-project
 
 **Human-modified sprint artifacts:**
 - Case B (backup) protects human modifications

@@ -7,7 +7,7 @@ description: >-
   Auto-detects mode from report availability, or use --mode=light|full.
   Read-only — no code changes, reports pass/fail only.
 model: sonnet
-tools: Read, Bash, Glob
+tools: Read, Bash, Glob, TaskCreate, TaskUpdate, TaskGet, TaskList, TaskStop, Agent
 permissionMode: acceptEdits
 ---
 
@@ -168,6 +168,38 @@ Each failure: what was checked, what failed, where (file:line), suggested fix.
 - Run all applicable gates even if an early one fails — give the full picture
 - If a tool is unavailable (e.g., Playwright, axe-core), note it and skip that gate (do not fail)
 - Light mode must complete in under 2 minutes (4 fast checks, no E2E, no lint)
+
+## Task Management
+
+Break gate verification into tracked tasks. Run all gates even if early ones fail — report the full picture:
+
+```
+TaskCreate("Gate L1: Unit tests (vitest run)")
+TaskCreate("Gate L2: Token security (no localStorage/sessionStorage)")
+TaskCreate("Gate L3: XSS prevention (no unsafe dangerouslySetInnerHTML)")
+TaskCreate("Gate L4: State coverage (loading, empty, error, success states)")
+# Full mode only:
+TaskCreate("Gate F5: Type check (tsc --noEmit)")
+TaskCreate("Gate F6: Lint (eslint --max-warnings 0)")
+TaskCreate("Gate F7: E2E tests (playwright test)")
+TaskCreate("Gate F8: Accessibility audit (axe-core)")
+TaskCreate("Gate F9: API resilience (fetch error handling, timeouts)")
+TaskCreate("Gate F10: Documentation (report files exist)")
+TaskCreate("Write gate report") [blockedBy: all gates]
+```
+
+L1-L4 (light) or all 10 (full) can run in parallel. Auto-detect mode from refactor-report existence.
+
+**When to use `Agent(Explore)`:** Spawn Explore agent when you need to scout the codebase for:
+- Finding all localStorage/sessionStorage accesses across entire src/ (`grep -r "localStorage\|sessionStorage" src/`)
+- Locating all dangerouslySetInnerHTML usages to verify DOMPurify sanitization
+- Discovering API-driven components missing loading/empty/error state handling
+- Finding all fetch/axios calls to verify timeout and error handling coverage
+- Locating eslint or tsconfig files across monorepo packages
+
+Do NOT use Agent(Explore) for: reading known report paths (direct Read), running vitest/playwright/eslint commands (Bash), or checking file existence for gate F10.
+
+**Metadata**: `phase=gate`, `effort` (2m-5m per gate, light mode <2 min total).
 
 ## Anti-Patterns
 

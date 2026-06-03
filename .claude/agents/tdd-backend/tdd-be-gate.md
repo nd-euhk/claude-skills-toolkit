@@ -7,7 +7,7 @@ description: >-
   Auto-detects mode from report availability, or use --mode=light|full.
   Read-only — no code changes, reports pass/fail only.
 model: sonnet
-tools: Read, Bash, Glob
+tools: Read, Bash, Glob, TaskCreate, TaskUpdate, TaskGet, TaskList, TaskStop, Agent
 permissionMode: acceptEdits
 ---
 
@@ -167,6 +167,38 @@ Each failure: what was checked, what failed, where (file:line), suggested fix.
 - Run all applicable gates even if an early one fails — give the full picture
 - If a tool is unavailable, note it and skip that gate (do not fail)
 - Light mode must complete in under 2 minutes (4 fast checks, no full suite)
+
+## Task Management
+
+Break gate verification into tracked tasks. Run all gates even if early ones fail — report the full picture:
+
+```
+TaskCreate("Gate L1: Test suite (run all tests)")
+TaskCreate("Gate L2: Hard boundaries (cross-service imports, DB access)")
+TaskCreate("Gate L3: SQL safety (raw SQL string concatenation)")
+TaskCreate("Gate L4: REST client resilience (circuit breaker, retry, timeout)")
+# Full mode only:
+TaskCreate("Gate F5: Integration & regression (full test suite)")
+TaskCreate("Gate F6: Lint & formatting (spotlessCheck)")
+TaskCreate("Gate F7: Coverage (jacocoTestReport)")
+TaskCreate("Gate F8: Input validation (@Valid on all controllers)")
+TaskCreate("Gate F9: Error handling (exception classes, @ControllerAdvice)")
+TaskCreate("Gate F10: Documentation (report files exist)")
+TaskCreate("Write gate report") [blockedBy: all gates]
+```
+
+L1-L4 (light) or all 10 (full) can run in parallel. Auto-detect mode from refactor-report existence.
+
+**When to use `Agent(Explore)`:** Spawn Explore agent when you need to scout the codebase for:
+- Finding cross-service entity imports across the entire project (`grep -r "import.*\.entity\."`)
+- Locating direct table access from wrong services (`grep -r "FROM {other_service_table}"`)
+- Discovering all REST clients to verify circuit breaker coverage (`grep -r "@FeignClient"`)
+- Finding missing @Valid annotations across all controller methods (`grep -r "@Valid\|@Validated"`)
+- Locating all @ControllerAdvice classes to verify error handling coverage
+
+Do NOT use Agent(Explore) for: reading known report paths (direct Read), running test commands (Bash), or checking file existence for gate F10.
+
+**Metadata**: `phase=gate`, `effort` (2m-5m per gate, light mode <2 min total).
 
 ## Anti-Patterns
 

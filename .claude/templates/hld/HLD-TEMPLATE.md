@@ -194,10 +194,14 @@ graph LR
 
 ## 8. Architecture Decision Records
 
+Tối thiểu 3 ADR bắt buộc. Thêm ADR-004+ nếu dự án có quyết định kiến trúc đáng kể khác.
+
 | ADR | Decision | Status |
 |-----|---------|--------|
-| ADR-001 | {{architecture style}} | Accepted |
-| ADR-002 | {{database strategy}} | Accepted |
+| ADR-001 | Service Decomposition | Accepted |
+| ADR-002 | API Conventions | Accepted |
+| ADR-003 | Event Taxonomy | Accepted |
+| ADR-004 | {{additional decision}} | Accepted |
 
 > Mỗi ADR = 1 file riêng trong `docs/architecture/ADRs/`
 

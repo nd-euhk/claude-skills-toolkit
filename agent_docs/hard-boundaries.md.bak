@@ -1,0 +1,30 @@
+# Hard Boundaries
+
+## Data Ownership
+
+| Service | Owns (Read+Write) | Others Can Read | Others Cannot Access |
+|---------|-------------------|-----------------|---------------------|
+| Skill Orchestrator | skills/, invocation rules | All | Agent executor internals |
+| Agent Executor | agents/, templates/ | Skill orchestrator (briefs) | Hook engine scripts |
+| Hook Engine | hooks/, hooks.json | Claude Code (triggers) | Skill definitions |
+| Eval Engine | evals/, benchmarks/ | All (read eval results) | Skill internals |
+| Sprint Manager | .work/board.md, .work/backlog.md, agent_docs/roadmap.md | All (read sprint status) | Agent configurations |
+| Doc Generator | docs/architecture/, agent_docs/features/, agent_docs/tech-design/ | All (read docs) | Sprint artifacts |
+
+## Forbidden Shortcuts
+
+1. Skill Orchestrator must never directly modify agent files in `.claude/agents/`
+2. Agent Executor must never directly modify skill SKILL.md files
+3. Hook Engine must never read agent internal state
+4. Eval Engine must never modify skill content (read-only testing)
+5. Sprint Manager must never modify architecture documents
+6. Doc Generator must never modify sprint artifacts
+7. No service may directly modify another service's owned files
+
+## Cross-Boundary Rules
+
+1. To request work from Agent Executor: Skill Orchestrator spawns via `Agent()` with structured brief
+2. To read hook state: query `.claude/hooks.json` (public read)
+3. To update sprint status: use Skill(sprint) — never edit board.md directly
+4. To read eval results: read `evals/{skill}/workspace/` (public read)
+5. All cross-boundary access through public file contracts, not direct modification

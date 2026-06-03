@@ -1,0 +1,79 @@
+# System Architecture: toolkit
+
+## System Context (C4 Level 1)
+
+```mermaid
+C4Context
+    title System Context Diagram - Claude Code Plugin Toolkit
+
+    Person(user, "Developer", "Uses Claude Code with toolkit plugin")
+    System(toolkit, "Claude Code Plugin Toolkit", "Provides SDLC automation skills, agents, hooks, and evaluation infrastructure")
+    System_Ext(claude, "Claude Code", "Host CLI and execution environment")
+    System_Ext(git, "Git", "Version control and worktree management")
+
+    Rel(user, claude, "Invokes skills via /")
+    Rel(claude, toolkit, "Loads plugin, executes skills")
+    Rel(toolkit, git, "Manages worktrees, commits")
+```
+
+## Container Diagram (C4 Level 2)
+
+```mermaid
+C4Container
+    title Container Diagram - toolkit
+
+    Container(skills, "Agent Skills", "Markdown", "14 skills providing task-specific instructions for Claude")
+    Container(agents, "SDLC Sub-Agents", "Markdown", "Specialized agents for SRS, HLD, LLD, IMP, TST, gate-verification")
+    Container(hooks, "Hooks", "Shell/CLI", "Event-driven automation scripts")
+    Container(eval_system, "Evaluation System", "JSON/Markdown", "Empirical skill testing and benchmarking")
+    Container(docs, "Agent Docs", "Markdown", "Reference documentation for AI agents")
+    Container(work_artifacts, "Work Artifacts", "Markdown", "Runtime outputs: board, backlog, plans, reports")
+
+    Rel(skills, agents, "Spawns via Agent()")
+    Rel(hooks, skills, "Triggers on Claude events")
+    Rel(eval_system, skills, "Tests skill behavior")
+    Rel(agents, docs, "Produces documentation")
+    Rel(skills, work_artifacts, "Manages sprint artifacts")
+```
+
+## Bounded Context Map
+
+| Context | Ownership | Ubiquitous Language |
+|---------|-----------|-------------------|
+| Skill Management | skills/ | skill, frontmatter, invocation, trigger phrase |
+| Agent Execution | agents/ | sub-agent, brief, permission mode, gate |
+| Hook Automation | hooks/ | event, matcher, command hook, prompt hook |
+| Evaluation | evals/ | assertion, benchmark, iteration, baseline |
+| Sprint Planning | .work/ | roadmap, backlog, board, sprint, feature |
+| Documentation | agent_docs/ | SRS, HLD, LLD, IMP, TST, feature |
+
+## Service Decomposition
+
+| Service | Responsibility | Data Ownership |
+|---------|---------------|----------------|
+| Skill Orchestrator | Workflow control and agent spawning | Skill definitions, pipeline state |
+| Agent Executor | Phase-specific artifact generation | Agent configurations, templates |
+| Hook Engine | Event-driven automation | Hook scripts, event matchers |
+| Eval Engine | Empirical testing and benchmarking | Evaluation configs, results, metrics |
+| Sprint Manager | Roadmap/backlog/board management | Sprint artifacts, status tracking |
+| Doc Generator | Phase documentation output | Architecture docs, feature specs, tech design |
+
+## Communication Patterns
+
+| Integration | Pattern | Protocol |
+|-------------|---------|----------|
+| Skill → Agent | Request/Response | Agent() tool call |
+| Hook → Claude | Event Publication | Claude Code event system |
+| Claude → Plugin | Plugin Loading | File system, YAML/JSON |
+| Eval → Skill | Test Execution | File-based I/O |
+| Sprint → Docs | Document Sync | File-based Markdown |
+
+## Security Architecture
+
+- **Auth Model**: No built-in authentication. Relies on Claude Code's session-based access control.
+- **Trust Boundaries**: Plugin executes within Claude Code process boundary. No network calls.
+- **Data Protection**: All data stored locally in `.work/` and `agent_docs/`. No at-rest encryption needed.
+
+## Infrastructure Architecture
+
+Single-process deployment within Claude Code CLI. No container orchestration, no cloud services. Plugin is loaded from local filesystem. Git worktrees provide isolation for concurrent development tasks.

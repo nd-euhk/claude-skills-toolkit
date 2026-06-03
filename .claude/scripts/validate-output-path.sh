@@ -16,6 +16,11 @@ FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty')
 # Normalize: strip leading ./ if present
 FILE_PATH="${FILE_PATH#./}"
 
+# Normalize absolute paths: strip CLAUDE_PROJECT_DIR prefix if present
+if [ -n "${CLAUDE_PROJECT_DIR:-}" ] && [[ "$FILE_PATH" == "$CLAUDE_PROJECT_DIR"/* ]]; then
+  FILE_PATH="${FILE_PATH#$CLAUDE_PROJECT_DIR/}"
+fi
+
 case "$PHASE" in
   srs)
     if echo "$FILE_PATH" | grep -qE '^docs/product/|^agent_docs/traceability/'; then
@@ -84,6 +89,16 @@ case "$PHASE" in
     ;;
   sprint)
     if echo "$FILE_PATH" | grep -qE '^agent_docs/roadmap\.md$|^\.work/board\.md$|^\.work/backlog\.md$'; then
+      exit 0
+    fi
+    ;;
+  lld-service)
+    if echo "$FILE_PATH" | grep -qE '^agent_docs/tech-design/.*-service\.md$|^agent_docs/contracts/api-.*\.yaml$|^agent_docs/features/FR-.*\.md$'; then
+      exit 0
+    fi
+    ;;
+  lld-merge)
+    if echo "$FILE_PATH" | grep -qE '^agent_docs/tech-design/README\.md$|^agent_docs/tech-design/cross-cutting\.md$'; then
       exit 0
     fi
     ;;

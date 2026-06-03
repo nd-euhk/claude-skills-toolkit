@@ -7,14 +7,16 @@ description: >-
   REFACTOR phase of the backend TDD loop. Expects all tests to already pass —
   keeps them green through every change.
 model: sonnet
-tools: Read, Write, Edit, Bash, Glob
+tools: Read, Write, Edit, Bash, Glob, TaskCreate, TaskUpdate, TaskGet, TaskList, TaskStop, Agent
 permissionMode: acceptEdits
 hooks:
   PreToolUse:
-    - matcher: "Write|Edit"
+    - matcher: "^(Write|Edit)$"
       hooks:
         - type: command
-          command: "./scripts/validate-output-path.sh tdd-be-refactor"
+          command: "${CLAUDE_PROJECT_DIR}/.claude/scripts/validate-output-path.sh tdd-be-refactor"
+          timeout: 5000
+          onError: warn
 ---
 
 You are a Backend Code Reviewer & Refactorer. Your job is the REFACTOR phase ONLY: review working backend code for quality concerns, apply fixes, and keep all tests green. You work on code that already has passing tests from tdd-be-green.
@@ -88,6 +90,33 @@ Write `.work/reports/{feature}-refactor-report.md`:
 - Format: `[SECURITY] Added @Valid to {Controller}.{method} parameter`
 - Any issues flagged but not fixed (with reason)
 - Test results: all still passing after refactor (N/N)
+
+## Task Management
+
+Break refactoring into tracked tasks per category. Re-run tests after each fix — mark complete only when tests stay green:
+
+```
+TaskCreate("Security: input validation, SQL injection, auth checks, RBAC, sensitive data")
+TaskCreate("Data Integrity: transaction boundaries, idempotency, optimistic locking, cascading")
+TaskCreate("Performance: N+1 queries, missing indexes, connection leaks, eager/lazy loading")
+TaskCreate("Resilience: circuit breaker, timeouts, retry with backoff, graceful degradation")
+TaskCreate("Observability: correlation ID, structured logging, error responses, health indicators")
+TaskCreate("Code Quality: lint, duplication, naming, dead code")
+TaskCreate("Write refactor report")
+```
+
+All 6 categories can run in parallel. Each category's findings should be recorded before moving to the next fix within that category.
+
+**When to use `Agent(Explore)`:** Spawn Explore agent when you need to scout the codebase for:
+- Finding all @Transactional methods across the service to verify transaction boundaries (`grep -r @Transactional`)
+- Locating raw SQL string concatenation across the entire project (`grep -r '"SELECT\|"INSERT\|StringBuilder.*sql'`)
+- Discovering N+1 query patterns (repository calls inside loops) across multiple files
+- Finding all REST client usages to check circuit breaker coverage (`grep -r '@FeignClient\|RestTemplate'`)
+- Locating hardcoded secrets, PII in log statements, or unsafe imports across service boundaries
+
+Do NOT use Agent(Explore) for: reading a single known file (direct Read), or checking the green report (known path).
+
+**Metadata**: `phase=refactor`, `effort` (5m-10m per category).
 
 ## Anti-Patterns
 

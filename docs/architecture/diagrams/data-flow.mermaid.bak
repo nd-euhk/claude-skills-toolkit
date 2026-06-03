@@ -1,0 +1,11 @@
+flowchart TD
+    User[Developer] -->|"/command"| Skill[Skill Orchestrator]
+    Skill -->|"Agent() brief"| Agent[Agent Executor]
+    Agent -->|"writes artifacts"| Docs[Doc Generator]
+    Agent -->|"gate check"| Gate[Gate Verifier]
+    Gate -->|"REJECT + feedback"| Skill
+    Skill -->|"RETRY brief"| Agent
+    Gate -->|"PASS"| Next[Next Phase]
+    Hook[Hook Engine] -.->|"SessionStart"| Claude[Claude Code]
+    Eval[Eval Engine] -->|"reads outputs"| Docs
+    Sprint[Sprint Manager] -->|"syncs"| WorkArtifacts[.work/ artifacts]

@@ -1,76 +1,84 @@
-# Orchestrator Response Plan: User Authentication with Email/Password Login
+# Orchestrator Execution Plan: Add User Authentication with JWT (--auto)
 
 ## Step 1: Input Parsing and Workflow Routing
 
-**Input:** "I need to build a new feature: user authentication with email/password login. Start a new feature for this."
+**Input:** "feature moi: add user authentication with JWT, tu dong"
 
 **Parse result:**
 - **Workflow type:** `feature` -- matches the `feature|task|story` pattern in the router
-- **Description:** "user authentication with email/password login"
-- **--auto flag:** Not present, so we enter plan mode
+- **Description:** "add user authentication with JWT"
+- **--auto flag:** Present ("tu dong" = automatic). Plan Mode is SKIPPED.
 
-**Routing:** Since `feature` matches the Task Workflow pattern, I would route to `references/task-workflow.md` and execute the Task Workflow pipeline.
+**Routing:** Since `feature` matches the Task Workflow pattern, route to `references/task-workflow.md` and execute the Task Workflow pipeline.
 
 ## Step 2: Phase 1 -- Pick Task
 
-1. Invoke `Skill(sprint)` to pick a task from the board with status **TODO**.
-2. The sprint skill would either find an existing TODO task matching "user authentication with email/password login" or help create a new task for it on the board.
-3. If no TODO tasks exist on the board, I would report to the human and stop immediately.
-4. On success, capture the task ID, title, and description for context throughout all subsequent phases. For this scenario, assume task ID `T-001`, title "User Authentication - Email/Password Login".
+1. Invoke `Skill(sprint)` to interact with the sprint board.
+2. Current board state (from `.work/board.md`):
+   - **TODO:** T-002 (Password strength checker)
+   - **In Review:** T-001 (Email validation utility)
+   - **Ready:** T-003 (Input sanitizer)
+   - **Done:** T-000 (Project setup)
+3. The user's feature "add user authentication with JWT" does not match any existing TODO task.
+4. `Skill(sprint)` creates a new task from the backlog (FEAT-001: User Login maps closest) or creates a fresh task:
+   - **Task ID:** T-004
+   - **Title:** JWT User Authentication
+   - **Description:** Add user authentication with JWT -- implement JWT-based login, token issuance, token validation middleware, and protected route access.
+   - **Status:** TODO (placed on board)
+   - **Services:** auth-service
 
-## Step 3: Phase 2 -- Plan Mode (Not Skipped Since No --auto)
+## Step 3: Phase 2 -- Plan Mode: SKIPPED (--auto present)
 
-Since the `--auto` flag was not provided, I execute the Common Phase: Plan Mode:
+Since `--auto` flag is active, the Common Phase: Plan Mode is **bypassed entirely**. No `EnterPlanMode`, no `Agent(Plan)`, no human clarification. The orchestrator proceeds directly to the SDLC pipeline with the task description as the sole requirements source.
 
-1. **Call `EnterPlanMode`** to enter structured planning mode.
-2. **Spawn `Agent(Plan)`** with a self-contained brief:
-   - Context: Task T-001: User Authentication - Email/Password Login
-   - Task: Clarify requirements with the human (password policies, session management, account lockout rules, email verification flow, etc.)
-   - Support: Use `Skill(sequential-thinking)` and `Skill(problem-solving)` as needed
-   - Draft the plan covering scope, deliverables, and acceptance criteria
-3. **When human approves the plan**, spawn `Agent(general-purpose)` to write it to:
-   - Path: `.work/plans/task-20260601-user-auth--email-password-login.md`
-4. **AskUserQuestion** to confirm: "Plan written. Continue to execution or review further?"
-   - Options: "Continue to execution" | "Let me review the plan first"
-5. **Call `ExitPlanMode`** when ready to proceed.
+This means:
+- No plan file is written to `.work/plans/`
+- No human approval gate before execution
+- Agents use the task description directly as their context
 
-## Step 4: Phase 3 -- Execute SDLC Pipeline
+## Step 4: Phase 3 -- Execute SDLC Pipeline (Task Workflow)
 
-This is the core of the Task Workflow. Each phase must pass gate verification before the next phase begins. The sequence is strictly linear with one exception (IMP+TST in parallel).
+Each phase must pass gate verification before the next phase begins. The sequence is strictly linear with one exception (IMP+TST in parallel).
 
 ### Phase 3a: SRS (Software Requirements Specification)
 
 **Spawn `Agent(srs)`** with brief:
 ```
-Context: Task T-001: User Authentication - Email/Password Login — Implement secure email/password authentication with registration, login, password reset, and session management.
-Inputs: Plan file at .work/plans/task-20260601-user-auth--email-password-login.md
-Task: Transform the business requirements from the plan into precise, testable software specifications with Gherkin Scenario Outlines, quantified NFRs, and full traceability matrices.
+Context: Task T-004: JWT User Authentication — Add user authentication with JWT:
+implement JWT-based login, token issuance, token validation middleware,
+and protected route access.
+Inputs: Task description from sprint board (no plan file due to --auto)
+Task: Transform the feature description into precise, testable software
+specifications with Gherkin Scenario Outlines, quantified NFRs, and full
+traceability matrices.
 Output: Agent will use its default template at .claude/templates/srs/
-Constraints: Output will be gate-verified for completeness, traceability, and testability.
+Constraints: Output will be gate-verified for completeness, traceability,
+and testability.
 ```
 
-**Expected SRS outputs would include:**
-- Functional requirements (registration, login, logout, password reset, email verification)
-- Non-functional requirements (encryption standards, response time < 200ms, OWASP compliance)
-- Gherkin scenarios for each flow (happy path, invalid credentials, locked account, etc.)
+**Expected SRS outputs:**
+- Functional requirements (JWT login, token generation, token validation, token refresh, protected route middleware, token revocation/logout)
+- Non-functional requirements (RS256 signing, token expiry 15min access / 7d refresh, auth latency < 100ms, OWASP compliance)
+- Gherkin scenarios for each flow (successful login with JWT, expired token rejection, invalid signature rejection, missing token, refresh token flow)
 - Traceability matrix linking requirements to test scenarios
 
 ### Gate Verification: SRS
 
 **Spawn `Agent(gate-verifier)`** with brief:
 ```
-Context: Verifying SRS output for task T-001: User Authentication - Email/Password Login
+Context: Verifying SRS output for task T-004: JWT User Authentication
 Inputs: SRS output at {srs-output-path}
-Task: Verify the SRS output against the gate criteria:
-  - Completeness: All plan requirements are reflected in the SRS
+Task: Verify the SRS output against gate criteria:
+  - Completeness: All feature aspects (login, token issuance, validation,
+    refresh, revocation) are reflected in the SRS
   - Traceability: Every functional requirement maps to at least one Gherkin scenario
   - Testability: Each requirement has measurable acceptance criteria
-  - NFR quantification: Performance, security, and availability targets are numeric
+  - NFR quantification: Token expiry, signing algorithm, latency targets are numeric
 Output: Pass/fail verdict with specific feedback.
 Constraints: Read-only — do not modify any files.
 ```
 
-**On rejection:** Re-spawn `Agent(srs)` with the gate feedback prepended. Retry up to 3 times before stopping and reporting to human.
+**On rejection:** Re-spawn `Agent(srs)` with the gate feedback prepended (re-spawn template). Retry up to 3 times before stopping and reporting to human.
 
 ### Phase 3b: HLD (High-Level Design)
 
@@ -78,19 +86,26 @@ Constraints: Read-only — do not modify any files.
 
 **Spawn `Agent(hld)`** with brief:
 ```
-Context: Task T-001: User Authentication - Email/Password Login
-Inputs: SRS at {srs-output-path}, Plan at .work/plans/task-20260601-user-auth--email-password-login.md
-Task: Design system architecture with C4 diagrams, Architecture Decision Records, bounded context mapping, and service decomposition.
+Context: Task T-004: JWT User Authentication
+Inputs: SRS at {srs-output-path}
+Task: Design system architecture with C4 diagrams, Architecture Decision
+Records, bounded context mapping, and service decomposition for a JWT-based
+authentication system.
 Output: Agent will use its default format (see hld agent ## Templates section)
-Constraints: No implementation details, no code, no per-service internals. Output must reference all SRS requirements.
+Constraints: No implementation details, no code, no per-service internals.
+Output must reference all SRS requirements.
 ```
 
 **Expected HLD outputs:**
-- C4 System Context diagram (Auth Service, User DB, Email Service, Frontend App)
-- C4 Container diagram (Auth API, Auth Database, Session Store)
-- Architecture Decision Records (e.g., "ADR-001: Use bcrypt for password hashing", "ADR-002: JWT for stateless sessions", "ADR-003: PostgreSQL for user storage")
-- Bounded context mapping (Auth bounded context, User bounded context)
-- Service decomposition (Auth Service responsibilities and boundaries)
+- C4 System Context diagram (Auth Service, User Store, Client App, Token Store)
+- C4 Container diagram (Auth API, User Database, Token Blacklist Cache)
+- Architecture Decision Records:
+  - ADR-001: Use RS256 asymmetric signing for JWT (rationale: public key distribution for microservices)
+  - ADR-002: Access token 15min / Refresh token 7d expiry (rationale: balance security and UX)
+  - ADR-003: Redis for token blacklist on logout (rationale: fast revocation without DB load)
+  - ADR-004: PostgreSQL for user credentials storage (consistent with existing stack)
+- Bounded context mapping (Auth bounded context boundary, User identity context)
+- Service decomposition (Auth Service: token issuance, validation, refresh, revocation)
 
 ### Gate Verification: HLD
 
@@ -108,20 +123,31 @@ Constraints: No implementation details, no code, no per-service internals. Outpu
 
 **Spawn `Agent(lld)`** with brief:
 ```
-Context: Task T-001: User Authentication - Email/Password Login
+Context: Task T-004: JWT User Authentication
 Inputs: HLD at {hld-output-path}, SRS at {srs-output-path}
-Task: Produce per-service technical design with domain models, transaction boundaries, REST client specs, caching strategies, error flows, and feature work packages.
+Task: Produce per-service technical design for JWT authentication with
+domain models, transaction boundaries, REST client specs, caching strategies,
+error flows, and feature work packages.
 Output: Agent will use its default format (see lld agent ## Templates section)
-Constraints: Service internals only. No new architectural decisions — follow HLD boundaries.
+Constraints: Service internals only. No new architectural decisions —
+follow HLD boundaries.
 ```
 
 **Expected LLD outputs:**
-- Domain models (User, Session, PasswordResetToken, EmailVerification)
-- REST API specs (POST /auth/register, POST /auth/login, POST /auth/logout, POST /auth/reset-password, GET /auth/verify-email)
-- Transaction boundaries (registration requires atomic user+credentials write)
-- Caching strategy (session validation cache with TTL, rate limiting counters)
-- Error flows and error response schema
-- Feature work packages (WP-1: Registration, WP-2: Login, WP-3: Session Mgmt, WP-4: Password Reset)
+- Domain models (User, UserCredential, RefreshToken, JwtClaims, TokenBlacklistEntry)
+- REST API specs:
+  - `POST /auth/login` -- accepts credentials, returns access+refresh tokens
+  - `POST /auth/refresh` -- accepts refresh token, returns new access token
+  - `POST /auth/logout` -- blacklists tokens
+  - `GET /auth/verify` -- validates token, returns claims
+- Transaction boundaries (login requires atomic credential check + token issuance)
+- Caching strategy (token blacklist in Redis with TTL matching token expiry, public key cache)
+- Error flows (401 Unauthorized, 403 Forbidden with token-specific error codes)
+- Feature work packages:
+  - WP-1: JWT Token Service (issuance, validation, refresh)
+  - WP-2: Auth Middleware (protected route enforcement)
+  - WP-3: Login Endpoint (credential verification + token issuance)
+  - WP-4: Logout/Revocation (token blacklisting)
 
 ### Gate Verification: LLD
 
@@ -141,25 +167,33 @@ Constraints: Service internals only. No new architectural decisions — follow H
 
 **Agent(imp) brief:**
 ```
-Context: Task T-001: User Authentication - Email/Password Login
+Context: Task T-004: JWT User Authentication
 Inputs: LLD at {lld-output-path}, HLD at {hld-output-path}
-Task: Write implementation specifications for each feature covering execution flow, business rules, data impact, error mapping, and security considerations.
-Output: Agent will use .claude/templates/impl/impl-spec-backend-TEMPLATE.md or .claude/templates/impl/impl-spec-frontend-TEMPLATE.md
+Task: Write implementation specifications for each feature covering
+execution flow, business rules, data impact, error mapping, and security
+considerations for JWT auth.
+Output: Agent will use .claude/templates/impl/impl-spec-backend-TEMPLATE.md
 Constraints: Specifications only — no actual code. References LLD work packages.
 ```
 
 **Agent(tst) brief:**
 ```
-Context: Task T-001: User Authentication - Email/Password Login
+Context: Task T-004: JWT User Authentication
 Inputs: IMP at {imp-output-path}, LLD at {lld-output-path}
-Task: Write test specifications with concrete test cases for unit, integration, E2E, and performance testing following TDD-first approach.
-Output: Agent will use .claude/templates/tst/test-spec-backend-TEMPLATE.md or .claude/templates/tst/test-spec-frontend-TEMPLATE.md
-Constraints: Test specifications only — no implementation code. References IMP specs for feature behavior.
+Task: Write test specifications with concrete test cases for unit,
+integration, E2E, and performance testing following TDD-first approach.
+Output: Agent will use .claude/templates/tst/test-spec-backend-TEMPLATE.md
+Constraints: Test specifications only — no implementation code.
+References IMP specs for feature behavior.
 ```
 
-**Expected IMP outputs:** Implementation specifications covering auth middleware, password hashing service, token management, rate limiting, email verification flows, account lockout logic.
+**Expected IMP outputs:** Implementation specifications covering JWT token service internals, auth middleware pipeline, login request/response flow, token refresh flow, token blacklist management, security considerations (CSRF, XSS, token storage).
 
-**Expected TST outputs:** Test specifications for unit tests (password validation, token generation), integration tests (registration→login→protected endpoint flow), E2E tests (full registration and login journey), performance tests (login endpoint under load).
+**Expected TST outputs:** Test specifications for:
+- Unit tests (JWT token generation/validation, password verification, claims extraction)
+- Integration tests (login -> get token -> access protected endpoint, expired token rejection, invalid signature rejection)
+- E2E tests (full login journey with token refresh, logout followed by rejected access)
+- Performance tests (login endpoint under 1000 concurrent users, token validation throughput)
 
 ### Gate Verification: IMP and TST (Parallel)
 
@@ -178,7 +212,7 @@ Constraints: Test specifications only — no implementation code. References IMP
 
 **Invoke `Skill(sprint)`** to update the task status:
 - From: `TODO`
-- To: `Ready` (or `Blocked` if dependencies exist, e.g., awaiting email service integration)
+- To: `Ready` (no blockers identified -- auth-service is standalone)
 
 ## Step 5: Gate Rejection Handling and Re-spawn Loop Safety
 
@@ -194,58 +228,39 @@ For EVERY gate verification across ALL phases:
      Gate feedback:
      {exact gate-verifier rejection message}
 
-     Fix these specific issues before re-submitting. Do not change anything that was not flagged.
+     Fix these specific issues before re-submitting.
+     Do not change anything that was not flagged.
      ```
    - Re-spawn the preceding `Agent(phase)` (NOT the gate verifier).
    - Re-run `Agent(gate-verifier)` on the new output.
 3. If the same agent fails gate verification **3 times consecutively**:
    - Stop the pipeline immediately.
    - Report to the human with all accumulated gate feedback across all 3 attempts.
-   - Ask the human whether to: abort the workflow / adjust gate criteria / manually intervene and retry.
-   - Do NOT loop indefinitely -- this is a hard safety limit.
-
-### Example Rejection Scenario (LLD Gate Fails)
-
-```
-Phase 3c: Agent(lld) produces LLD output
-  → Agent(gate-verifier) reviews → REJECT
-  → Reason: "Missing transaction boundary analysis for password reset flow. 
-              Redis caching strategy not defined for rate limiting counters."
-  
-RETRY #1: Re-spawn Agent(lld) with feedback
-  → Agent(lld) fixes issues, produces updated LLD
-  → Agent(gate-verifier) reviews → REJECT
-  → Reason: "Caching strategy added but missing eviction policy. 
-              Transaction boundary still incomplete."
-
-RETRY #2: Re-spawn Agent(lld) with accumulated feedback
-  → Agent(lld) fixes remaining issues
-  → Agent(gate-verifier) reviews → PASS
-  → Advance to Phase 3d (IMP+TST)
-```
+   - Ask human: abort / adjust gate criteria / manual fix and retry.
+   - Do NOT loop indefinitely -- hard safety limit.
 
 ## Step 6: Phase 4 -- Summary
 
-After all gates pass and the task status is updated to Ready/Blocked, write a summary report to:
-`.work/reports/task-20260601-user-auth--email-password-login.md`
+After all gates pass and the task status is updated to Ready, write a summary report to:
+`.work/reports/task-20260602-jwt-auth--add-user-authentication-with-jwt.md`
 
 **Report contents:**
-- Task ID: T-001
-- Title: User Authentication - Email/Password Login
-- Description: Implement secure email/password authentication with registration, login, password reset, session management
-- SRS summary: N functional requirements captured, N Gherkin scenarios, quantified NFRs (auth latency < 200ms, bcrypt cost factor 12, JWT RS256)
-- HLD summary: 4 ADRs (bcrypt, JWT, PostgreSQL, rate limiting), bounded contexts mapped, C4 diagrams completed
-- LLD summary: Domain models defined (User, Session, 2 support entities), REST API contracts specified, 4 feature work packages
-- IMP summary: Backend implementation specs covering all 4 work packages, security middleware specification
-- TST summary: Test specs with N unit tests, N integration tests, N E2E test scenarios
+- Task ID: T-004
+- Title: JWT User Authentication
+- Description: Add user authentication with JWT -- JWT-based login, token issuance, token validation middleware, protected route access
+- SRS summary: N functional requirements (login, token issuance, validation, refresh, revocation), N Gherkin scenarios, quantified NFRs (RS256 signing, 15min access / 7d refresh expiry, auth latency < 100ms)
+- HLD summary: 4 ADRs (RS256, token expiry policy, Redis blacklist, PostgreSQL), bounded context mapped, C4 diagrams (System Context + Container level)
+- LLD summary: 5 domain models (User, UserCredential, RefreshToken, JwtClaims, TokenBlacklistEntry), 4 REST endpoints, 4 feature work packages
+- IMP summary: Backend implementation specs covering all 4 work packages (JWT Token Service, Auth Middleware, Login Endpoint, Logout/Revocation)
+- TST summary: Test specs with N unit tests, N integration tests, N E2E scenarios, N performance tests
 - Gate verification results:
   - SRS gate: PASS (1 attempt)
   - HLD gate: PASS (1 attempt)
-  - LLD gate: PASS (2 attempts, minor rework on caching strategy)
+  - LLD gate: PASS (1 attempt)
   - IMP gate: PASS (1 attempt)
   - TST gate: PASS (1 attempt)
 - Final status: Ready
-- Re-spawn summary: LLD required 1 re-spawn (LLD gate found caching gaps)
+- Re-spawn summary: None (all gates passed on first attempt)
 
 ## Step 7: Phase 5 -- Next Steps
 
@@ -254,20 +269,16 @@ Use `AskUserQuestion` to present the user with options:
 **Question:** "Task workflow complete. What next?"
 **Header:** "Next"
 **Options:**
-1. "Cook this task now" -- Re-invoke orchestrator with `cook User Authentication - Email/Password Login` (with --auto since the plan was already approved)
+1. "Cook this task now" -- Re-invoke orchestrator with `cook JWT User Authentication` (with --auto since this was already an --auto run)
 2. "Start a new feature/task" -- Re-invoke orchestrator for a new task workflow
 3. "Create a change request" -- Re-invoke orchestrator for CR workflow
 4. "Done for now" -- End the session
 
-## Agent Spawning Summary (Complete Sequence)
+## Complete Agent Spawning Sequence (--auto, no plan mode)
 
 ```
-Phase 1: Skill(sprint)                          → Pick TODO task
-Phase 2: EnterPlanMode                          → Enter planning
-         Agent(Plan)                            → Draft plan with human
-         Agent(general-purpose)                 → Write plan to file
-         AskUserQuestion                        → Confirm proceed
-         ExitPlanMode                           → Exit planning
+Phase 1: Skill(sprint)                          → Create T-004 in TODO
+Phase 2: SKIPPED (--auto)                       → No plan mode
 Phase 3a: Agent(srs)                            → Produce SRS
           Agent(gate-verifier)                  → Verify SRS [PASS/REJECT]
 Phase 3b: Agent(hld)                            → Produce HLD
@@ -277,24 +288,55 @@ Phase 3c: Agent(lld)                            → Produce LLD
 Phase 3d: Agent(imp) + Agent(tst) [PARALLEL]    → Produce IMP + TST specs
           Agent(gate-verifier) [IMP]            → Verify IMP [PASS/REJECT]
           Agent(gate-verifier) [TST]  [PARALLEL]→ Verify TST [PASS/REJECT]
-Phase 4:  Skill(sprint)                         → Update status: TODO→Ready
-          Write summary report                  → .work/reports/task-*.md
+Phase 3e: Skill(sprint)                         → Update status: TODO→Ready
+Phase 4:  Write summary report                  → .work/reports/task-*.md
 Phase 5:  AskUserQuestion                       → Next action routing
 ```
 
-**Total agents spawned (ideal path, no re-spawns):**
-- 1 sprint skill invocation (Phase 1)
-- 2 agents for planning (Phase 2)
+**Total agents spawned (ideal path, no re-spawns, --auto mode):**
+- 1 sprint skill invocation (Phase 1: create task)
 - 4 SDLC agents: SRS, HLD, LLD, IMP, TST
 - 5 gate-verifier agents (SRS gate, HLD gate, LLD gate, IMP gate, TST gate)
-- 1 sprint skill invocation (Phase 4 status update)
-- **Total: ~12 spawned entities**
+- 1 sprint skill invocation (Phase 3e: status update)
+- **Total: 11 spawned entities** (1 fewer than non-auto mode which has 2 plan agents)
+
+## Key Differences: --auto vs Non-Auto Mode
+
+| Aspect | Non-Auto | --auto (this execution) |
+|--------|----------|------------------------|
+| Plan Mode | EnterPlanMode, Agent(Plan), Agent(general-purpose), ExitPlanMode | SKIPPED |
+| Human interaction | Requirements clarification during plan | None until Phase 5 (next steps) |
+| Plan file | Written to `.work/plans/` | Not created |
+| Agent briefs | Include plan file path as input | Reference task description directly |
+| Total agents | 12 | 11 |
+| Execution speed | Slower (human-in-the-loop) | Faster (fully automated) |
 
 ## Error Recovery Strategy
 
 For each agent invocation:
-- **Agent failure (not gate rejection):** Log the error to the summary report. Ask human via AskUserQuestion whether to retry the agent or skip the phase. Do NOT auto-retry on agent errors -- this is a human decision point.
-- **Gate rejection:** Distinct from agent errors. This is the normal quality control flow. Re-spawn the preceding agent with feedback, up to 3 times.
-- **3-strike limit hit:** Stop the pipeline. Present accumulated feedback to human with options: abort / adjust criteria / manual fix and retry.
+- **Agent failure (not gate rejection):** Log the error. Ask human via AskUserQuestion whether to retry or skip. Do NOT auto-retry on agent errors.
+- **Gate rejection:** Re-spawn the preceding agent with feedback, up to 3 times.
+- **3-strike limit hit:** Stop pipeline. Present accumulated feedback to human with options: abort / adjust criteria / manual fix and retry.
 - **Directory missing before file writes:** Run `mkdir -p .work/plans/` and `mkdir -p .work/reports/` before any file writes.
 - **Sprint board inconsistency:** Never modify board files directly. Always use `Skill(sprint)` for board operations.
+
+## Workflow Summary
+
+```
+INPUT: feature "add user authentication with JWT" --auto
+
+ROUTE: feature → Task Workflow (references/task-workflow.md)
+
+EXECUTE:
+  1. Skill(sprint) → Create T-004 on board (TODO)
+  2. SKIP Plan Mode (--auto)
+  3. Agent(srs) → Agent(gate-verifier) → SRS approved
+  4. Agent(hld) → Agent(gate-verifier) → HLD approved
+  5. Agent(lld) → Agent(gate-verifier) → LLD approved
+  6. Agent(imp) || Agent(tst) → Agent(gate-verifier) x2 → IMP+TST approved
+  7. Skill(sprint) → T-004: TODO → Ready
+  8. Write summary → .work/reports/task-20260602-jwt-auth--add-user-authentication-with-jwt.md
+  9. AskUserQuestion → Cook / New feature / CR / Done
+
+OUTPUT: T-004 marked Ready on sprint board. Full SDLC artifacts produced.
+```
