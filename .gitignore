@@ -1,2 +1,4 @@
 *.backup
 /evals/
+.claude/worktrees/
+*.zip

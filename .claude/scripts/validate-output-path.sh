@@ -27,6 +27,11 @@ case "$PHASE" in
       exit 0
     fi
     ;;
+  architect)
+    if echo "$FILE_PATH" | grep -qE '^docs/architecture/|^agent_docs/architecture\.md$|^agent_docs/domain-service-mapping\.yaml$|^agent_docs/hard-boundaries\.md$|^agent_docs/contracts/|^agent_docs/architecture-reviews/'; then
+      exit 0
+    fi
+    ;;
   hld)
     if echo "$FILE_PATH" | grep -qE '^docs/architecture/|^agent_docs/architecture\.md$|^agent_docs/domain-service-mapping\.yaml$|^agent_docs/hard-boundaries\.md$|^agent_docs/contracts/'; then
       exit 0
