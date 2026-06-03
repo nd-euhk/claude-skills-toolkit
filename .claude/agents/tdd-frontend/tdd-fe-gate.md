@@ -6,7 +6,7 @@ description: >-
   violations early) and full (10 checks after REFACTOR, comprehensive).
   Auto-detects mode from report availability, or use --mode=light|full.
   Read-only — no code changes, reports pass/fail only.
-model: sonnet
+model: haiku
 tools: Read, Bash, Glob, TaskCreate, TaskUpdate, TaskGet, TaskList, TaskStop, Agent
 permissionMode: acceptEdits
 ---

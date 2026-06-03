@@ -6,7 +6,7 @@ description: >-
   test specs, executing the RED phase of the backend TDD loop, or preparing
   test cases that must fail before implementation begins. Reads TST spec —
   writes test code only, no implementation.
-model: sonnet
+model: haiku
 tools: Read, Write, Edit, Bash, Glob, TaskCreate, TaskUpdate, TaskGet, TaskList, TaskStop, Agent
 permissionMode: acceptEdits
 hooks:
