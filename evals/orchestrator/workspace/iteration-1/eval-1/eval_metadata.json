@@ -3,24 +3,39 @@
   "skill_path": ".claude/skills/orchestrator/SKILL.md",
   "assertions": [
     {
-      "text": "Skill nhận diện đúng workflow='task' từ input (feature/task/story → Task Workflow)",
+      "text": "Skill correctly parses --lang vi flag from user input",
       "type": "presence",
-      "target": "SKILL.md Step 1: Parse Arguments"
+      "target": "argument parsing"
     },
     {
-      "text": "Skill phát hiện --auto flag và bỏ qua EnterPlanMode",
+      "text": "Skill confirms output language is Vietnamese (vi)",
+      "type": "presence",
+      "target": "language confirmation"
+    },
+    {
+      "text": "Skill routes to correct workflow (task workflow for feature/task/story)",
+      "type": "presence",
+      "target": "workflow routing"
+    },
+    {
+      "text": "All output written in Vietnamese with full diacritics (tiếng Việt có dấu)",
       "type": "quality",
-      "target": "SKILL.md Step 2: Route to Workflow (--auto branch)"
+      "target": "output language"
     },
     {
-      "text": "Skill parse description='add user authentication with JWT' từ free-text input",
-      "type": "presence",
-      "target": "SKILL.md Step 1 description extraction"
-    },
-    {
-      "text": "Skill route đến đúng workflow reference file (references/task-workflow.md)",
+      "text": "Technical terms and code identifiers remain untranslated",
       "type": "structure",
-      "target": "references/ directory integrity"
+      "target": "technical terms preservation"
+    },
+    {
+      "text": "--vi shorthand also works and is equivalent to --lang vi",
+      "type": "presence",
+      "target": "shorthand flag"
+    },
+    {
+      "text": "When both --vi and --lang present, --lang takes precedence",
+      "type": "presence",
+      "target": "flag precedence"
     }
   ]
 }

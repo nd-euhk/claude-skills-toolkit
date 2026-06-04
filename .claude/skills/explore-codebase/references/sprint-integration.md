@@ -12,12 +12,12 @@ Universal Project Discovery (Phase 1) detects sub-projects via 4 patterns. Sprin
 
 | Pattern | Sprint Handling |
 |---------|----------------|
-| **Git Submodule** | Mỗi submodule có thể có features riêng. Themes/epics từ SRS nên được tag với submodule name để traceability. |
-| **Nested Git Repo** | Mỗi nested repo là 1 project độc lập (có git history riêng, thường trong .gitignore). Themes/epics nên tách riêng cho từng nested repo. |
-| **Monorepo Directory** | Dùng chung git history repo cha. Themes có thể gộp chung nhưng features nên tag theo directory. |
-| **Single Project** | Sprint artifacts chuẩn — không cần tagging đặc biệt. |
+| **Git Submodule** | Each submodule may have its own features. Themes/epics from SRS should be tagged with the submodule name for traceability. |
+| **Nested Git Repo** | Each nested repo is an independent project (has its own git history, typically in .gitignore). Themes/epics should be separated per nested repo. |
+| **Monorepo Directory** | Shares the parent repo's git history. Themes can be merged but features should be tagged by directory. |
+| **Single Project** | Standard sprint artifacts — no special tagging needed. |
 
-**Nguyên tắc chung:** Scout reports từ mỗi sub-project là input cho sprint. Nếu multi-project, roadmap nên có section riêng cho từng project. Backlog có thể gộp chung hoặc tách — tùy quy mô. Hỏi human nếu > 3 projects.
+**General principle:** Scout reports from each sub-project are input for sprint. If multi-project, the roadmap should have a separate section per project. The backlog can be merged or split — depends on scale. Ask the human if > 3 projects.
 
 ## Step 1: Check Current State
 
@@ -87,7 +87,7 @@ Invoke `Skill(sprint)` to cross-reference with SRS features and HLD architecture
 - New tasks/stories from IMP → link to parent features
 - New architectural decisions from HLD → add as tasks if they require implementation
 
-**Multi-project handling:** Khi cross-reference, group features theo sub-project source (submodule, nested repo, hoặc monorepo directory). Feature từ nested repo không nên merge với feature từ repo chính — giữ ranh giới rõ ràng để human biết feature đến từ đâu.
+**Multi-project handling:** When cross-referencing, group features by sub-project source (submodule, nested repo, or monorepo directory). Features from a nested repo should not be merged with features from the main repo — keep clear boundaries so humans know where each feature originated.
 
 ## Edge Cases
 
@@ -101,7 +101,7 @@ Invoke `Skill(sprint)` to cross-reference with SRS features and HLD architecture
 - Never remove or reorder human-added entries without asking
 
 **Multi-pattern projects (submodules + nested repos + monorepo):**
-- Mỗi sub-project có thể có SRS features và HLD services riêng
-- Khi merge vào sprint, giữ traceability: feature → source sub-project
-- Nếu nested repo có git history riêng → có thể cần sprint artifacts riêng
-- Hỏi human nếu phát hiện > 3 sub-projects: "Create unified sprint or separate board per project?"
+- Each sub-project may have its own SRS features and HLD services
+- When merging into sprint, maintain traceability: feature → source sub-project
+- If a nested repo has its own git history → it may need separate sprint artifacts
+- Ask the human if > 3 sub-projects are detected: "Create unified sprint or separate board per project?"

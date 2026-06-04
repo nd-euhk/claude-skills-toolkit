@@ -2,8 +2,8 @@
 name: orchestrator
 description: >-
   Orchestrate SDLC workflows end-to-end. Use when starting a new feature (feature/task/story), handling a change request (cr), or cooking ready tasks for implementation (cook). Supports --auto flag to bypass plan mode. Coordinates sprint, srs, hld, lld, imp, tst, and tdd agents sequentially with gate verification at each phase.
-argument-hint: "[feature][task][story][cr][cook] [description] [--auto]"
-version: 1.2.0
+argument-hint: "[feature][task][story][cr][cook] [description] [--auto] [--lang vi|en] [--vi]"
+version: 1.4.0
 allowed-tools: Read, Write, Bash(*), Glob, Grep, AskUserQuestion, EnterPlanMode, ExitPlanMode, Agent, Skill, TaskCreate, TaskUpdate, TaskList, TaskGet
 ---
 
@@ -19,11 +19,13 @@ Extract from human input:
 - **workflow type**: `feature`, `task`, `story` → Task Workflow | `cr` → CR Workflow | `cook` → Cook Workflow
 - **description**: free-text describing what to build/change
 - **--auto flag**: if present, skip plan mode and execute directly
+- **--lang <vi|en>**: output language for all generated documentation. `vi` = Vietnamese, `en` = English (default). Reject any other value with an error message suggesting `vi` or `en`.
+- **--vi flag**: shorthand for `--lang vi`. Equivalent behavior — if both `--vi` and `--lang` are present, `--lang` takes precedence.
 
 ### Step 2: Route to Workflow
 
 ```
-INPUT: [workflow-type] [description] [--auto]
+INPUT: [workflow-type] [description] [--auto] [--lang vi|en] [--vi]
 
 MATCH workflow-type:
   feature|task|story  → references/task-workflow.md
@@ -84,3 +86,18 @@ Each reference file contains: agent spawning order, gate rejection handling, re-
 **Error recovery.** Agent error (not gate reject): log, ask human retry/skip. Never auto-retry on errors.
 
 **Report paths.** `mkdir -p .work/plans .work/reports .work/tasks .work/cooks .work/change-requests` before writing.
+
+**Language (--lang, --vi).** `--lang vi|en` sets the output language for ALL generated documentation. `--vi` is shorthand for `--lang vi`. Only `vi` (Vietnamese) and `en` (English) are supported — any other value must be rejected with an error. If neither flag is provided, default to English.
+
+**Artifacts written in target language:**
+- Agent briefs: prepend "Write all output in {language}" as the first line
+- Plan files, SDLC artifacts (SRS, HLD, LLD, IMP, TST), sprint artifacts, summary reports
+
+**Artifacts kept in original form (never translated):**
+- Technical terms: API, HTTP, JSON, class names, package names
+- Code identifiers: function names, variable names, file paths
+
+**Language-specific behavior:**
+- `--lang vi` / `--vi`: all output in Vietnamese with full diacritics (tiếng Việt với đầy đủ dấu)
+- `--lang en` / default: all output in English
+- If both `--vi` and `--lang` are present: `--lang` takes precedence (e.g., `--vi --lang en` → English)

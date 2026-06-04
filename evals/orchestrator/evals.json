@@ -1,19 +1,14 @@
 {
   "skill_name": "orchestrator",
   "skill_path": ".claude/skills/orchestrator/SKILL.md",
-  "description": "Orchestrate SDLC workflows: Task (feature/task/story), CR (change request), Cook (ready tasks → implementation)",
+  "description": "Orchestrate SDLC workflows end-to-end with language support via --lang vi|en and --vi flags",
   "evals": [
     {
       "id": 1,
-      "name": "Parse workflow type and route to correct workflow",
-      "prompt": "Dùng orchestrator để tạo feature mới: 'add user authentication with JWT', tự động.",
-      "expected_output": "Skill trích xuất workflow='task', description='add user authentication with JWT', flag --auto, route đến references/task-workflow.md."
-    },
-    {
-      "id": 2,
-      "name": "Cook workflow execution with parallel BE+FE TDD",
-      "prompt": "Dùng orchestrator cook để triển khai các task đã sẵn sàng trên board, tự động.",
-      "expected_output": "Skill load board, xác định ready tasks, spawn TDD agents (BE+FE) song song, gate-verify mỗi phase, cập nhật board sau completion. Dùng Task tools pipeline tracking."
+      "name": "Language flag --lang vi / --vi",
+      "prompt": "Tôi cần tạo một task feature: thêm chức năng đăng nhập bằng email --lang vi. Hãy khởi động orchestrator và xử lý yêu cầu này. Chỉ cần thực hiện bước parse arguments và route workflow — không cần chạy toàn bộ pipeline. Xác nhận rằng bạn đã nhận diện đúng --lang vi và sẽ xuất tất cả tài liệu bằng tiếng Việt.",
+      "expected_output": "Orchestrator correctly parses --lang vi flag and confirms Vietnamese output. All documentation will be written in Vietnamese with full diacritics. The agent briefs should include 'Write all output in Vietnamese' prepended.",
+      "files": []
     }
   ]
 }

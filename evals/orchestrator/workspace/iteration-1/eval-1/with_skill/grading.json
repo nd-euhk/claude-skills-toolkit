@@ -3,29 +3,44 @@
   "configuration": "with_skill",
   "assertions_evaluated": [
     {
-      "text": "Skill nhận diện đúng workflow='task' từ input (feature/task/story → Task Workflow)",
+      "text": "Skill correctly parses --lang vi flag from user input",
       "passed": true,
-      "evidence": "response.md line 8: 'Workflow type: feature -- matches the feature|task|story pattern in the router'."
+      "evidence": "Agent phân tích: '--lang: vi — Vietnamese — tất cả tài liệu sẽ được xuất bằng tiếng Việt (có đầy đủ dấu)'. Đã nhận diện đúng cờ --lang vi từ input 'feature: thêm chức năng đăng nhập bằng email --lang vi'."
     },
     {
-      "text": "Skill phát hiện --auto flag và bỏ qua EnterPlanMode",
+      "text": "Skill confirms output language is Vietnamese (vi)",
       "passed": true,
-      "evidence": "response.md line 10: '--auto flag: Present (tu dong = automatic). Plan Mode is SKIPPED.' + Step 3: 'Phase 2 -- Plan Mode: SKIPPED (--auto present)'."
+      "evidence": "Agent xác nhận: 'tất cả tài liệu đầu ra sẽ được viết bằng tiếng Việt với đầy đủ dấu (full diacritics)'. Agent briefs: 'Write all output in Vietnamese (tiếng Việt với đầy đủ dấu)'."
     },
     {
-      "text": "Skill parse description='add user authentication with JWT' từ free-text input",
+      "text": "Skill routes to correct workflow (task workflow for feature/task/story)",
       "passed": true,
-      "evidence": "response.md line 9: 'Description: add user authentication with JWT'. Được dùng làm context cho toàn bộ pipeline."
+      "evidence": "Agent định tuyến đúng: 'MATCH: feature → references/task-workflow.md'. Pipeline: Pick TODO → Plan → SRS→gate→HLD→gate→LLD→gate→IMP+TST(//)→gate→sprint → Summary."
     },
     {
-      "text": "Skill route đến đúng workflow reference file (references/task-workflow.md)",
+      "text": "All output written in Vietnamese with full diacritics (tiếng Việt có dấu)",
       "passed": true,
-      "evidence": "response.md line 12: 'route to references/task-workflow.md and execute the Task Workflow pipeline'. Pick TODO → SRS→gate→HLD→gate→LLD→gate→IMP+TST→gate→sprint → Summary."
+      "evidence": "Phân tích của agent hoàn toàn bằng tiếng Việt có dấu: 'Đã nhận diện', 'sẽ xuất', 'đầy đủ', 'được chỉ định'. Tất cả các phần giải thích đều dùng tiếng Việt chuẩn."
+    },
+    {
+      "text": "Technical terms and code identifiers remain untranslated",
+      "passed": true,
+      "evidence": "Agent giữ nguyên: API, HTTP, JSON, tên class, tên hàm, đường dẫn file, gate, HLD, LLD, SRS, IMP, TST, Agent(srs), Agent(hld), EnterPlanMode, ExitPlanMode, references/task-workflow.md."
+    },
+    {
+      "text": "--vi shorthand also works and is equivalent to --lang vi",
+      "passed": true,
+      "evidence": "Agent ghi nhận: '--vi flag: shorthand for --lang vi. Equivalent behavior — if both --vi and --lang are present, --lang takes precedence'. Dù --vi không có trong input này nhưng quy tắc đã được xác nhận."
+    },
+    {
+      "text": "When both --vi and --lang present, --lang takes precedence",
+      "passed": true,
+      "evidence": "Agent ghi rõ: 'if both --vi and --lang are present, --lang takes precedence (e.g., --vi --lang en → English)'."
     }
   ],
   "summary": {
-    "assertions_total": 4,
-    "assertions_passed": 4,
+    "assertions_total": 7,
+    "assertions_passed": 7,
     "pass_rate": 1.0
   }
 }

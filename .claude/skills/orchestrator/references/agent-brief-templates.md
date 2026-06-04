@@ -21,7 +21,7 @@ Each SDLC agent already knows when to use Skill(sequential-thinking) and Skill(p
 Context: Task {task-id}: {task-title} — {task-description from sprint}
 Inputs: Plan file at .work/plans/{plan-file}
 Task: Transform the business requirements from the plan into precise, testable software specifications with Gherkin Scenario Outlines, quantified NFRs, and full traceability matrices.
-Output: Agent will use its default template at `.claude/templates/srs/`
+Output: docs/product/SRS.md and agent_docs/traceability/requirements-matrix.md
 Constraints: Output will be gate-verified for completeness, traceability, and testability.
 ```
 
@@ -31,7 +31,7 @@ Constraints: Output will be gate-verified for completeness, traceability, and te
 Context: Task {task-id}: {task-title}
 Inputs: SRS at {srs-output-path}, Plan at .work/plans/{plan-file}
 Task: Design system architecture with C4 diagrams, Architecture Decision Records, bounded context mapping, and service decomposition.
-Output: Agent will use its default format (see hld agent ## Templates section)
+Output: docs/architecture/system-architecture.md, docs/architecture/ADRs/*.md, agent_docs/architecture.md, agent_docs/domain-service-mapping.yaml, agent_docs/hard-boundaries.md, agent_docs/contracts/api-conventions.md, agent_docs/contracts/events.md
 Constraints: No implementation details, no code, no per-service internals. Output must reference all SRS requirements.
 ```
 
@@ -41,7 +41,7 @@ Constraints: No implementation details, no code, no per-service internals. Outpu
 Context: Task {task-id}: {task-title}
 Inputs: HLD at {hld-output-path}, SRS at {srs-output-path}
 Task: Produce per-service technical design with domain models, transaction boundaries, REST client specs, caching strategies, error flows, and feature work packages.
-Output: Agent will use its default format (see lld agent ## Templates section)
+Output: agent_docs/tech-design/README.md, agent_docs/tech-design/{name}-service.md (per service), agent_docs/tech-design/cross-cutting.md, agent_docs/contracts/api-{domain}.yaml, agent_docs/features/FR-*.md
 Constraints: Service internals only. No new architectural decisions — follow HLD boundaries.
 ```
 
@@ -51,7 +51,7 @@ Constraints: Service internals only. No new architectural decisions — follow H
 Context: Task {task-id}: {task-title}
 Inputs: LLD at {lld-output-path}, HLD at {hld-output-path}
 Task: Write implementation specifications for each feature covering execution flow, business rules, data impact, error mapping, and security considerations.
-Output: Agent will use `.claude/templates/impl/impl-spec-backend-TEMPLATE.md` or `.claude/templates/impl/impl-spec-frontend-TEMPLATE.md`
+Output: agent_docs/backend/{service}/implementation/FR-{DOMAIN}-{NNN}-impl.md (backend) or agent_docs/frontend/{app}/implementation/FR-{DOMAIN}-{NNN}-impl.md (frontend)
 Constraints: Specifications only — no actual code. References LLD work packages.
 ```
 
@@ -61,7 +61,7 @@ Constraints: Specifications only — no actual code. References LLD work package
 Context: Task {task-id}: {task-title}
 Inputs: IMP at {imp-output-path}, LLD at {lld-output-path}
 Task: Write test specifications with concrete test cases for unit, integration, E2E, and performance testing following TDD-first approach.
-Output: Agent will use `.claude/templates/tst/test-spec-backend-TEMPLATE.md` or `.claude/templates/tst/test-spec-frontend-TEMPLATE.md`
+Output: agent_docs/backend/{service}/test-specs/FR-{DOMAIN}-{NNN}-test.md (backend) or agent_docs/frontend/{app}/test-specs/FR-{DOMAIN}-{NNN}-test.md (frontend)
 Constraints: Test specifications only — no implementation code. References IMP specs for feature behavior.
 ```
 

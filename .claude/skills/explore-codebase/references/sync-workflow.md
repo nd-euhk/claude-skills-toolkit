@@ -48,6 +48,29 @@ If a nested git repo is detected and gitignored:
 
 ---
 
+## Dependency Auto-Resolution
+
+When executing selected phases in Sync mode, some phases may depend on unselected phases. Auto-resolve dependencies:
+
+```
+IMP selected, LLD not selected:
+  → Check: does LLD output exist from a previous run?
+    YES → use existing LLD output as input
+    NO  → auto-include LLD in the execution (run LLD first, then IMP)
+
+TST selected, IMP not selected:
+  → Same logic: use existing IMP or auto-include
+
+HLD selected, SRS not selected:
+  → Use existing SRS output. If none → auto-include SRS first.
+```
+
+**Chain:** Auto-inclusion cascades. If auto-including LLD triggers need for HLD (not selected, no output), auto-include HLD too. Report the final execution list to human before starting: "Adjusted plan: LLD auto-included (needed by IMP). Running: LLD → IMP → TST."
+
+After execution → Phase 5 (Sprint Integration) if selected → Phase 6 (Summary) with auto-tagging.
+
+---
+
 ## AI Deep Analysis Prompt Template
 
 Used in impact analysis Tier 2. Spawn Agent(Explore) (read-only):
@@ -87,7 +110,7 @@ Example output format for presenting results to human:
 
 ---
 
-### Repo Chính: my-platform
+### Main Repo: my-platform
 Changed: 12 files, 3 commits
 
 | File | Change | Bucket |

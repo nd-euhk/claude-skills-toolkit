@@ -4,8 +4,8 @@ description: >-
   Explore and analyze codebases end-to-end, generating full SDLC documentation (SRS, HLD, LLD, IMP, TST) with gate verification.
   Use when analyzing new projects, exploring architecture, generating system documentation, or syncing sprint artifacts.
   Supports multi-subproject discovery, plan mode, and sprint integration.
-argument-hint: "[full][architect][sync] [--auto]"
-version: 3.1.0
+argument-hint: "[full][architect][sync] [--auto] [--lang vi|en] [--vi]"
+version: 3.4.1
 allowed-tools: Read, Write, Edit, Bash(*), AskUserQuestion, Agent, Skill, EnterPlanMode, ExitPlanMode, TaskCreate, TaskUpdate, TaskList, TaskGet
 ---
 
@@ -19,101 +19,55 @@ Explore codebases end-to-end: discover sub-projects → pack with repomix → sc
 
 Extract from human input:
 - **mode**: `full` → Full Pipeline | `architect` → Architect Only | `sync` → Sync Mode | (empty) → AskUserQuestion
-- **--auto flag**: if present, skip plan mode and execute directly
+- **--auto**: skip plan mode, execute directly
+- **--lang vi|en**: output language. Only `vi` (Vietnamese) and `en` (English, default) are supported. Reject other values.
+- **--vi**: shorthand for `--lang vi`. If both present, `--lang` takes precedence.
 
 ### Step 2: Route to Mode
 
 ```
-INPUT: [full][architect][sync] [--auto]
+INPUT: [full][architect][sync] [--auto] [--lang vi|en] [--vi]
 
 MATCH mode:
   full      → Phase 1 (Scout)
   architect → Phase 1 (Scout) then skip to HLD
-  sync      → ## Sync Mode (after Phase 3) — skip Phases 1-3, run sync workflow
-  (empty)   → AskUserQuestion to select mode
+  sync      → ## Sync Mode (skip Phases 1-3)
+  (empty)   → AskUserQuestion: "Which exploration mode?" (header: "Explore Mode")
+               Options: "Full Pipeline" | "Architecture Only" | "Sync Documents"
 ```
-
-**If mode is empty**, use AskUserQuestion:
-- Question: "Which exploration mode do you want to run?" (header: "Explore Mode")
-- Options: "Full Pipeline" | "Architecture Only" | "Sync Documents"
-
-### Mode Overview
 
 | Mode | Flow | Use when |
 |------|------|----------|
-| **Full** | Scout (repomix + scout) → Plan(opt) → SDLC Pipeline → Sprint → Summary | First exploration, need all docs |
-| **Architect** | Scout (repomix + scout) → Plan(opt) → HLD → gate-verify → Summary | Architecture only, no impl details |
-| **Sync** | Git Change Detection → Impact Analysis → Smart Suggestions → Human ✓ → Selected Phases | Update existing docs, realign sprint |
+| **Full** | Scout → Plan(opt) → SDLC Pipeline → Sprint → Summary | First exploration, need all docs |
+| **Architect** | Scout → Plan(opt) → HLD → gate-verify → Summary | Architecture only |
+| **Sync** | Git Change Detection → Impact Analysis → Smart Suggestions → Human ✓ → Selected Phases | Update existing docs |
 
-**Full** generates SRS, HLD, LLD, IMP, TST with gate verification. **Architect** generates HLD only (C4, ADRs, bounded context). **Sync** checks git changes (main repo + submodules + nested repos), analyzes impact, suggests which phases need updating, then runs selected phases after human approval. Full sync workflow: `references/sync-workflow.md`.
+Full generates SRS, HLD, LLD, IMP, TST with gate verification. Architect generates HLD only. Sync checks git changes, analyzes impact, suggests phase updates. Full sync workflow: `references/sync-workflow.md`.
 
 ## Phase 1: Scout — Discover Sub-Projects
 
-Goal: determine how many sub-projects exist using universal project discovery (multi-pattern), pull latest source, and pack each project into an AI-friendly snapshot with repomix.
+Goal: discover sub-projects via 4 patterns, pull latest source, pack each with repomix.
 
 ### Step 1.1: Universal Project Discovery
 
-Detect all sub-project patterns simultaneously. Don't assume only one pattern — scan all 4 patterns and merge results, deduplicating overlaps.
+Detect all sub-project patterns simultaneously. Merge results, deduplicate overlaps. Full bash commands: `references/pipeline-execution.md#project-discovery-commands`.
 
-#### Pattern 1: Git Submodules
-
-```bash
-git submodule status 2>/dev/null
-```
-
-If output exists, each line is one submodule. Record: commit hash, path, and branch (if any). These directories will NOT be re-scanned in other patterns.
-
-#### Pattern 2: Nested Git Repos
-
-Detect independent git repos inside the project (typically added to `.gitignore` of the parent repo — the "folder containing multiple projects but without submodules" case):
-
-```bash
-find . -name ".git" -not -path "./.git" -not -path "*/node_modules/*" -not -path "*/vendor/*" -not -path "*/.terraform/*" -not -path "*/.git/**" 2>/dev/null | sed 's|/\.git$||'
-```
-
-For each nested repo found:
-- If already a submodule (Pattern 1) → skip
-- Check gitignore: `git check-ignore <path> 2>/dev/null && echo "IGNORED" || echo "TRACKED"`
-- Record: path, gitignore status
-
-#### Pattern 3: Monorepo Directories
-
-```bash
-ls -d packages/*/ apps/*/ services/*/ modules/*/ 2>/dev/null
-find . -maxdepth 3 -name "package.json" -not -path "*/node_modules/*" 2>/dev/null
-find . -maxdepth 3 -name "Cargo.toml" -not -path "*/target/*" 2>/dev/null
-find . -maxdepth 3 -name "go.mod" -not -path "*/vendor/*" 2>/dev/null
-find . -maxdepth 3 -name "pom.xml" 2>/dev/null
-```
-
-Skip directories already detected in Pattern 1 or 2.
-
-#### Pattern 4: Single Project (Fallback)
-
-If no other patterns found → single project = current repo.
+- **Pattern 1 — Git Submodules**: `git submodule status`. Record commit hash, path, branch. These directories are excluded from Patterns 2-3.
+- **Pattern 2 — Nested Git Repos**: Find independent git repos inside the project (typically gitignored). Check `git check-ignore` for each.
+- **Pattern 3 — Monorepo Directories**: Look for `packages/*/`, `apps/*/`, `services/*/`, `modules/*/` plus build files (`package.json`, `Cargo.toml`, `go.mod`, `pom.xml`). Skip directories from Patterns 1-2.
+- **Pattern 4 — Single Project (Fallback)**: If no other patterns found → single project = current repo.
 
 ### Step 1.2: Classify
 
-- **1 project**: single project — 1 repomix snapshot, 1 scout invocation (scout scales internally based on token count from repomix). Can be Pattern 4 or monorepo without independent build-file sub-directories.
-- **>1 project**: multi-subproject — each sub-project (submodule, nested repo, or monorepo directory) is an independent project. Each gets its own repomix snapshot and scout report.
+- **1 project**: 1 repomix snapshot, 1 scout invocation. Scout scales internally based on token count.
+- **>1 project**: each sub-project gets its own repomix snapshot and scout report. Nested repos/submodules have independent git history → must be processed independently.
 
-**Note:** Nested git repos and submodules have their own git history → must be processed independently in scout and repomix. Monorepo directories share git history with the parent repo.
+### Step 1.3: Pull Latest Source (skip in Sync mode)
 
-### Step 1.3: Pull Latest Source Code (skip in Sync mode)
-
-Before packing or scouting, pull latest source to ensure agents work with up-to-date code. **Skip in Sync mode** — Sync mode uses git changes for detection, not fresh pulls.
-
-**If git submodules exist:**
 ```bash
-git submodule foreach 'git pull'
+git submodule foreach 'git pull'  # if submodules exist
+git pull                          # root repo
 ```
-
-**Root repo (non-submodule projects):**
-```bash
-git pull
-```
-
-Complete the pull before proceeding.
 
 ### Step 1.4: Create Report Directories
 
@@ -121,166 +75,86 @@ Complete the pull before proceeding.
 mkdir -p .work/reports .work/repomix .work/scouts .work/plans
 ```
 
-**Run identifier**: `{slug}` = short kebab-case summary of the project's purpose (e.g., `payment-api`, `user-management`, `inventory-svc`). Provides human-readable context in filenames. Combined with `YYYYMMDD` date prefix for uniqueness across exploration runs.
+**Run identifier**: `{slug}` = short kebab-case project purpose (e.g., `payment-api`). Combined with `YYYYMMDD` date prefix.
 
 ### Step 1.5: Pack Each Sub-Project with repomix
 
-For each discovered sub-project, invoke `Skill(repomix)` to generate an AI-friendly codebase snapshot. repomix automatically reports token counts — use them to decide whether to split large single projects.
+Check installation: `repomix --version`. If missing, use AskUserQuestion:
+- Question: "Repomix is not installed. It accelerates exploration by pre-packing files. Install?" (header: "Repomix", options: "Install repomix (Recommended)" | "Skip — proceed without it")
 
-**Check installation first:**
-```bash
-repomix --version 2>/dev/null && echo "INSTALLED" || echo "MISSING"
-```
-
-**If not installed**, use AskUserQuestion:
-- Question: "Repomix is not installed. It accelerates codebase exploration by pre-packing files into a single snapshot for faster agent navigation. Without it, scout agents read files directly (slower but works identically — same reports, same quality). Install repomix?" (header: "Repomix", options: "Install repomix (Recommended)" | "Skip — proceed without it")
-- **If "Install repomix":** run `npm install -g repomix`, verify installation with `repomix --version`, then proceed to invoke `Skill(repomix)` as normal.
-- **If "Skip":** continue without repomix snapshots. Omit the repomix reference line from all scout invocations in Phase 2.
-
-#### Multi-Subproject (already split by structure)
-
-Invoke sequentially per sub-project (CLI-bound, parallel adds no speedup):
+**Multi-subproject** — invoke sequentially per sub-project:
 ```
 Skill(repomix, "{path} --style xml --remove-comments -o .work/repomix/{project-name}--{slug}.xml")
 ```
 
-#### Single Project — Run repomix, Pass Token Count to Scout
-
-Run repomix on the entire project:
+**Single project** — run repomix, record token count for scout scaling:
 ```
 Skill(repomix, ". --style xml --remove-comments -o .work/repomix/root--{slug}.xml")
 ```
 
-repomix reports total tokens at the end of its output. **Record this count** — it determines how scout scales.
-
-Do NOT split into areas here. Scout handles internal subdivision based on the token count you pass. Proceed to Phase 2 with 1 scout invocation, including the token count in its instructions.
-
-**If a sub-project's repomix fails** (timeout, permissions, error): log a warning for that sub-project, skip its snapshot, and continue. Remaining sub-projects proceed normally.
+Do NOT split into areas here — scout handles internal subdivision. If repomix fails: log warning, skip snapshot, continue.
 
 ## Phase 2: Scout — Explore Each Sub-Project
 
-Goal: produce a detailed scout report for each sub-project using the scout skill, which handles parallel Agent(Explore) spawning internally.
+Goal: produce a scout report per sub-project via Skill(scout), which spawns Agent(Explore) internally.
 
-### Step 2.1: Create Pipeline Tasks (MANDATORY — Always Execute First)
+### Step 2.1: Create Pipeline Tasks (MANDATORY)
 
-**CRITICAL: Always create tasks before invoking any skills.** Use Phase 1 results to determine sub-project count.
+Always create tasks before invoking skills. Wave 1 tasks (repomix, scout, SRS, HLD, gate tasks) are created now. Wave 2 tasks created after HLD+SRS. Full task chains and batching: `references/pipeline-execution.md#dynamic-task-creation`.
 
-Track pipeline with Task tools. One task per repomix run and scout invocation, `blockedBy` forms the sequential chain. The orchestrating skill creates the pipeline tasks; each skill/agent manages its own internal sub-tasks.
-
-Task creation happens in 2 waves: Wave 1 (post-Phase 1) creates repomix + scout + SRS + HLD tasks. Wave 2 (post-HLD/SRS) creates lld-service + lld-merge + IMP + TST tasks per service/FR.
-
-**Single sub-project**: Skip parallel — 1 repomix task, 1 scout task, 1 task per phase.
-
-Full task chains, batching logic, concurrency limits, and re-spawn handling: `references/task-management.md`.
+**Single sub-project**: Skip parallel — 1 task per phase.
 
 ### Step 2.2: Invoke Skill(scout) Per Sub-Project
 
-For each sub-project, invoke the scout skill. The scout skill spawns its own Agent(Explore) subagents internally, following its 5-step workflow (Analyze Task → Divide and Conquer → Register Tasks → Spawn Parallel Agents → Collect Results). It handles parallel spawning, task tracking, timeout handling, and result aggregation.
+Invocation format: `references/agent-briefs.md#phase-2-scout-invocation`. Scout spawns its own Agent(Explore) subagents internally. Do NOT spawn Agent(Explore) directly — delegate entirely to the scout skill.
 
-**Invocation format per sub-project:**
+If repomix snapshot unavailable, omit the repomix reference line from the invocation.
 
-```
-Skill(scout, "Explore sub-project {project-name} at path {project-path}. 
-A repomix codebase snapshot is available at .work/repomix/{project-name}--{slug}.xml — use it for fast file navigation and structure overview.
-Total codebase size: ~{token_count} tokens.
-
-Produce a detailed scout report with these 7 sections:
-1. Overview — 2-3 sentence summary of purpose and role
-2. Technologies — table: Category | Technology | Version | Purpose
-3. Directory Structure — tree with each directory's responsibility
-4. Modules and Responsibilities — each module: responsibility, dependencies, public API
-5. Entry Points — table: Entry Point | Type | Path | Description
-6. Dependencies — internal (module → depends_on → relationship) + external (package|version|purpose)
-7. Architectural Patterns — observed patterns with code evidence, architecture style, data flow
-
-Adjust your internal SCALE based on the token count — spawn more agents and subdivide further for larger codebases. 
-Write the final report to .work/scouts/scout-YYYYMMDD-{project-name}--{slug}.md. Full template: `references/report-templates.md#scout-report`.")
-```
-
-**If repomix snapshot is unavailable** for a sub-project (not installed or failed), omit the repomix reference line from the scout invocation. The scout skill operates identically with or without the snapshot. Invocation format quick reference also in `references/agent-briefs.md`.
-
-**Batching:** Apply the Unified Parallel Spawn Rule from `references/task-management.md`. If >15 sub-projects, batch scout invocations into ceil(N/15) groups. Within each batch, all scout invocations run in parallel. The scout skill itself may further parallelize internally per its own SCALE logic.
-
-**Constraint:** Do NOT spawn Agent(Explore) directly. Delegate entirely to the scout skill. The orchestrator's role is to invoke Skill(scout) and verify results.
+**Batching**: Apply Unified Parallel Spawn Rule from `references/pipeline-execution.md#unified-parallel-spawn-rule`. If >15 sub-projects, batch into ceil(N/15) groups. Scout invocations within a batch run in parallel.
 
 ### Step 2.3: Verify All Scout Reports
-
-Before proceeding to Phase 3, verify every expected scout report exists:
 
 ```bash
 ls .work/scouts/scout-*-{slug}.md 2>/dev/null
 ```
 
-**If a report is missing:**
-- Log the missing sub-project name
-- Retry the scout invocation once with the same parameters
-- If the retry also fails, fall back: spawn a single Agent(Explore) with the brief from `references/agent-briefs.md#phase-2-agentexplore-deprecated-as-of-v300` to produce the report directly
-- If the fallback also fails: ask the human "Scout for {sub-project} failed. Skip this sub-project and continue, retry, or abort?"
+**Missing report**: retry once. If retry fails → fallback to Agent(Explore) with brief from `references/agent-briefs.md#phase-2-agentexplore---deprecated-as-of-v300`. If fallback fails → AskUserQuestion: "Scout for {sub-project} failed. Skip, retry, or abort?"
 
 ## Phase 3: Plan — Create Execution Plan
 
-### If --auto is present: skip Phase 3, proceed directly to Phase 4.
+**If --auto**: skip Phase 3, proceed directly to Phase 4.
 
-### If --auto is NOT present:
-
+**If no --auto**:
 1. Call `EnterPlanMode`
-2. Spawn `Agent(Plan)` to clarify requirements, determine scope, and draft the plan:
-   - Use `Skill(sequential-thinking)` when >=3 sub-projects need priority ordering with cross-dependencies, OR scope spans >=4 SDLC phases
-   - Use `Skill(problem-solving)` when scout reports reveal conflicting signals, OR a sub-project's purpose is unclear
+2. Spawn `Agent(Plan)` to clarify scope. Use `Skill(sequential-thinking)` if >=3 sub-projects with cross-dependencies or >=4 SDLC phases. Use `Skill(problem-solving)` if scout reports show conflicting signals.
 3. On approval, spawn `Agent(general-purpose)` to write `.work/plans/explore-YYYYMMDD--{slug}.md`
-4. Confirm with AskUserQuestion: "Plan written. Continue?" (header: "Proceed", options: "Continue to execution" | "Let me review")
-5. Call `ExitPlanMode` to proceed.
+4. AskUserQuestion: "Plan written. Continue?" (header: "Proceed", options: "Continue to execution" | "Let me review")
+5. Call `ExitPlanMode`
 
 ## Sync Mode
 
-Sync mode detects code changes since last exploration, analyzes impact, and suggests which SDLC artifacts to update. Edge cases and troubleshooting: `references/sync-workflow.md`.
+Detect changes since last exploration, analyze impact, suggest phase updates. Edge cases and troubleshooting: `references/sync-workflow.md`.
 
 ### Sync Step 1: Git Change Detection
 
-Determine the baseline (last exploration point) in priority order:
+**Baseline** (priority order):
+1. Git tag `explore-*`: `git tag -l 'explore-*' --sort=-creatordate | head -1`
+2. Report file timestamp: `ls -t .work/reports/explore-*.md .work/scouts/scout-*.md 2>/dev/null | head -1`, use `stat` for mtime
+3. AskUserQuestion: "No previous exploration found. How far back?" (header: "Baseline", options: "7 days" | "14 days" | "30 days" | "Since specific commit")
 
-**1. Git tag `explore-*`:**
+**Collect changes** after baseline is established. Run Universal Project Discovery (Phase 1 Step 1.1), then per project type:
 ```bash
-git tag -l 'explore-*' --sort=-creatordate | head -1
-```
-If found → use tag as baseline for `git diff` and `git log`.
-
-**2. Report file timestamp:**
-```bash
-ls -t .work/reports/explore-*.md 2>/dev/null | head -1
-ls -t .work/scouts/scout-*.md 2>/dev/null | head -1
-```
-Use `stat` to get mtime of newest file as `--since` for git log.
-
-**3. Ask user:**
-If no baseline exists, use AskUserQuestion: "No previous exploration found. How far back should I check?" (header: "Baseline", options: "7 days" | "14 days" | "30 days" | "Since specific commit").
-
-**After baseline is established, collect changes:**
-
-Run Universal Project Discovery (Phase 1 Step 1.1) to discover all projects. Check changes per type:
-
-```bash
-# Main repo
-git diff --stat $BASELINE..HEAD 2>/dev/null
-git log --oneline $BASELINE..HEAD 2>/dev/null
-
-# Per submodule — use git -C to avoid changing directory
-git -C <submodule_path> log --oneline $BASELINE..HEAD 2>/dev/null
-
-# Per nested git repo (independent repo, typically gitignored) — use git -C
-git -C <nested_repo_path> log --oneline --since="$DATE" 2>/dev/null
-
-# Per monorepo directory
-git log --oneline $BASELINE..HEAD -- <monorepo_path>/ 2>/dev/null
+git diff --stat $BASELINE..HEAD          # Main repo
+git -C <submodule_path> log --oneline $BASELINE..HEAD
+git -C <nested_repo_path> log --oneline --since="$DATE"
+git log --oneline $BASELINE..HEAD -- <monorepo_path>/
 ```
 
-**If no git available:** fallback to `find . -newer <baseline_file>` — less accurate, warn the human.
-
-**If no changes detected:** report "No changes since {baseline}. Nothing to sync." Offer AskUserQuestion with "Run selected phases anyway?" (Yes / No). If yes → present full checklist, nothing pre-selected.
+**No git**: fallback to `find . -newer <baseline_file>`, warn human. **No changes**: report and offer "Run selected phases anyway?" (Yes/No).
 
 ### Sync Step 2: Impact Analysis
 
-**Tier 1 — Rule-Based Mapping.** Classify changed files:
+**Tier 1 — Rule-Based Mapping:**
 
 | Change Pattern | Glob | SDLC Impact |
 |----------------|------|-------------|
@@ -291,52 +165,23 @@ git log --oneline $BASELINE..HEAD -- <monorepo_path>/ 2>/dev/null
 | Tests only | `*.test.*`, `*.spec.*`, `__tests__/**` | **TST** |
 | Config | `config/**`, `.env*`, `application*.yml` | **IMP** |
 | Docs only | `README*`, `CHANGELOG*`, `docs/**` | **No sync needed** |
-| New service/directory | New directory under services/apps/packages | **SRS + HLD + LLD** |
+| New service/directory | New dir under services/apps/packages | **SRS + HLD + LLD** |
 
-**Tier 2 — AI Deep Analysis.** Trigger when diff > 100 lines, > 10 files, changes touch core architecture, or files don't match Tier 1 patterns. Spawn `Agent(Explore)` (read-only) with the prompt template in `references/sync-workflow.md#ai-deep-analysis-prompt-template`. It identifies affected SDLC artifacts with confidence (HIGH/MEDIUM/LOW).
+**Tier 2 — AI Deep Analysis**: Trigger when diff > 100 lines, > 10 files, or changes touch core architecture. Spawn `Agent(Explore)` with prompt template from `references/sync-workflow.md#ai-deep-analysis-prompt-template`.
 
 ### Sync Step 3: Smart Suggestions
 
-Combine Tier 1 + Tier 2 results, present to human:
+Combine Tier 1 + Tier 2. Present change summary (format: `references/sync-workflow.md#sync-change-summary-format`), then AskUserQuestion (multiSelect, header "Sync Scope") with phases that have relevant changes. Pre-select HIGH-impact phases as `[recommended]`.
 
-1. **Change summary** — separate section per project type (main repo, submodule, nested repo, monorepo directory). Example format: `references/sync-workflow.md#sync-change-summary-format`.
-2. **Recommended sync** — checklist of phases to re-run, pre-select HIGH-impact phases marked `[recommended]`
-3. **AskUserQuestion** — multiSelect with header "Sync Scope". Only include phases with relevant changes — skip phases with no impact.
+### Sync Step 4: Execute Selected Phases
 
-Human approves or adjusts selections.
-
-### Sync Step 4: Execute Selected Phases (with Dependency Auto-Resolution)
-
-Run selected phases from Phase 4 (SDLC Pipeline). Only selected phases execute — unselected phases are skipped.
-
-**Dependency auto-resolution** — if a selected phase depends on an unselected phase, auto-include the dependency:
-
-```
-IMP selected, LLD not selected:
-  → Check: does LLD output exist from a previous run?
-    YES → use existing LLD output as input
-    NO  → auto-include LLD in the execution (run LLD first, then IMP)
-
-TST selected, IMP not selected:
-  → Same logic as above: use existing IMP or auto-include
-
-HLD selected, SRS not selected:
-  → Use existing SRS output. If none exists → auto-include SRS first.
-```
-
-**Chain:** Auto-inclusion cascades. If auto-including LLD triggers need for HLD (not selected, no output), auto-include HLD too. Report the final execution list to human before starting: "Adjusted plan: LLD auto-included (needed by IMP). Running: LLD → IMP → TST."
-
-After execution → Phase 5 (Sprint Integration) if selected → Phase 6 (Summary) with auto-tagging.
+Run selected phases from Phase 4. Dependency auto-resolution: `references/sync-workflow.md#dependency-auto-resolution`. Report final execution list before starting. After execution → Phase 5 (if selected) → Phase 6 with auto-tagging.
 
 ## Phase 4: SDLC Pipeline
 
-Execute phases sequentially with gate verification after each. SRS and HLD are single-agent phases (system-wide scope). All other phases spawn one agent per service/FR in parallel. Briefs are in `references/agent-briefs.md`.
+Execute sequentially. Each step spawns specific agents with briefs from `references/agent-briefs.md`. Full procedural steps with variable substitution, spawn instructions, and gate handling: `references/pipeline-execution.md#phase-execution-steps`.
 
-**CRITICAL — Explicit file paths only:** After Phase 2 completes, collect the exact scout report file paths that were produced. When constructing agent briefs, substitute `{scout_report_paths}` with the actual file list — never use glob patterns. Scout can run multiple times across days; globs risk picking up stale reports from previous runs.
-
-### Parallel Spawn Rule (Unified)
-
-All parallel agent spawns follow the batching logic in `references/task-management.md#unified-parallel-spawn-rule`. Max 15 agents per batch; divide evenly across ceil(N/15) batches.
+**CRITICAL — Explicit file paths only**: After Phase 2, collect exact scout report file paths. Never use glob patterns — globs risk picking up stale reports from previous runs.
 
 ### Pipeline Flow
 
@@ -347,86 +192,66 @@ Agent(srs) [1 agent, reads all scout reports]
   → Agent(gate-verifier) → [re-spawn hld if reject]
 → Agent(lld-service) × N [parallel, 1 per service]
   → Agent(gate-verifier) × N [parallel]
-→ Agent(lld-merge) [1 agent, index + cross-cutting from all per-service outputs]
+→ Agent(lld-merge) [1 agent, index + cross-cutting]
   → Agent(gate-verifier) → [re-spawn lld-merge if reject]
-→ Agent(imp) × M [parallel, 1 per FR]
-  + Agent(tst) × M [parallel, 1 per FR]
-  → Agent(gate-verifier) × M [verify imp, parallel]
-  + Agent(gate-verifier) × M [verify tst, parallel]
+→ Agent(imp) × I + Agent(tst) × T [parallel, 1 per FR group]
+  → Agent(gate-verifier) × I + Agent(gate-verifier) × T [parallel]
 ```
 
-**N** = services in domain-service-mapping.yaml. **M** = FRs from SRS.
+**N** = services in domain-service-mapping.yaml. **I** = IMP agents, **T** = TST agents (per FR Distribution Rule).
 
-**lld-service** handles per-service outputs only (tech-design + API contract + work packages). **lld-merge** handles system-wide outputs (index + cross-cutting) after all per-service agents complete.
+### Key Execution Notes
 
-Brief pattern: Context → Inputs → Task → Constraints. Agents use their own default templates. Each SDLC agent knows its own Skill() triggers — do NOT add Skill instructions to briefs.
+- **Step 4.4 (FR Distribution)**: CRITICAL, DO NOT SKIP — groups FRs into agent assignments. Topic-first, max 5 FRs/agent, even distribution. Procedure: `references/pipeline-execution.md#step-44-fr-distribution--critical-do-not-skip`.
+- **Step 4.5 (Wave 2 Task Creation)**: CRITICAL, DO NOT SKIP — creates IMP, TST, gate, sprint, summary tasks. Procedure: `references/pipeline-execution.md#step-45-wave-2-task-creation--critical-do-not-skip`.
+- **Steps 4.6-4.7 (IMP + TST)**: Run in parallel, 1 agent per FR group. **CRITICAL — BATCH, DO NOT SPAWN ALL AT ONCE**: IMP+TST combined per batch ≤15 agents. 50 agents → 4 batches of ~13. Each batch: launch IMP agents + corresponding TST agents together, wait all complete, then next batch.
+- **Step 4.8 (Gate IMP+TST)**: Verify each FR group. All gates must pass before Phase 5.
 
-### Gate Verification
+### Parallel Spawn + Gate Rules
 
-After each phase, spawn `Agent(gate-verifier)`. It knows where to find artifacts — do NOT specify paths.
+- **Unified Parallel Spawn Rule**: ⚠️ **NEVER spawn >15 agents at once.** For IMP+TST, count combined (I+T). >15 → ceil(N/15) balanced batches. Wait for each batch to complete before spawning the next. Authoritative: `references/pipeline-execution.md#unified-parallel-spawn-rule`.
+- **Gate Rejection**: Max 3 re-spawns per failing agent (not batch). Pass gate feedback. After 3 failures → stop pipeline, report to human. `references/pipeline-execution.md#gate-rejection-handling`.
 
-**If gate REJECTs:**
-- Re-spawn the preceding phase's agent with: "RETRY #{N}: Previous attempt rejected. Gate feedback: {exact message}. Fix these specific issues."
-- Maximum 3 re-spawns per phase. After 3: stop pipeline, report to human.
+### Pipeline Self-Check
+
+After Phase 4: verify all phases executed, agent counts match FR Distribution, all gates resolved. Missing phases → re-run. Missing agents → spawn. Unresolved rejections → pipeline stopped.
 
 ## Phase 5: Sprint Integration
 
-Use `Skill(sprint)` for all sprint operations. See `references/sprint-integration.md` for state routing logic (first run vs template mismatch vs alignment).
+Use `Skill(sprint)` for all sprint operations. State routing (Case A/B/C): `references/sprint-integration.md`.
 
 ## Phase 6: Summary
 
-Spawn `Agent(general-purpose)` to write `.work/reports/explore-YYYYMMDD--{slug}.md`. See `references/report-templates.md#summary-report` for the 9-section format. Inputs: all scout reports (`.work/scouts/`), SRS, HLD, LLD, IMP, TST outputs.
+Spawn `Agent(general-purpose)` to write `.work/reports/explore-YYYYMMDD--{slug}.md`. 9-section format: `references/report-templates.md#summary-report`. Inputs: all scout reports, SRS, HLD, LLD, IMP, TST.
 
-### Step 6.1: Auto-Tag for Future Sync
+### Auto-Tag for Future Sync
 
-After Summary completes successfully, create a git tag so the next Sync run has a reliable baseline.
+After Summary completes, create git tag for next Sync baseline.
 
-**Guard checks before tagging:**
-
-1. **Dirty working tree:** Check `git status --porcelain`. If uncommitted changes exist → warn "Working tree is dirty — auto-tag skipped. Commit changes first for a reliable baseline."
-2. **No git:** If project doesn't use git → skip tagging entirely, log "No git — auto-tag skipped."
-3. **Sync mode partial run:** If only a subset of phases ran (not Full/Architect) → still create the tag but add `--sync` suffix: `explore-YYYYMMDD--{slug}--sync`
-4. **All checks pass → create tags:**
-
+**Guard checks**: dirty working tree → warn, skip tag. No git → skip. **Sync partial run** → add `--sync` suffix. **All checks pass**:
 ```bash
-# Tag in main repo
 git tag "explore-$(date +%Y%m%d)--{slug}" -m "explore: {project_name} ({mode} mode, {N} sub-projects)"
-
-# Per submodule with changes → tag in that submodule (use git -C to avoid changing directory)
 git -C <submodule_path> tag "explore-$(date +%Y%m%d)--{slug}"
-
-# Per nested git repo with changes → tag in that repo (use git -C)
 git -C <nested_repo_path> tag "explore-$(date +%Y%m%d)--{slug}"
 ```
 
-**Tag naming:** `explore-YYYYMMDD--{slug}` matches the baseline search pattern in Sync Step 1. If report files need committing first, use `Skill(git)` to commit before creating tags.
+Tag naming `explore-YYYYMMDD--{slug}` matches baseline search pattern. If report files need committing first, use `Skill(git)`.
 
 ## Key Notes
 
-**No sandbox.** Agents work directly on the project. Scout reports are the shared foundation.
-
-**Input-only briefs.** Specify what agents read, not where to write. Agents use their own templates.
-
-**Gate-verifier needs no paths.** Tell it which phase. It knows where artifacts are.
-
-**Parallel spawn.** Max 15 agents per batch, all phases. If >15, divide evenly into ceil(N/15) batches. See `references/task-management.md`.
-
-**Gate limit.** Max 3 re-spawns per agent. Re-spawn the failing agent (not gate). Pass gate feedback in brief. Don't re-spawn an entire batch.
-
-**Parallel where possible.** IMP+TST in parallel per FR. Gate-verify IMP+TST in parallel. lld-service per service in parallel.
-
-**Single sub-project.** Fall back to 1 agent/phase. Parallel adds overhead with no benefit.
-
-**Sprint.** Use `Skill(sprint)` — never modify sprint files directly.
-
-**Error recovery.** Agent error (not gate reject): log, ask human retry/skip.
-
-**Report paths.** `mkdir -p .work/reports .work/repomix .work/scouts .work/plans` before writing. Scout reports go to `.work/scouts/`, summary to `.work/reports/`. Backup as `.bak` on overwrite.
+- **No sandbox.** Agents work directly on the project. Scout reports are the shared foundation.
+- **Delegation.** Delegate to Skill(scout) — never spawn Agent(Explore) directly. Gate-verifier needs phase name, not paths. Sprint via Skill(sprint) — never modify sprint files directly.
+- **Explicit paths only.** After Phase 2, use exact file paths — never glob patterns.
+- **Input-only briefs.** Specify what agents read, not where to write. Agents use their own templates.
+- **Parallel where possible.** IMP+TST in parallel. lld-service per service in parallel. Max 15/batch.
+- **Error recovery.** Agent error (not gate reject): log, ask human retry/skip. Gate reject: max 3 retries.
+- **Report paths.** All output under `.work/`. Backup as `.bak` on overwrite.
+- **Language (`--lang`, `--vi`).** `--lang vi|en` sets output language for all docs. `--vi` = `--lang vi`. Only `vi`/`en` supported. Agent briefs: prepend "Write all output in {language}". Technical terms and code identifiers never translated. `--vi --lang en` → English wins.
 
 ## Reference Files
 
-- `references/agent-briefs.md` — Prompt templates for every SDLC agent (srs, hld, lld-service, lld-merge, imp, tst, gate-verifier) + deprecated Agent(Explore) fallback. Load when constructing agent briefs.
-- `references/task-management.md` — Task chain topology (Wave 1 + Wave 2), unified parallel spawn rule with batch-size example, re-spawn handling, mode variants. Load when creating pipeline tasks or debugging batch execution.
-- `references/sprint-integration.md` — Sprint state routing (Case A/B/C), backup strategy, human-modification safety. Load during Phase 5 sprint sync.
-- `references/report-templates.md` — Full templates for scout report (7 sections), plan file, and summary report (9 sections). Load when formatting agent outputs or writing final deliverables.
-- `references/sync-workflow.md` — Sync mode supplementary: edge cases (no git, dirty tree, no changes), AI deep analysis prompt template, change summary format example, troubleshooting guide. Load during Sync mode when edge cases or templates are needed.
+- `references/agent-briefs.md` — Prompt templates for all SDLC agents (srs, hld, lld-service, lld-merge, imp, tst, gate-verifier) + deprecated Agent(Explore) fallback + scout invocation format. Load when constructing agent briefs or invoking scout.
+- `references/pipeline-execution.md` — Complete pipeline execution steps (4.1-4.8) with variable substitution, Unified Parallel Spawn Rule, Dynamic Task Creation (Wave 1+2), FR Distribution Rule, gate rejection handling, project discovery commands, mode variants. Load when executing the SDLC pipeline or creating tasks.
+- `references/report-templates.md` — Full templates: scout report (7 sections), plan file, summary report (9 sections). Load when formatting agent outputs or writing final deliverables.
+- `references/sprint-integration.md` — Sprint state routing (Case A/B/C), multi-pattern project handling, edge cases, backup strategy. Load during Phase 5.
+- `references/sync-workflow.md` — Sync mode: edge cases (no git, dirty tree, no changes, first exploration, submodule mismatch, nested gitignored repos), AI deep analysis prompt template, change summary format example, dependency auto-resolution, troubleshooting. Load during Sync mode.

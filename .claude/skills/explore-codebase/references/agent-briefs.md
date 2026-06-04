@@ -25,6 +25,30 @@ Organize findings into sections:
 Do NOT attempt to write files — you are read-only. Return all findings in your response.
 ```
 
+## Phase 2: Scout Invocation Format
+
+Invoke `Skill(scout)` per sub-project with this format:
+
+```
+Skill(scout, "Explore sub-project {project-name} at path {project-path}. 
+A repomix codebase snapshot is available at .work/repomix/{project-name}--{slug}.xml — use it for fast file navigation and structure overview.
+Total codebase size: ~{token_count} tokens.
+
+Produce a detailed scout report with these 7 sections:
+1. Overview — 2-3 sentence summary of purpose and role
+2. Technologies — table: Category | Technology | Version | Purpose
+3. Directory Structure — tree with each directory's responsibility
+4. Modules and Responsibilities — each module: responsibility, dependencies, public API
+5. Entry Points — table: Entry Point | Type | Path | Description
+6. Dependencies — internal (module → depends_on → relationship) + external (package|version|purpose)
+7. Architectural Patterns — observed patterns with code evidence, architecture style, data flow
+
+Adjust your internal SCALE based on the token count — spawn more agents and subdivide further for larger codebases. 
+Write the final report to .work/scouts/scout-YYYYMMDD-{project-name}--{slug}.md. Full template: `references/report-templates.md#scout-report`.")
+```
+
+**If repomix snapshot is unavailable** for a sub-project (not installed or failed), omit the repomix reference line. The scout skill operates identically with or without the snapshot.
+
 ## Phase 4: Agent(srs)
 
 ```
@@ -35,6 +59,7 @@ Inputs — read these exact files (not globs):
 
 Task: Extract requirements from the codebase. Read all scout reports first. Treat each as a source of functional and non-functional requirements. If any area lacks detail, explore the codebase directly using Read, Bash, and Glob.
 
+Output: docs/product/SRS.md and agent_docs/traceability/requirements-matrix.md
 Constraints: Reverse-engineering mode — extract from code, not from imagination. Use your default templates.
 ```
 
@@ -49,6 +74,7 @@ Inputs — read these exact files (not globs):
 
 Task: Design system architecture with C4 diagrams, Architecture Decision Records (minimum 3: service decomposition, API conventions, event taxonomy), bounded context mapping, and service decomposition. Read prior phase output and scout reports. If any area lacks detail, explore the codebase directly.
 
+Output: docs/architecture/system-architecture.md, docs/architecture/ADRs/*.md, agent_docs/architecture.md, agent_docs/domain-service-mapping.yaml, agent_docs/hard-boundaries.md, agent_docs/contracts/api-conventions.md, agent_docs/contracts/events.md
 Constraints: Reverse-engineering mode. Architecture only — no implementation details, no code, no per-service internals. Use your default templates.
 ```
 
@@ -58,10 +84,11 @@ Constraints: Reverse-engineering mode. Architecture only — no implementation d
 Context: Exploring codebase {project-name}. Prior phases SRS and HLD are complete and gate-verified. Designing service {service-name} ({N} of {total} services). Other {N-1} services are handled by parallel sibling agents. System-wide merge (index + cross-cutting) runs after all services complete.
 
 Inputs — read these exact files (not globs):
+  - SRS output from prior phase (to identify FRs assigned to this service)
   - Scout report for this service: {scout_report_path}
   - HLD output from prior phase (for boundaries + cross-service context)
 
-Task: Design {service-name} internals only. Write: (1) tech-design/{service-name}-service.md (9 sections), (2) contracts/api-{domain}.yaml, (3) feature work packages for this service's FRs. Do NOT write README.md or cross-cutting.md — those are lld-merge scope.
+Task: Design {service-name} internals only. Write: (1) tech-design/{service-name}-service.md (9 sections), (2) contracts/api-{domain}.yaml, (3) feature work packages per FR — one section per FR, grouped by topic/domain where natural. Each work package must reference its FR-ID from SRS so downstream IMP agents can map correctly. List {service-name}'s FR-IDs explicitly at the top of work packages for easy extraction. Do NOT write README.md or cross-cutting.md — those are lld-merge scope.
 
 Constraints: Reverse-engineering mode. Service internals only — no new architectural decisions. Follow HLD boundaries. Stay strictly within {service-name} scope. Use your default templates.
 ```
@@ -83,34 +110,36 @@ Task: Write exactly 2 system-wide files: (1) agent_docs/tech-design/README.md �
 Constraints: Reverse-engineering mode. Read-only for per-service files. Only write README.md and cross-cutting.md. Flag consistency violations with specific service + rule reference. Use your default templates.
 ```
 
-## Phase 4: Agent(imp) — One Per FR, Max 15 Concurrent
+## Phase 4: Agent(imp) — One Per FR Group (Orchestrator batches, max 15 combined IMP+TST per batch)
 
 ```
-Context: Exploring codebase {project-name}. Prior phases SRS, HLD, LLD are complete and gate-verified. Writing impl spec for {FR-ID} ({N} of {total} FRs). IMP and TST phases run in parallel.
+Context: Exploring codebase {project-name}. Prior phases SRS, HLD, LLD are complete and gate-verified. Writing impl specs for {FR-LIST} ({N} of {total} IMP agents for service {service-name}). IMP and TST phases run in parallel.
 
 Inputs:
-  - LLD work package for {FR-ID}
-  - LLD tech-design for the owning service
+  - LLD work packages for {FR-LIST}
+  - LLD tech-design for service {service-name}
   - Scout reports as needed
 
-Task: Write implementation specification for {FR-ID} only. Other FRs handled by parallel agents. Cover: execution flow, business rules, data impact, error mapping, security considerations. Read LLD output and work package. Explore codebase directly if needed.
+Task: Write implementation specifications for {FR-LIST}. Other FR groups handled by parallel agents. Cover for each FR: execution flow, business rules, data impact, error mapping, security considerations. Read LLD output and work package. Explore codebase directly if needed.
 
-Constraints: Reverse-engineering mode. Specifications only — no actual code. References LLD work packages. Other FRs' impl specs handled by sibling agents — stay within {FR-ID} scope. Use your default templates.
+Output: agent_docs/backend/{service-name}/implementation/FR-{DOMAIN}-{NNN}-impl.md (one per FR in your group)
+Constraints: Reverse-engineering mode. Specifications only — no actual code. References LLD work packages. Other FR groups handled by sibling agents — stay within {FR-LIST} scope. Use your default templates.
 ```
 
-## Phase 4: Agent(tst) — One Per FR, Max 15 Concurrent
+## Phase 4: Agent(tst) — One Per FR Group (Orchestrator batches, max 15 combined IMP+TST per batch)
 
 ```
-Context: Exploring codebase {project-name}. IMP phase is running in parallel. Writing test spec for {FR-ID} ({N} of {total} FRs).
+Context: Exploring codebase {project-name}. IMP phase is running in parallel. Writing test specs for {FR-LIST} ({N} of {total} TST agents for service {service-name}).
 
 Inputs:
-  - IMP spec for {FR-ID} (as it becomes available)
-  - LLD tech-design for the owning service
+  - IMP specs for {FR-LIST} (as they become available)
+  - LLD tech-design for service {service-name}
   - SRS NFR thresholds
 
-Task: Write test specification for {FR-ID} only. Other FRs handled by parallel agents. Cover: unit, integration, E2E, and performance tests. Extract test coverage from existing test code. Read IMP spec, LLD output, and scout reports. Explore codebase directly if needed.
+Task: Write test specifications for {FR-LIST}. Other FR groups handled by parallel agents. Cover for each FR: unit, integration, E2E, and performance tests. Extract test coverage from existing test code. Read IMP spec, LLD output, and scout reports. Explore codebase directly if needed.
 
-Constraints: Reverse-engineering mode. Test specifications only — no implementation code. Other FRs' test specs handled by sibling agents — stay within {FR-ID} scope. Use your default templates.
+Output: agent_docs/backend/{service-name}/test-specs/FR-{DOMAIN}-{NNN}-test.md (one per FR in your group)
+Constraints: Reverse-engineering mode. Test specifications only — no implementation code. Other FR groups handled by sibling agents — stay within {FR-LIST} scope. Use your default templates.
 ```
 
 ## Phase 4: Agent(gate-verifier)
