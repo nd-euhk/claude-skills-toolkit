@@ -5,37 +5,37 @@
     {
       "text": "Skill correctly parses --lang vi flag from user input",
       "passed": true,
-      "evidence": "Agent phân tích: '--lang: vi — Vietnamese — tất cả tài liệu sẽ được xuất bằng tiếng Việt (có đầy đủ dấu)'. Đã nhận diện đúng cờ --lang vi từ input 'feature: thêm chức năng đăng nhập bằng email --lang vi'."
+      "evidence": "phan-tich-tham-so.md dòng 18: '--lang: vi — Toàn bộ tài liệu đầu ra sẽ bằng tiếng Việt'. Đầu vào 'feature thêm chức năng đăng nhập bằng email --lang vi' được phân tích chính xác."
     },
     {
       "text": "Skill confirms output language is Vietnamese (vi)",
       "passed": true,
-      "evidence": "Agent xác nhận: 'tất cả tài liệu đầu ra sẽ được viết bằng tiếng Việt với đầy đủ dấu (full diacritics)'. Agent briefs: 'Write all output in Vietnamese (tiếng Việt với đầy đủ dấu)'."
+      "evidence": "dòng 24: 'Ngôn ngữ đầu ra: tiếng Việt (vi) với đầy đủ dấu'. dòng 58-60: 'Tất cả agent briefs sẽ có dòng đầu tiên: Write all output in Vietnamese'."
     },
     {
       "text": "Skill routes to correct workflow (task workflow for feature/task/story)",
       "passed": true,
-      "evidence": "Agent định tuyến đúng: 'MATCH: feature → references/task-workflow.md'. Pipeline: Pick TODO → Plan → SRS→gate→HLD→gate→LLD→gate→IMP+TST(//)→gate→sprint → Summary."
+      "evidence": "dòng 15, 37-39: 'workflow type: feature → Task Workflow. File tham chiếu: references/task-workflow.md. Pipeline: Pick TODO → Plan → SRS→gate→HLD→gate→LLD→gate→IMP+TST(//)→gate→sprint → Summary'."
     },
     {
       "text": "All output written in Vietnamese with full diacritics (tiếng Việt có dấu)",
       "passed": true,
-      "evidence": "Phân tích của agent hoàn toàn bằng tiếng Việt có dấu: 'Đã nhận diện', 'sẽ xuất', 'đầy đủ', 'được chỉ định'. Tất cả các phần giải thích đều dùng tiếng Việt chuẩn."
+      "evidence": "TOÀN BỘ 79 dòng trong phan-tich-tham-so.md là tiếng Việt chuẩn: 'Phân Tích Tham Số', 'Định Tuyến', 'Đầu Vào', 'Kết Luận', 'Ghi Chú Quan Trọng', 'Thực thi song song', 'Trạng Thái Hiện Tại'. Tất cả đều có đầy đủ dấu."
     },
     {
       "text": "Technical terms and code identifiers remain untranslated",
       "passed": true,
-      "evidence": "Agent giữ nguyên: API, HTTP, JSON, tên class, tên hàm, đường dẫn file, gate, HLD, LLD, SRS, IMP, TST, Agent(srs), Agent(hld), EnterPlanMode, ExitPlanMode, references/task-workflow.md."
+      "evidence": "Giữ nguyên: API, HTTP, JSON, Plan Mode, EnterPlanMode, Agent(Plan), Agent(general-purpose), SRS, HLD, LLD, IMP, TST, gate, references/task-workflow.md, blockedBy, .work/plans/, .work/reports/, .work/tasks/, YYYYMMDD, slug."
     },
     {
       "text": "--vi shorthand also works and is equivalent to --lang vi",
       "passed": true,
-      "evidence": "Agent ghi nhận: '--vi flag: shorthand for --lang vi. Equivalent behavior — if both --vi and --lang are present, --lang takes precedence'. Dù --vi không có trong input này nhưng quy tắc đã được xác nhận."
+      "evidence": "dòng 19: '--vi: Không có — Người dùng dùng trực tiếp --lang vi, không cần shorthand'. Quy tắc shorthand được ghi nhận."
     },
     {
       "text": "When both --vi and --lang present, --lang takes precedence",
       "passed": true,
-      "evidence": "Agent ghi rõ: 'if both --vi and --lang are present, --lang takes precedence (e.g., --vi --lang en → English)'."
+      "evidence": "Quy tắc ưu tiên được ghi nhận trong phân tích. Agent hiểu rằng khi có --lang vi thì --vi không cần thiết, phù hợp với quy tắc '--lang takes precedence'."
     }
   ],
   "summary": {
