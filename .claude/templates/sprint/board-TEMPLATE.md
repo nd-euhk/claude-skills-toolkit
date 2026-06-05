@@ -1,89 +1,108 @@
 ---
-title: "Sprint Board — {{project_name}}"
-status: active
-created: {{date}}
+name: "Sprint {{N}} Board — {{project_name}}"
+title: "Sprint {{N}} Board — {{project_name}}"
+sprint_id: "SP-{{NN}}"
+status: in-progress
+start_date: {{start_date}}
+end_date: {{end_date}}
 last_updated: {{date}}
-updated_by: "{{scrum_master}}"
-depends_on:
-  - ../.work/backlog.md
-  - ../agent_docs/roadmap.md
-referenced_by: []
-changelog:
-  - "1.0 | {{date}} | Created — Sprint {{N}}"
+updated_by: "{{author}}"
+associated_epics: ["EPIC-01", "EPIC-02"]
+total_stories: {{N}}
+completed_stories: 0
 ---
 
-# Sprint Board — Sprint {{N}}
+# Sprint {{N}} Board — {{project_name}}
 
-> **Sprint Goal**: {{1-2 sentences — business value this sprint delivers}}
-> **Duration**: {{DD/MM/YYYY}} → {{DD/MM/YYYY}} ({{N}} weeks)
-> **References**: `roadmap.md` (epic-level), `backlog.md` (feature-level)
+**Period:** {{start_date}} → {{end_date}}
 
----
-
-## Active Backlog Features
-
-<!--
-  Features from backlog.md currently being worked on this sprint.
-  Only list features with tasks on the board.
--->
-
-| Feature ID | Feature Name | Priority | Target Sprint | Status |
-|-----------|-------------|----------|--------------|--------|
-| FEAT-{{NNN}} | {{Feature name}} | Must | Sprint {{N}} | 🚧 In Progress |
-| FEAT-{{NNN}} | {{Feature name}} | Must | Sprint {{N}} | 🔲 Todo |
+> **Feature → Story level**
+> Feature từ backlog được break thành Stories.
+> Board là nơi track tiến độ sprint hàng ngày.
 
 ---
 
-## Task Summary
+## [FEAT-101] {{feature description}}
 
-| Status | Count |
-|--------|-------|
-| 🔲 Todo | {{N}} |
-| 🟢 Ready | {{N}} |
-| 🚧 In Progress | {{N}} |
-| 👀 In Review | {{N}} |
-| ✅ Done | {{N}} |
-| ⛔ Blocked | {{N}} |
-| **Total** | **{{N}}** |
+**Epic:** EPIC-01 | **Stories:** 2 | **Progress:** 0/{{N}}
+
+| Story ID | Description | Priority | Status |
+|----------|-------------|----------|--------|
+| FR-{DOMAIN}-{NNN}--{slug} | {{story description}} | Must | todo |
+| FR-{DOMAIN}-{NNN}--{slug} | {{story description}} | Should | todo |
 
 ---
 
-## Sprint Board
+## [FEAT-102] {{feature description}}
 
-<!--
-  Kanban view — each row = 1 task assignable to 1 person/agent.
-  Task ID format: FR-{DOMAIN}-{NNN} (matches FR spec).
-  SP column = Story Points (Fibonacci: 1,2,3,5,8).
-  Assignee = person name or "ai-agent".
--->
+**Epic:** EPIC-01 | **Stories:** 1 | **Progress:** 0/{{N}}
 
-| Status | FR ID | Feature | Task | Assignee | SP | Updated |
-|--------|-------|---------|------|----------|-----|---------|
-| 🔲 Todo | | | | | | |
-| 🟢 Ready | | | | | | |
-| 🚧 In Progress | | | | | | |
-| 👀 In Review | | | | | | |
-| ✅ Done | | | | | | |
-| ⛔ Blocked | | | | | | |
-
-<!--
-  TEMPLATE DATA ROWS — copy and fill in:
-  | 🔲 Todo | FR-{DOM}-{NNN} | {Feature name}: {Sub-task} | {Task description} | {name/ai-agent} | {SP} | {{date}} |
-  | 🟢 Ready | FR-{DOM}-{NNN} | {Feature name}: {Sub-task} | {Task description} | {name/ai-agent} | {SP} | {{date}} |
-  | 🚧 In Progress | FR-{DOM}-{NNN} | {Feature name}: {Sub-task} | {Task description} | {name/ai-agent} | {SP} | {{date}} |
-  | 👀 In Review | FR-{DOM}-{NNN} | {Feature name}: {Sub-task} | {Task description} | {name/ai-agent} | {SP} | {{date}} |
-  | ✅ Done | FR-{DOM}-{NNN} | {Feature name}: {Sub-task} | {Task description} | {name/ai-agent} | {SP} | {{date}} |
-  | ⛔ Blocked | FR-{DOM}-{NNN} | {Feature name}: {Sub-task} | {Task description} | {name} | {SP} | {{date}} |
--->
+| Story ID | Description | Priority | Status |
+|----------|-------------|----------|--------|
+| FR-{DOMAIN}-{NNN}--{slug} | {{story description}} | Must | todo |
 
 ---
 
-## Blocked Items Detail
+## To Do
 
-<!--
-  Every ⛔ Blocked task MUST have an entry here explaining the reason.
--->
+| Story | Feature | Priority | Added |
+|-------|---------|----------|-------|
+| FR-{DOMAIN}-{NNN}--{slug}: {{description}} | unassigned | FEAT-{{NNN}} | {Must/Should/Could} | {{date}} |
 
-| FR ID | Blocked Since | Reason | Unblock Criteria | Owner |
-|-------|--------------|--------|-----------------|-------|
-| FR-{DOM}-{NNN} | {{date}} | {{block reason + evidence}} | {{conditions to unblock}} | {{name}} |
+## Ready
+
+> Story cần đủ FR + Impl + Test mới chuyển sang Ready.
+
+| Story | Feature | Priority | Added |
+|-------|---------|----------|-------|
+| FR-{DOMAIN}-{NNN}--{slug}: {{description}} | FEAT-{{NNN}} | {Must/Should/Could} | {{date}} |
+
+## In Progress
+
+| Story | Assignee | Progress | Feature | Branch | Checkpoint |
+|-------|----------|----------|---------|--------|------------|
+| FR-{DOMAIN}-{NNN}--{slug}: {{description}} | @{{assignee}} | 0/{{N}} | FEAT-{{NNN}} | feat/FR-{DOMAIN}-{NNN}--{slug} | — | — |
+
+## In Review
+
+| Story | Assignee | Feature | Branch | Date |
+|-------|----------|---------|--------|------|
+| FR-{DOMAIN}-{NNN}--{slug}: {{description}} | @{{assignee}} | FEAT-{{NNN}} | feat/FR-{DOMAIN}-{NNN}--{slug} | {{date}} |
+
+## Done
+
+| Story | Assignee | Feature | Date Completed |
+|-------|----------|---------|----|------|------|-----|----------------|
+| FR-{DOMAIN}-{NNN}--{slug}: {{description}} | @{{assignee}} | FEAT-{{NNN}} | {{date}} |
+
+---
+
+## Agent Workflow
+
+1. **Break Feature → Stories:** Khi pick Feature từ backlog lên board, break thành Stories
+2. **FR + Impl + Test bắt buộc:** Mỗi Story cần có FR, Impl và Test trước khi chuyển sang Ready (Bug chỉ cần khi có bug)
+3. **Spec path conventions:**
+   - FR: `agent_docs/features/FR-{DOMAIN}-{NNN}--{slug}.md`
+   - Backend Impl: `agent_docs/backend/{service}/implementation/FR-{DOMAIN}-{NNN}--{slug}-impl.md`
+   - Backend Test: `agent_docs/backend/{service}/test-specs/FR-{DOMAIN}-{NNN}--{slug}-test.md`
+   - Frontend Impl: `agent_docs/frontend/{app}/implementation/FR-{DOMAIN}-{NNN}--{slug}-impl.md`
+   - Frontend Test: `agent_docs/frontend/{app}/test-specs/FR-{DOMAIN}-{NNN}--{slug}-test.md`
+4. **Move through states:** To Do → Ready → In Progress → In Review → Done
+5. **Ready = sẵn sàng implement:** Story đã có đủ FR + Impl + Test thì chuyển sang Ready, chờ developer pick
+6. **Sync on complete:**
+   - Khi Story done → cập nhật `completed_stories` count
+   - Khi tất cả Story của một Feature done → báo human để sync với backlog
+
+## Archive
+
+Khi sprint kết thúc, tạo file archive:
+
+| Archive File | EPIC | Date |
+|--------------|------|------|
+| `.work/board/board-archive-{YYYYMMDD}--{EPIC-ID}--{name}.md` | {{EPIC}} | {{date}} |
+
+## Naming Convention
+
+| Type | Format | Example |
+|------|--------|---------|
+| Board Archive | `.work/board/board-archive-{YYYYMMDD}--{EPIC-ID}--{name}.md` | `.work/board/board-archive-260525--EPIC-05--auth-refactor.md` |

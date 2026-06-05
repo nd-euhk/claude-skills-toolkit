@@ -1,97 +1,58 @@
 ---
+name: "Roadmap — {{project_name}}"
 title: "Roadmap — {{project_name}}"
-status: draft
-created: {{date}}
+status: active
+current_quarter: "Q{{current}}/{{year}}"
 last_updated: {{date}}
 updated_by: "{{author}}"
-depends_on:
-  - features/README.md
-  - architecture.md
-  - ../docs/product/release-criteria.md
-referenced_by:
-  - ../.work/board.md
-  - ../.work/backlog.md
-changelog:
-  - "1.0 | {{date}} | Created — {{short_description}}"
+active_themes: ["THEME-01", "THEME-02"]
+active_epics: ["EPIC-01", "EPIC-02", "EPIC-03", "EPIC-04"]
 ---
 
 # Roadmap — {{project_name}}
 
-> Single source of truth for timeline, phases, tasks.
-> `.work/backlog.md` → feature-level view (references this file).
-> `.work/board.md` → current sprint view (references this file).
-
----
+> **Strategic view: Theme + Epic level**
+> **Source of Truth** cho tiến độ dự án cấp độ cao.
+> Agent đọc file này để xác định EPIC ưu tiên trước khi nhảy xuống backlog.
 
 ## Timeline
 
-```
-                  {{Period 1}}       {{Period 2}}       {{Period 3}}
-                  ┌─────────────────┬─────────────────┬─────────────────┐
-                  │  Sprint 1       │  Sprint 2       │  Sprint 3       │
-                  │  {{Theme}}      │  {{Theme}}      │  {{Theme}}      │
-                  └─────────────────┴─────────────────┴─────────────────┘
-                                                       ▲
-                                                Gate 1: {{name}}
-                                                {{DD/MM/YYYY}}
-```
+| Now (Q{{current}}/{{year}}) | Next (Q{{next}}/{{year}}) | Later |
+|-----------------------------|--------------------------|-------|
+| **[THEME-01]** {{name}}     | **[THEME-03]** {{name}}  | **[THEME-04]** {{name}} |
+| - [ ] EPIC-01: {{epic}}      | - [ ] EPIC-05: {{epic}}   | - [ ] EPIC-07: {{epic}} |
+| - [ ] EPIC-02: {{epic}}      |                          | |
+| **[THEME-02]** {{name}}     |                          | |
+| - [ ] EPIC-03: {{epic}}      |                          | |
+| - [/] EPIC-04: {{epic}}      |                          | |
 
 ## Milestones
 
-| Milestone | Target | Gate Criteria | Details |
-|-----------|--------|--------------|---------|
-| **Gate 1: {{Name}}** | {{DD/MM/YYYY}} | {{criteria}} | `{{path}}` |
+| Date | Milestone | Success Criteria | Status |
+|------|-----------|-----------------|--------|
+| {{DD/MM/YYYY}} | {{name}} | {{criteria}} | 🔲 |
 
----
-
-## Phase Overview
-
-| Phase | Sprint | Period | Services | Features | Status |
-|-------|--------|--------|----------|----------|--------|
-| 1. {{Phase Name}} | Sprint 1 | {{Weeks X-Y}} | {{services}} | {{features}} | 🔲 Todo |
-| 2. {{Phase Name}} | Sprint 2 | {{Weeks X-Y}} | {{services}} | {{features}} | 🔲 Todo |
-
----
-
-## Phase 1: {{Phase Name}} (Sprint 1 — {{Period}})
-
-> **Goal**: {{Outcome description}}
-> **Verify**: {{Quick verification method}}
-
-| # | Task | Service/Component | Spec | Assignee | Status |
-|---|------|-------------------|------|----------|--------|
-| 1.1 | {{Task}} | {{service}} | `{{spec}}` | {{assignee}} | 🔲 Todo |
-| 1.2 | {{Task}} | {{service}} | `{{spec}}` | {{assignee}} | 🔲 Todo |
-
----
-
-## Feature → Phase Mapping
-
-| Feature ID | Phase | Sprint | Status |
-|-----------|-------|--------|--------|
-| FEAT-{{NNN}} | Phase {{N}} | Sprint {{N}} | 🔲 Todo |
-| FEAT-{{NNN}} | Phase {{N}} | Sprint {{N}} | 🚧 In Progress |
-
----
-
-## Dependencies Between Phases
+## Theme Dependencies
 
 ```
-Phase 1 ({{Name}})
-  └──→ Phase 2 ({{Name}})
-         ├──→ Phase 3 ({{Name}})
-         └──→ Phase N ({{Name}})
+THEME-01
+  ├──→ THEME-03 → THEME-04
+  └──→ THEME-02 → THEME-05
 ```
 
-**Critical path**: {{Phase 1}} → {{Phase 2}} → {{Phase N}}
+## Theme → Epic Mapping
 
----
+| Theme | EPIC | Description | Status |
+|-------|------|-------------|--------|
+| THEME-01 | EPIC-01 | {{epic name}} | 🔲 |
+| THEME-01 | EPIC-02 | {{epic name}} | 🔲 |
+| THEME-02 | EPIC-03 | {{epic name}} | 🔲 |
+| THEME-02 | EPIC-04 | {{epic name}} | 🟡 |
+| THEME-03 | EPIC-05 | {{epic name}} | 🔲 |
+| THEME-04 | EPIC-07 | {{epic name}} | 🔲 |
 
-## Status Conventions
+## Changelog
 
-| Status | Description |
-|--------|-------------|
-| 🔲 Todo | Not started |
-| 🚧 In Progress | Active ({{N}}/{{M}} features) |
-| ✅ Done | Completed + verified |
-| ⛔ Blocked | Blocked (reason in backlog/board) |
+| Date | Change | Author |
+|------|--------|--------|
+| {{date}} | Initial | {{author}} |

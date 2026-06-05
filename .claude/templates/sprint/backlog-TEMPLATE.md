@@ -1,123 +1,63 @@
 ---
-title: "Backlog — {{project_name}}"
-status: draft
-created: {{date}}
+name: "Product Backlog — {{project_name}}"
+title: "Product Backlog — {{project_name}}"
+status: active
 last_updated: {{date}}
 updated_by: "{{author}}"
-
-# --- Traceability ---
-depends_on:
-  - ../agent_docs/roadmap.md
-  - dod-dor.md
-referenced_by:
-  - ../.work/board.md
-changelog:
-  - "1.0 | {{date}} | Created — {{short_description}}"
+tracked_epics:
+  - id: "EPIC-01"
+    title: "{{epic name}}"
+  - id: "EPIC-02"
+    title: "{{epic name}}"
+  - id: "EPIC-03"
+    title: "{{epic name}}"
+last_archive_ref: ""
 ---
 
-# Backlog — {{project_name}}
+# Product Backlog — {{project_name}}
 
-> Single source of truth for feature-level planning — sits between roadmap (epic) and board (task).
-> `agent_docs/roadmap.md` → parent (epic/theme).
-> `.work/board.md` → child (task/story).
-> `dod-dor.md` → DoR criteria for backlog items.
+> **Epic + Feature level**
+> **Source of Truth** cho features/user stories.
+> Board-writer sẽ break Features thành Stories khi pick lên board.
 
----
+## [EPIC-01] {{epic name}}
 
-## Priority Summary
+| Feature ID | Description | Estimate | Priority | Status |
+|------------|-------------|----------|----------|--------|
+| FEAT-101 | {{feature description}} | {{sp}} | Must | backlog |
+| FEAT-102 | {{feature description}} | {{sp}} | Should | backlog |
 
-| Priority | Count | Target |
-|----------|-------|--------|
-| **Must** | {{N}} | Current + Next Sprint |
-| **Should** | {{N}} | Within 2-3 sprints |
-| **Nice-to-have** | {{N}} | Future |
+## [EPIC-02] {{epic name}}
 
----
+| Feature ID | Description | Estimate | Priority | Status |
+|------------|-------------|----------|----------|--------|
+| FEAT-201 | {{feature description}} | {{sp}} | Must | backlog |
+| FEAT-202 | {{feature description}} | {{sp}} | Could | backlog |
 
-## Features: Must (Critical Path)
+## [EPIC-03] {{epic name}}
 
-<!--
-  Must features — cannot ship without these.
-  Each feature has standard format with traceability back to roadmap.
--->
+| Feature ID | Description | Estimate | Priority | Status |
+|------------|-------------|----------|----------|--------|
+| FEAT-301 | {{feature description}} | {{sp}} | Must | backlog |
+| FEAT-302 | {{feature description}} | {{sp}} | Must | done |
+| FEAT-303 | {{feature description}} | {{sp}} | Should | backlog |
 
-### FEAT-{{NNN}}: {{Feature Name}}
+## Archive
 
-- **Source**: {{Phase N, Task N.N — from roadmap.md}}
-- **Description**: {{1-2 sentences describing the feature — user/business value}}
-- **Priority**: Must
-- **Target Sprint**: Sprint {{N}}
-- **Services**: {{service, service}}
-- **Specs**:
-  - FR: `agent_docs/features/FR-{DOM}-{NNN}--{slug}.md`
-  - Impl: `agent_docs/backend/{svc}/implementation/FR-{DOMAIN}-{NNN}--{slug}-impl.md`
-  - Test: `agent_docs/backend/{svc}/test-specs/FR-{DOMAIN}-{NNN}--{slug}-test.md`
-- **Tasks**: {{N}} tasks (see board.md)
-- **Status**: 🔲 Backlog | 🚧 In Progress | ✅ Done
-- **CRs**: — | CR-{{NNN}}
+Khi Epic hoàn thành, các Feature done được archive vào file riêng.
 
-<!-- Repeat the pattern above for each Must feature -->
+| Archive File | EPIC | Date |
+|--------------|------|------|
+| `.work/backlog/backlog-archive-{YYYYMMDD}--{EPIC-ID}--{name}.md` | EPIC-{{NN}} | {{date}} |
 
----
+## Naming Convention
 
-## Features: Should (Important — not blocking)
+| Type | Format | Example |
+|------|--------|---------|
+| Backlog Archive | `.work/backlog/backlog-archive-{YYYYMMDD}--{EPIC-ID}--{name}.md` | `.work/backlog/backlog-archive-20260512--EPIC-01--payment-momo.md` |
 
-<!--
-  Should features — important but can be deferred if capacity is tight.
-  Same format as Must section.
--->
+## Changelog
 
-### FEAT-{{NNN}}: {{Feature Name}}
-
-- **Source**: {{Phase N, Task N.N}}
-- **Description**: {{1-2 sentences}}
-- **Priority**: Should
-- **Target Sprint**: Sprint {{N}}
-- **Services**: {{service}}
-- **Specs**:
-  - FR: `agent_docs/features/FR-{DOM}-{NNN}--{slug}.md`
-- **Tasks**: — (not yet broken down)
-- **Status**: 🔲 Backlog
-- **CRs**: —
-
----
-
-## Features: Nice-to-Have (Future — no commitment)
-
-<!--
-  Nice-to-have features. No specific target sprint.
-  Shorter format.
--->
-
-| # | Feature | Description | Epic (Roadmap) | Target |
-|---|---------|-------------|----------------|--------|
-| 1 | FEAT-{{NNN}}: {{Name}} | {{1 sentence}} | Phase {{N}} | Future |
-| 2 | FEAT-{{NNN}}: {{Name}} | {{1 sentence}} | Phase {{N}} | Future |
-
----
-
-## Feature → Epic Mapping (Traceability)
-
-<!--
-  Map each feature back to its epic/theme in roadmap.
-  Used for bottom-up status sync.
--->
-
-| Feature ID | Epic (Roadmap) | Phase | Sprint | Status |
-|-----------|----------------|-------|--------|--------|
-| FEAT-{{NNN}} | {{Epic/Theme name}} | Phase {{N}} | Sprint {{N}} | 🔲 Todo |
-| FEAT-{{NNN}} | {{Epic/Theme name}} | Phase {{N}} | Sprint {{N}} | 🚧 In Progress |
-| FEAT-{{NNN}} | {{Epic/Theme name}} | Phase {{N}} | Sprint {{N}} | ✅ Done |
-
----
-
-## CR Impact Tracking
-
-<!--
-  Features affected by Change Requests.
-  Update when CRs are approved.
--->
-
-| CR | Feature | Impact | Status |
-|----|---------|--------|--------|
-| CR-{{NNN}} | FEAT-{{NNN}} | {{Spec change, new edge case, etc.}} | 🔲 Pending |
+| Date | Change | Author |
+|------|--------|--------|
+| {{date}} | Initial | {{author}} |
