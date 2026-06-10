@@ -1,0 +1,179 @@
+export const meta = {
+  name: 'workflow-sdlc-task-pipeline',
+  description: 'Task SDLC Pipeline: SRS→HLD→LLD→IMP+TST with gate verification for new features. Used by sdlc:workflow skill.',
+  phases: [
+    { title: 'SRS', detail: 'Software requirements specification' },
+    { title: 'Gate SRS', detail: 'Verify SRS quality gates' },
+    { title: 'HLD', detail: 'High-level architecture design' },
+    { title: 'Gate HLD', detail: 'Verify HLD quality gates' },
+    { title: 'LLD', detail: 'Low-level technical design' },
+    { title: 'Gate LLD', detail: 'Verify LLD quality gates' },
+    { title: 'IMP+TST', detail: 'Implementation + test specifications' },
+    { title: 'Gate IMP+TST', detail: 'Verify IMP+TST quality gates' },
+  ],
+}
+
+// ── Args ──
+// { taskId, taskTitle, taskDescription, planFile, language?: 'vi'|'en', runDate, slug }
+const { taskId, taskTitle, taskDescription, planFile, language } = args
+const useEnglish = language === 'en'
+const langInstr = useEnglish
+  ? ''
+  : 'Viết tất cả output bằng tiếng Việt. Thuật ngữ kỹ thuật và mã định danh giữ nguyên tiếng Anh.'
+
+// ── Schemas ──
+const GATE = {
+  type: 'object',
+  properties: { passed: { type: 'boolean' }, feedback: { type: 'string' } },
+  required: ['passed', 'feedback']
+}
+
+// ── Helpers ──
+
+/** Spawn gate-verifier agent, return { passed, feedback } */
+async function gateCheck(phaseName) {
+  return agent(
+    `Verify ${phaseName} output for task ${taskId}: ${taskTitle}. Check against gate criteria for this phase type. Read-only — do not modify any files. Report pass/fail with specific evidence from the output files.`,
+    { label: `gate-${phaseName.replace(/\s+/g, '-').toLowerCase()}`, phase: 'Gate', agentType: 'gate-verifier', schema: GATE }
+  )
+}
+
+/** Run a single phase with gate retry loop. Returns { passed, feedback } */
+async function runWithGate(label, agentType, promptFn, gateLabel, maxRetries) {
+  maxRetries = maxRetries || 3
+  gateLabel = gateLabel || label
+
+  let prompt = typeof promptFn === 'function' ? promptFn() : promptFn
+  await agent(prompt, { label, agentType })
+
+  let gate = await gateCheck(gateLabel)
+
+  for (let retry = 0; !gate.passed && retry < maxRetries; retry++) {
+    log(`${label}: gate rejected (${retry + 1}/${maxRetries}) — ${gate.feedback}`)
+    let retryPrompt = typeof promptFn === 'function' ? promptFn(gate.feedback, retry + 1) : promptFn
+    await agent(retryPrompt, { label: `${label}-r${retry + 1}`, agentType })
+    gate = await gateCheck(gateLabel)
+  }
+
+  if (!gate.passed) {
+    log(`✗ ${label}: FAILED after ${maxRetries} retries`)
+    return { passed: false, feedback: gate.feedback }
+  }
+
+  log(`✓ ${label}: PASSED`)
+  return { passed: true }
+}
+
+// ── Prompt builders ──
+
+function srsPrompt(feedback, retryNum) {
+  let prefix = feedback
+    ? `RETRY #${retryNum}: Previous SRS rejected by gate. Feedback: ${feedback}\nFix these specific issues before re-submitting. Do not change anything that was not flagged.\n\n`
+    : ''
+  return `${prefix}${langInstr}
+Context: Task ${taskId}: ${taskTitle} — ${taskDescription || 'No additional description provided.'}
+Inputs: Plan file at ${planFile}. Read it for full scope and requirements.
+Task: Transform the business requirements from the plan into precise, testable software specifications with Gherkin Scenario Outlines, quantified NFRs, and full traceability matrices.
+Output: docs/product/SRS.md and agent_docs/traceability/requirements-matrix.md
+Constraints: Output will be gate-verified for completeness, traceability, and testability. Use your default templates.`
+}
+
+function hldPrompt(feedback, retryNum) {
+  let prefix = feedback
+    ? `RETRY #${retryNum}: Previous HLD rejected by gate. Feedback: ${feedback}\nFix these specific issues before re-submitting.\n\n`
+    : ''
+  return `${prefix}${langInstr}
+Context: Task ${taskId}: ${taskTitle}. SRS phase complete and gate-verified.
+Inputs: SRS at docs/product/SRS.md, Plan at ${planFile}
+Task: Design system architecture with C4 diagrams, Architecture Decision Records, bounded context mapping, and service decomposition.
+Output: docs/architecture/system-architecture.md, docs/architecture/ADRs/*.md, agent_docs/architecture.md, agent_docs/domain-service-mapping.yaml, agent_docs/hard-boundaries.md, agent_docs/contracts/api-conventions.md, agent_docs/contracts/events.md
+Constraints: No implementation details, no code, no per-service internals. Output must reference all SRS requirements. Use your default templates.`
+}
+
+function lldPrompt(feedback, retryNum) {
+  let prefix = feedback
+    ? `RETRY #${retryNum}: Previous LLD rejected by gate. Feedback: ${feedback}\nFix these specific issues before re-submitting.\n\n`
+    : ''
+  return `${prefix}${langInstr}
+Context: Task ${taskId}: ${taskTitle}. SRS and HLD complete and gate-verified.
+Inputs: HLD at agent_docs/domain-service-mapping.yaml, agent_docs/hard-boundaries.md, agent_docs/contracts/api-conventions.md, agent_docs/contracts/events.md. SRS at docs/product/SRS.md.
+Task: Produce per-service technical design with domain models, transaction boundaries, REST client specs, caching strategies, error flows, and feature work packages.
+Output: agent_docs/tech-design/README.md, agent_docs/tech-design/{name}-service.md (per service), agent_docs/tech-design/cross-cutting.md, agent_docs/contracts/api-{domain}.yaml, agent_docs/features/FR-*.md
+Constraints: Service internals only. No new architectural decisions — follow HLD boundaries. Use your default templates.`
+}
+
+function impPrompt(feedback, retryNum) {
+  let prefix = feedback
+    ? `RETRY #${retryNum}: Previous IMP rejected by gate. Feedback: ${feedback}\nFix these specific issues before re-submitting.\n\n`
+    : ''
+  return `${prefix}${langInstr}
+Context: Task ${taskId}: ${taskTitle}. SRS, HLD, LLD complete and gate-verified.
+Inputs: LLD at agent_docs/tech-design/ (all files), agent_docs/features/FR-*.md
+Task: Write implementation specifications for each feature covering execution flow, business rules, data impact, error mapping, and security considerations.
+Output: agent_docs/backend/{service}/implementation/FR-{DOMAIN}-{NNN}-impl.md
+Constraints: Specifications only — no actual code. References LLD work packages. Use your default templates.`
+}
+
+function tstPrompt(feedback, retryNum) {
+  let prefix = feedback
+    ? `RETRY #${retryNum}: Previous TST rejected by gate. Feedback: ${feedback}\nFix these specific issues before re-submitting.\n\n`
+    : ''
+  return `${prefix}${langInstr}
+Context: Task ${taskId}: ${taskTitle}. IMP phase running in parallel. SRS, HLD, LLD complete and gate-verified.
+Inputs: IMP specs (as they become available), LLD at agent_docs/tech-design/, SRS NFR thresholds from docs/product/SRS.md
+Task: Write test specifications with concrete test cases for unit, integration, E2E, and performance testing following TDD-first approach.
+Output: agent_docs/backend/{service}/test-specs/FR-{DOMAIN}-{NNN}-test.md
+Constraints: Test specifications only — no implementation code. References IMP specs for feature behavior. Use your default templates.`
+}
+
+// ═══════════════════════════════════════════
+// PIPELINE
+// ═══════════════════════════════════════════
+
+// ── Phase 1: SRS ──
+phase('SRS')
+const srsResult = await runWithGate('SRS', 'srs', srsPrompt, 'SRS')
+if (!srsResult.passed) {
+  return { mode: 'task', phase: 'SRS', error: 'Gate failed after 3 retries', feedback: srsResult.feedback }
+}
+
+// ── Phase 2: HLD ──
+phase('HLD')
+const hldResult = await runWithGate('HLD', 'hld', hldPrompt, 'HLD')
+if (!hldResult.passed) {
+  return { mode: 'task', phase: 'HLD', error: 'Gate failed after 3 retries', feedback: hldResult.feedback }
+}
+
+// ── Phase 3: LLD ──
+phase('LLD')
+const lldResult = await runWithGate('LLD', 'lld', lldPrompt, 'LLD')
+if (!lldResult.passed) {
+  return { mode: 'task', phase: 'LLD', error: 'Gate failed after 3 retries', feedback: lldResult.feedback }
+}
+
+// ── Phase 4: IMP + TST (parallel) ──
+phase('IMP+TST')
+const [impResult, tstResult] = await parallel([
+  () => runWithGate('IMP', 'imp', impPrompt, 'IMP'),
+  () => runWithGate('TST', 'tst', tstPrompt, 'TST'),
+])
+
+const impOk = impResult || { passed: false, feedback: 'agent error' }
+const tstOk = tstResult || { passed: false, feedback: 'agent error' }
+
+// ── Return ──
+return {
+  mode: 'task',
+  completed: ['SRS', 'HLD', 'LLD', 'IMP', 'TST'],
+  results: {
+    srs: srsResult,
+    hld: hldResult,
+    lld: lldResult,
+    impTst: {
+      impPassed: impOk.passed,
+      impFeedback: impOk.feedback,
+      tstPassed: tstOk.passed,
+      tstFeedback: tstOk.feedback,
+    },
+  }
+}

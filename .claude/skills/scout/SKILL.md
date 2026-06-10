@@ -1,103 +1,168 @@
 ---
 name: scout
-description: Fast codebase scouting using parallel agents. Use for file discovery, task context gathering, quick searches across directories
+description: >-
+  Fast codebase scouting with workflow-driven multi-modal sweep.
+  Skill handles interactive phases (analyze task, divide scopes). Workflow handles deterministic parallel Explore agents + dedup + completeness critic + report.
+  Use for file discovery, task context gathering, quick searches across directories, or before changes that span multiple codebase areas.
+  Trigger phrases: scout, find files, locate, search codebase, explore structure, map project, discover patterns.
+argument-hint: "[search-target] [--deep] [--content] [--lang vi|en]"
 version: 1.0.0
-user-invocable: true
-when_to_use: "Invoke for fast file discovery and codebase orientation."
-category: dev-tools
-keywords: [codebase, scouting, file-discovery, search]
-argument-hint: "[search-target]"
-allowed-tools: Read, Bash, Grep, Glob, Agent, TaskCreate, TaskUpdate, TaskList, Write
+category: sdlc
+keywords: [scout, explore, file-discovery, search, codebase, multi-modal, workflow]
+when_to_use: "Invoke for workflow-driven multi-modal codebase scouting with completeness verification. Use for thorough multi-scope sweeps (4+ directories) when token efficiency and resumability matter."
+allowed-tools: Read, Write, Bash(*), Grep, Glob, Agent, TaskCreate, TaskUpdate, TaskList, Workflow
 ---
+# SDLC Scout (Hybrid: Skill + Workflow)
 
-# Scout
+Fast codebase scouting with workflow-driven multi-modal sweep. **Skill** handles interactive phases (analyze task, divide scopes). **Workflow** handles deterministic parallel Explore agents + dedup + completeness critic + report writing.
 
-Fast, token-efficient codebase scouting using parallel Explore subagents to find files needed for tasks.
-
-## When to Use
-
-- Beginning work on feature spanning multiple directories
-- User mentions needing to "find", "locate", or "search for" files
-- Starting debugging session requiring file relationships understanding
-- User asks about project structure or where functionality lives
-- Before changes that might affect multiple codebase parts
+**Key difference from scout**: Steps 4-5 (parallel agents + aggregate + report) run as a single `Workflow()` call. Benefits: multi-modal sweep pattern, resumable parallel fan-out, structured schema output per agent, completeness critic catches missed areas, token-efficient (intermediate results stay in script variables).
 
 ## Quick Start
 
-1. Analyze user prompt to identify search targets and key directories
-2. Estimate scale — use Grep and Glob to gauge codebase size and locate relevant file patterns
-3. Spawn parallel Explore subagents with divided directory scopes (see `references/scouting.md`)
-4. Aggregate results into a scout report saved to `.work/scouts/`
+### Step 1: Analyze Task
 
-## Workflow
+Parse user prompt to extract:
+- **topic**: what we're searching for (e.g., "authentication", "payment flow", "error handling")
+- **flags**: `--deep` (trace dependencies), `--content` (read file contents), `--lang vi|en`
+- **language**: `vi` (default) or `en`
 
-### 1. Analyze Task
-- Parse user prompt for search targets
-- Identify key directories, patterns, file types
-- Determine optimal number of subagents to spawn based on codebase size
+### Step 2: Estimate Scale + Map Codebase
 
-### 2. Divide and Conquer
-- Split codebase into logical segments per agent
-- Assign each agent specific directories or patterns
-- Ensure no overlap, maximize coverage
+Use Grep and Glob to gauge codebase size and locate relevant directories:
 
-### 3. Register Scout Tasks
-- **Skip if:** Agent count ≤ 2 (overhead exceeds benefit)
-- **Skip if:** Task tools unavailable (VSCode extension) — skip task tracking entirely
-- `TaskList` first — check for existing scout tasks in session
-- If not found, `TaskCreate` per agent with scope metadata
-- See `references/task-management-scouting.md` for task registration patterns, metadata schema, and lifecycle management
+```bash
+# Estimate scale
+find . -type f \( -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.py" -o -name "*.go" -o -name "*.rs" \) ! -path "*/node_modules/*" ! -path "*/.git/*" | wc -l
 
-### 4. Spawn Parallel Agents
-
-- `TaskUpdate` each task to `in_progress` before spawning its agent (skip if Task tools unavailable)
-- Spawn all Explore subagents in a single `Agent` tool call for parallel execution
-- Each subagent gets a distinct directory scope with no overlap
-- See `references/scouting.md` for prompt templates, directory division strategies, and file reading with chunking
-
-**Scale guidelines:**
-- Small codebase (<50 files): 2-3 agents
-- Medium codebase (50-200 files): 4-6 agents
-- Large codebase (200+ files): 6-8 agents
-
-### 5. Collect Results
-- Aggregate findings from all agents into a single report
-- Save report to: `.work/scouts/scout-YYYYMMDD-{topic}--{slug}.md`
-- `TaskUpdate` completed tasks; note timed-out agents in report (skip if Task tools unavailable)
-- List unresolved questions at end of report
-
-**Error handling:** If an agent times out (3 min), skip it and aggregate available results. If `TaskCreate` fails, log a warning and continue without task tracking — scout remains fully functional.
-
-## Report Format
-
-```markdown
-# Scout Report: {topic}
-
-## Summary
-- Total files found: N
-- Agents spawned: N
-- Agents completed: N (N timed out)
-
-## Relevant Files
-- `path/to/file.ts` - Brief description of what it contains and why it's relevant
-- ...
-
-## Patterns Observed
-- Key architectural patterns, conventions, or structures found
-
-## Directory Map
-```
-src/
-├── auth/       - Authentication logic
-├── api/        - API route handlers
-└── models/     - Data models
+# Quick structure overview
+ls -d src/*/ 2>/dev/null || ls -d lib/*/ 2>/dev/null || ls -d app/*/ 2>/dev/null
 ```
 
-## Unresolved Questions
-- Any gaps in findings or areas needing deeper investigation
+**Scale classification:**
+- **small** (<50 source files): 2-3 scopes
+- **medium** (50-200 files): 4-6 scopes
+- **large** (200+ files): 6-10 scopes
+
+### Step 3: Divide into Scopes
+
+Split codebase logically into non-overlapping scopes:
+
+```
+Example: topic="authentication", projectType="node"
+
+Scope 1: { name: "auth-core", paths: ["src/auth/", "src/middleware/auth/"], focus: "auth logic, middleware, sessions" }
+Scope 2: { name: "auth-api", paths: ["src/api/auth/", "src/routes/auth/"], focus: "auth endpoints, login, registration" }
+Scope 3: { name: "auth-types", paths: ["src/types/auth/", "src/interfaces/"], focus: "auth types, interfaces, DTOs" }
+Scope 4: { name: "auth-utils", paths: ["src/utils/auth/", "src/lib/auth/"], focus: "auth utilities, token handling, encryption" }
+Scope 5: { name: "auth-config", paths: ["config/auth/", "src/config/auth/"], focus: "auth configuration, env vars" }
+Scope 6: { name: "auth-tests", paths: ["tests/auth/", "src/__tests__/auth/"], focus: "auth test files" }
+```
+
+**Division rules:**
+- Each scope has 1-3 directories with a clear focus
+- No overlap between scopes (dedup handled by workflow)
+- Project-type-aware: check `package.json`/`Cargo.toml`/`go.mod` for conventions
+- Adjust scope count to `scale` (2-3 for small, 4-6 for medium, 6-10 for large)
+
+### Step 4: Invoke Workflow
+
+#### Step 4.1: Prepare Args
+
+```js
+const workflowArgs = {
+  topic: "authentication",                    // what we're searching for
+  scopes: [                                    // pre-divided directory scopes
+    {
+      name: "auth-core",                      // unique scope identifier
+      paths: ["src/auth/", "src/middleware/auth/"],
+      patterns: ["authenticate", "session", "login", "token"],  // keywords
+      focus: "auth logic, middleware, sessions",
+    },
+    // ... more scopes
+  ],
+  projectType: "node",                        // node | python | go | rust | ...
+  language: "vi",                             // vi | en
+  outputPath: ".work/scouts/scout-20260610-authentication--login-flow.md",
+  scale: "medium",                            // small | medium | large
+  includeContent: false,                      // --content flag
+  deepMode: false,                            // --deep flag
+}
+```
+
+**outputPath convention:** `.work/scouts/scout-YYYYMMDD-{topic}--{slug}.md`
+
+#### Step 4.2: Invoke
+
+```
+ls .claude/workflows/workflow-sdlc-scout-pipeline.js
+```
+
+If missing → fall back to manual scout (same as original scout skill Steps 4-5).
+
+```
+Workflow({ scriptPath: ".claude/workflows/workflow-sdlc-scout-pipeline.js", args: workflowArgs })
+```
+
+The workflow handles:
+- Phase Scout: parallel Explore agents (multi-modal sweep) with structured schema output
+- Phase Aggregate: dedup by file path (keep highest relevance), merge patterns, completeness critic
+- Phase Report: write structured report to outputPath
+
+#### Step 4.3: Process Results
+
+**Success:**
+```js
+{
+  mode: 'scout',
+  status: 'completed',
+  results: {
+    topic: "authentication",
+    filesFound: 42,
+    highRelevance: 15,
+    mediumRelevance: 20,
+    lowRelevance: 7,
+    agentsSpawned: 6,
+    agentsCompleted: 5,
+    agentsTimedOut: 1,
+    patternsObserved: 8,
+    technologiesDetected: 12,
+    questions: 3,
+    gaps: { missedDirectories: 1, uncoveredTopics: 2 },
+    reportPath: ".work/scouts/scout-20260610-authentication--login-flow.md",
+  }
+}
+```
+
+**Empty (no matching files):**
+```js
+{ mode: 'scout', status: 'empty', results: { filesFound: 0, ... } }
+```
+
+### Step 5: Present Results
+
+Output summary:
+```
+✓ Scout complete: 42 files found (15 high, 20 medium, 7 low)
+  6 agents spawned, 5 completed, 1 timed out
+  8 patterns observed, 12 technologies detected
+  Gaps: 1 missed directory, 2 uncovered topics
+  Report: .work/scouts/scout-20260610-authentication--login-flow.md
+```
+
+If gaps found → suggest re-scouting the missed areas. If agents timed out → note in output, the report includes their partial results.
+
+## Output Format
+
+```
+✓ Step 1: Target identified — "authentication"
+✓ Step 2: Scale: medium (120 source files)
+✓ Step 3: 6 scopes divided
+✓ Step 4: Workflow complete — 42 files, 8 patterns
+✓ Step 5: Report written — .work/scouts/scout-YYYYMMDD-authentication--login-flow.md
 ```
 
 ## References
 
-- `references/scouting.md` — Prompt templates, directory division strategies, parallel execution patterns, and chunked file reading
-- `references/task-management-scouting.md` — TaskCreate/TaskUpdate patterns, metadata schema, agent lifecycle, and integration with cook/planning
+- `references/scout-workflow.md` — Workflow args structure, result processing, mode flags
+- `references/error-handling.md` — Error recovery patterns: timeout, gaps, missing files, scale mismatch, retry strategy

@@ -1,5 +1,5 @@
 export const meta = {
-  name: 'explore-pipeline',
+  name: 'workflow-sdlc-explore-pipeline',
   description: 'SDLC Pipeline for codebase exploration: SRS→HLD→LLD→IMP+TST with gate verification. Supports full and architect modes.',
   phases: [
     { title: 'SRS', detail: 'Software requirements specification' },

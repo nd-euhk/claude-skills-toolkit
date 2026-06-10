@@ -1,6 +1,6 @@
-# Workflow Handoff — explore-workflow ↔ explore-pipeline
+# Workflow Handoff — sdlc-explore ↔ workflow-sdlc-explore-pipeline
 
-Handoff mechanism between `explore-workflow` skill and `explore-pipeline.js` workflow. Skill prepares all inputs, workflow runs the pipeline, skill processes results and continues Phase 5-6.
+Handoff mechanism between `sdlc-explore` skill and `workflow-sdlc-explore-pipeline.js` workflow. Skill prepares all inputs, workflow runs the pipeline, skill processes results and continues Phase 5-6.
 
 ## Args Structure (Skill → Workflow)
 
@@ -26,6 +26,12 @@ const workflowArgs = {
 4. **scoutReports**: Collect from `ls .work/scouts/scout-*-{slug}.md` — explicit paths, never globs
 5. **language**: Extract from `--lang` flag. Default is `vi` unless `--lang en` or `--en` specified
 6. **mode**: `full` for full pipeline, `architect` for architecture only
+
+## Workflow Invocation
+
+```
+Workflow({ scriptPath: ".claude/workflows/workflow-sdlc-explore-pipeline.js", args: workflowArgs })
+```
 
 ## Result Structure (Workflow → Skill)
 
@@ -127,7 +133,7 @@ Fallback when `Workflow` tool is not functional or manual control is needed:
 
 ## Token Efficiency Comparison
 
-| Scenario | explore-codebase (manual) | explore-workflow (workflow) |
+| Scenario | explore-codebase (manual) | sdlc-explore (workflow) |
 |----------|--------------------------|---------------------------|
 | 3 services, 15 FRs | ~50K tokens in context | ~8K tokens in context (results only) |
 | 1 service, 5 FRs | ~20K tokens | ~5K tokens |

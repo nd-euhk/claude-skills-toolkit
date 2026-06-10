@@ -1,18 +1,18 @@
 ---
-name: explore-workflow
+name: sdlc:explore
 description: >-
   Explore and analyze codebases end-to-end with workflow-driven SDLC pipeline (SRS, HLD, LLD, IMP, TST).
-  Delegates the deterministic Phase 4 agent chain to the explore-pipeline workflow for resumability and token efficiency.
+  Delegates the deterministic Phase 4 agent chain to the workflow-sdlc-explore-pipeline workflow for resumability and token efficiency.
   Use when analyzing new projects, exploring architecture, generating system documentation, or syncing sprint artifacts.
   Supports multi-subproject discovery, plan mode, and sprint integration.
 argument-hint: "[full][architect][sync] [--auto] [--lang vi|en] [--en]"
-version: 1.0.0
+version: 1.1.0
 allowed-tools: Read, Bash(*), AskUserQuestion, Agent, Skill, Workflow, EnterPlanMode, ExitPlanMode
 ---
 
 # Explore Codebase (Workflow-Driven)
 
-Explore codebases end-to-end: discover sub-projects → pack with repomix → scout with Skill(scout) → delegate SDLC Pipeline to explore-pipeline workflow → sync sprint artifacts → summarize.
+Explore codebases end-to-end: discover sub-projects → pack with repomix → scout with Skill(scout) → delegate SDLC Pipeline to workflow-sdlc-explore-pipeline workflow → sync sprint artifacts → summarize.
 
 **Key difference from explore-codebase**: Phase 4 (SDLC Pipeline) runs as a single `workflow()` call instead of manual agent orchestration. Benefits: resumable pipeline, automatic gate retry, system-managed concurrency, token-efficient (intermediate results stay in script variables, not Claude's context).
 
@@ -191,7 +191,7 @@ Run selected phases via Phase 4 workflow (if SRS/HLD/LLD/IMP/TST selected) → P
 
 ## Phase 4: Workflow-Driven SDLC Pipeline
 
-This is the key difference from explore-codebase. Instead of manually orchestrating agents, delegate the entire SDLC pipeline to the **explore-pipeline** workflow.
+This is the key difference from explore-codebase. Instead of manually orchestrating agents, delegate the entire SDLC pipeline to the **workflow-sdlc-explore-pipeline** workflow.
 
 ### Step 4.1: Prepare Workflow Args
 
@@ -217,7 +217,7 @@ const workflowArgs = {
 ### Step 4.2: Invoke Workflow
 
 ```
-Workflow({ scriptPath: ".claude/workflows/explore-pipeline.js", args: workflowArgs })
+Workflow({ scriptPath: ".claude/workflows/workflow-sdlc-explore-pipeline.js", args: workflowArgs })
 ```
 
 The workflow handles:
@@ -324,9 +324,9 @@ git -C <nested_repo_path> tag "explore-$(date +%Y%m%d)--{slug}"
 - **Explicit paths only.** After Phase 2, use exact file paths — never glob patterns.
 - **Language (`--lang`, `--en`).** `--lang vi|en` sets output language (default: `vi`). `--en` = `--lang en`. Only `vi`/`en` supported. Technical terms and code identifiers never translated. `--en --lang vi` → Vietnamese wins.
 
-## Comparison: explore-codebase vs explore-workflow
+## Comparison: explore-codebase vs sdlc-explore
 
-| Aspect | explore-codebase | explore-workflow |
+| Aspect | explore-codebase | sdlc-explore |
 |--------|-----------------|-----------------|
 | Phase 1-3 (Scout/Plan) | Manual orchestration | Same (no difference) |
 | Phase 4 (SDLC Pipeline) | Manual agent spawn + gate + retry + batching | Single `workflow()` call |
@@ -340,4 +340,4 @@ git -C <nested_repo_path> tag "explore-$(date +%Y%m%d)--{slug}"
 
 ## Reference Files
 
-- `references/workflow-handoff.md` — Workflow args structure, result schemas, error handling patterns, and manual override guidance.
+- `references/workflow-handoff.md` — Workflow args structure for workflow-sdlc-explore-pipeline, result schemas, error handling patterns, and manual override guidance.
