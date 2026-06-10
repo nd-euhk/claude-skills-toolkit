@@ -54,6 +54,18 @@ Ví dụ: `REVIEW-20260605--github-123-add-user-auth.md`
 
 ---
 
+## Feature Impact — Verdict: {LOW_RISK | CAUTION | HIGH_RISK | BLOCKER}
+
+{Subagent report content. If not run: "Not included in this review."}
+
+---
+
+## Operational Impact — Verdict: {LOW_RISK | CAUTION | HIGH_RISK | BLOCKER}
+
+{Subagent report content. If not run: "Not included in this review."}
+
+---
+
 ## Summary
 
 | # | Dimension | Severity | Description |
@@ -77,8 +89,8 @@ Ví dụ: `REVIEW-20260605--github-123-add-user-auth.md`
 Tính overall verdict dựa trên severity cao nhất từ tất cả subagents:
 
 ```
-Nếu có CRITICAL (security) hoặc URGENT (arch) → URGENT
-Nếu có BUG_FOUND (bugs) hoặc VIOLATION (conventions) → NEEDS_ATTENTION
+Nếu có CRITICAL (security), URGENT (arch), hoặc BLOCKER (impact/ops) → URGENT
+Nếu có BUG_FOUND (bugs), VIOLATION (conventions), hoặc HIGH_RISK (impact/ops) → NEEDS_ATTENTION
 Còn lại → APPROVED
 ```
 
@@ -119,6 +131,8 @@ No issues found across all review dimensions. The changes look safe to merge.
 | Security | APPROVED — No security vulnerabilities |
 | Bugs | APPROVED — No bugs identified |
 | CLAUDE.md | COMPLIANT — All conventions followed |
+| Feature Impact | LOW_RISK — No cross-feature impact |
+| Operational | LOW_RISK — No operational concerns |
 
 ---
 

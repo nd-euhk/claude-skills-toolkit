@@ -4,7 +4,7 @@ Workflow chi tiết khi user chọn full review (`--full` hoặc menu "Full Revi
 
 ## Principle
 
-Main agent (SKILL.md) điều phối, KHÔNG tự review. Tất cả analysis được delegate cho subagents chạy song song.
+Main agent (SKILL.md) điều phối, KHÔNG tự review. Tất cả analysis được delegate cho 6 subagents chạy song song.
 
 ## Step-by-Step Orchestration
 
@@ -55,15 +55,17 @@ Platform: {github | gitlab}
 ```
 Agent(review-mr-arch)        ─────┐
 Agent(review-mr-security)    ─────┤
-Agent(review-mr-bugs)        ─────┼─ ALL AT ONCE
-Agent(review-mr-conventions) ─────┘
+Agent(review-mr-bugs)        ─────┤
+Agent(review-mr-conventions) ─────┼─ ALL AT ONCE
+Agent(review-mr-impact)      ─────┤
+Agent(review-mr-ops)         ─────┘
 ```
 
 Use `run_in_background: true` cho từng agent để chúng chạy thực sự song song.
 
 ### Step 5: Wait for All Subagents
 
-Đợi tất cả 4 subagents hoàn thành. Mỗi subagent trả về:
+Đợi tất cả 6 subagents hoàn thành. Mỗi subagent trả về:
 ```json
 {
   "verdict": "APPROVED | NEEDS_ATTENTION | URGENT/CRITICAL/BUG_FOUND/VIOLATION",
@@ -95,9 +97,9 @@ Use `run_in_background: true` cho từng agent để chúng chạy thực sự s
 ### Step 7: Compute Overall Verdict
 
 ```
-if any(CRITICAL in security) or any(URGENT in arch):
+if any(CRITICAL in security) or any(URGENT in arch) or any(BLOCKER in impact/ops):
     overall = "URGENT"
-elif any(BUG_FOUND in bugs) or any(VIOLATION in conventions):
+elif any(BUG_FOUND in bugs) or any(VIOLATION in conventions) or any(HIGH_RISK in impact/ops):
     overall = "NEEDS_ATTENTION"
 else:
     overall = "APPROVED"
@@ -124,8 +126,8 @@ question: "Post findings lên MR/PR?"
 options:
   - label: "Post tất cả findings"
     description: "Mỗi finding sẽ được post thành 1 comment riêng trên MR/PR"
-  - label: "Chỉ post CRITICAL + URGENT"
-    description: "Chỉ post findings có severity cao nhất"
+  - label: "Chỉ post CRITICAL + URGENT + BLOCKER"
+    description: "Chỉ post findings có severity cao nhất (block merge)"
   - label: "Không post, chỉ lưu report"
 ```
 
@@ -136,13 +138,13 @@ Nếu user chọn post:
 
 ## Timing Considerations
 
-- Full review với 4 subagents có thể mất 3-10 phút tùy kích thước MR
+- Full review với 6 subagents có thể mất 3-15 phút tùy kích thước MR
 - Subagents chạy song song → wall clock ≈ thời gian subagent chậm nhất
-- Thông báo cho user: "Đang chạy full review với 4 subagents, có thể mất vài phút..."
+- Thông báo cho user: "Đang chạy full review với 6 subagents, có thể mất vài phút..."
 
 ## Partial Failure Handling
 
-Nếu 1 subagent fail:
+Nếu 1+ subagents fail:
 - Vẫn tổng hợp kết quả từ các subagents còn lại
 - Ghi chú trong report: "⚠️ {dimension} review failed: {error}"
-- Cho user lựa chọn retry subagent đó
+- Cho user lựa chọn retry subagent(s) bị fail
