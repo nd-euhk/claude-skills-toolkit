@@ -6,7 +6,7 @@ description: >-
   Use when analyzing new projects, exploring architecture, generating system documentation, or syncing sprint artifacts.
   Supports multi-subproject discovery, plan mode, and sprint integration.
 argument-hint: "[full][architect][sync] [--auto] [--lang vi|en] [--en]"
-version: 1.3.1
+version: 1.3.3
 allowed-tools: Read, Bash(*), AskUserQuestion, Agent, Skill, Workflow, EnterPlanMode, ExitPlanMode
 ---
 
@@ -78,16 +78,30 @@ mkdir -p .work/reports .work/repomix .work/scouts .work/plans
 
 ### Step 1.5: Pack Each Sub-Project with repomix
 
-Check installation: `repomix --version`. If missing, use AskUserQuestion:
-- Question: "Repomix is not installed. It accelerates exploration by pre-packing files. Install?" (header: "Repomix")
-- Options: "Install repomix (Recommended)" | "Skip — proceed without it"
+**CRITICAL: MUST use `Skill(repomix, ...)` — NEVER run repomix via Bash directly.**
 
-**Multi-subproject** — invoke sequentially per sub-project:
+The repomix skill handles installation checks, absolute `-o` path resolution, token counting, and Secretlint security validation. Bypassing it with Bash loses ALL of these protections and introduces silent failures (relative output paths, missing security audit, no token report for scout scaling).
+
+**Do NOT do this** (Bash bypass — loses all protections):
+```
+Bash(repomix /path/to/project --style xml -o output.xml)
+```
+
+**ALWAYS do this** (Skill — full validation pipeline):
 ```
 Skill(repomix, "{path} --style xml --remove-comments -o $PWD/.work/repomix/{project-name}--{slug}.xml")
 ```
 
-**Single project** — run repomix, record token count for scout scaling:
+The Skill tool auto-checks installation. If repomix is missing, the skill will detect it. If the skill reports it's not installed, use AskUserQuestion:
+- Question: "Repomix is not installed. It accelerates exploration by pre-packing files. Install?" (header: "Repomix")
+- Options: "Install repomix (Recommended)" | "Skip — proceed without it"
+
+**Multi-subproject** — invoke Skill sequentially per sub-project. Pass directory as first positional argument, use absolute `-o` path (Skill resolves relative paths against `$PWD` but absolute is safer):
+```
+Skill(repomix, "{path} --style xml --remove-comments -o $PWD/.work/repomix/{project-name}--{slug}.xml")
+```
+
+**Single project** — same pattern, record token count from Skill output for scout scaling:
 ```
 Skill(repomix, ". --style xml --remove-comments -o $PWD/.work/repomix/root--{slug}.xml")
 ```
@@ -128,8 +142,10 @@ Workflow({ scriptPath: ".claude/workflows/workflow-sdlc-scout-pipeline.js", args
 ```
 
 The workflow handles:
+- **Phase Preflight**: idempotent skip — check existing reports, skip already-completed sub-projects
 - **Phase Scout**: pipeline over sub-projects — one Explore agent per sub-project, structured schema output (SCOUT_FINDING)
 - **Phase Report**: per sub-project — dedup files, write structured markdown report to outputPath
+- **Phase Audit**: cross-project completeness check — identify gaps, missed directories, uncovered topics
 
 All sub-projects stream independently via `pipeline()` — sub-project B's scout starts while A's report is being written.
 
@@ -262,6 +278,7 @@ git -C <nested_repo_path> tag "explore-$(date +%Y%m%d)--{slug}"
 - **Resumable.** If workflow is paused/killed, resume in-session — completed agents return cached results instantly.
 - **No sandbox.** Agents work directly on the project. Scout reports are the shared foundation.
 - **Delegation.** Phase 2 delegates to `workflow-sdlc-scout-pipeline` — never spawn Agent(Explore) directly for scouting. Sprint via Skill(sprint) — never modify sprint files directly.
+- **Tooling via Skill, not Bash.** Always invoke repomix via `Skill(repomix, ...)` — never Bash directly. The skill handles installation, absolute paths, token counting, and security checks that Bash bypasses silently.
 - **Explicit paths only.** After Phase 2, use exact file paths — never glob patterns.
 - **Language (`--lang`, `--en`).** `--lang vi|en` sets output language (default: `vi`). `--en` = `--lang en`. Only `vi`/`en` supported. Technical terms and code identifiers never translated. `--en --lang vi` → Vietnamese wins.
 

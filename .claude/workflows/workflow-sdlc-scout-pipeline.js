@@ -1,10 +1,11 @@
 export const meta = {
   name: 'workflow-sdlc-scout-pipeline',
-  description: 'Multi-subproject scout pipeline for sdlc-explore: idempotent skip → Explore agents per sub-project → completeness critic → report. Pipeline streams results independently.',
+  description: 'Multi-subproject scout pipeline for sdlc-explore: Preflight (skip existing) → Scout (discover per sub-project) → Report (write scout reports) → Audit (cross-project completeness check). Pipeline streams results independently.',
   phases: [
-    { title: 'Scout', detail: 'Explore agents per sub-project, mapping files + patterns + technologies' },
-    { title: 'Critic', detail: 'Cross-project completeness critic — identify gaps across all sub-projects' },
-    { title: 'Report', detail: 'Write per-subproject scout reports to .work/scouts/' },
+    { title: 'Preflight', detail: 'Check existing scout reports, skip already-completed sub-projects' },
+    { title: 'Scout', detail: 'One Explore agent per sub-project, mapping files + patterns + technologies' },
+    { title: 'Report', detail: 'Write per-subproject structured scout reports to .work/scouts/' },
+    { title: 'Audit', detail: 'Cross-project completeness check — identify gaps, missed directories, uncovered topics' },
   ],
 }
 
@@ -132,6 +133,7 @@ if (!subProjects.length) {
 
 // ── Idempotent skip: check which reports already exist ──
 
+phase('Preflight')
 log(`Checking ${subProjects.length} sub-project(s) for existing reports...`)
 
 const skipStatus = await agent(
@@ -143,7 +145,7 @@ ${subProjects.map((p, i) => `${i + 1}. ${p.outputPath} — for sub-project "${p.
 For each file, check if it exists and has real content (more than just headers). Return a JSON array of {name, outputPath, exists: boolean}.
 
 Important: only check file existence and content — do NOT modify anything.`,
-  { label: 'check-existing-reports', agentType: 'Explore', schema: {
+  { label: 'check-existing-reports', phase: 'Preflight', agentType: 'Explore', schema: {
     type: 'object',
     properties: {
       existing: {
@@ -383,9 +385,9 @@ ${questionList}
 )
 
 // ═══════════════════════════════════════════
-// PHASE: Critic — Cross-project completeness check
+// PHASE: Audit — Cross-project completeness check
 // ═══════════════════════════════════════════
-phase('Critic')
+phase('Audit')
 
 const valid = results.filter(Boolean)
 const completed = valid.filter(r => r.status === 'completed')
@@ -427,7 +429,7 @@ TASK:
 5. **Recommendations** — what should be re-scouted or investigated next?
 
 Be specific. If everything looks complete, say so — but default to finding at least one improvement opportunity.`,
-  { label: 'completeness-critic', phase: 'Critic', schema: GAPS }
+  { label: 'completeness-audit', phase: 'Audit', schema: GAPS }
 ) : null
 
 if (gaps?.foundGaps) {
