@@ -134,19 +134,23 @@ async function gateCheck(phaseName) {
 }
 
 /** Run a single phase with gate retry loop. Returns { passed, feedback } */
-async function runWithGate(label, agentType, promptFn, gateLabel, maxRetries) {
+async function runWithGate(label, agentType, promptFn, gateLabel, maxRetries, phase) {
   maxRetries = maxRetries || 3
   gateLabel = gateLabel || label
+  const agentOpts = { label, agentType }
+  if (phase) agentOpts.phase = phase
 
   let prompt = typeof promptFn === 'function' ? promptFn() : promptFn
-  await agent(prompt, { label, agentType })
+  await agent(prompt, agentOpts)
 
   let gate = await gateCheck(gateLabel)
 
   for (let retry = 0; !gate.passed && retry < maxRetries; retry++) {
     log(`${label}: gate rejected (${retry + 1}/${maxRetries}) — ${gate.feedback}`)
     let retryPrompt = typeof promptFn === 'function' ? promptFn(gate.feedback, retry + 1) : promptFn
-    await agent(retryPrompt, { label: `${label}-r${retry + 1}`, agentType })
+    const retryOpts = { label: `${label}-r${retry + 1}`, agentType }
+    if (phase) retryOpts.phase = phase
+    await agent(retryPrompt, retryOpts)
     gate = await gateCheck(gateLabel)
   }
 
@@ -365,10 +369,11 @@ if (done.srs) {
   }
 
   // Run FR-Discovery and NFR-Inference in parallel
+  // Use opts.phase on all agents inside parallel to avoid races on global phase() state
+  phase('FR-Discovery')
   const [frDisc, nfr] = await parallel([
     async () => {
       if (frDiscoveryDone) return frDiscoveryResults
-      phase('FR-Discovery')
       const results = await pipeline(
         areas,
         async (area) => {
@@ -377,7 +382,9 @@ if (done.srs) {
             `FR-${area.name}`,
             'srs-fr-discovery',
             (fb, rn) => frDiscoveryPrompt(area.scoutReport, area.name, area.index, area.total, fb, rn),
-            `FR-Discovery: ${area.name}`
+            `FR-Discovery: ${area.name}`,
+            undefined,
+            'FR-Discovery'
           )
           if (frResult && frResult.passed) completed.push(`FR-${area.name}`)
           return { area: area.name, ...frResult }
@@ -386,7 +393,6 @@ if (done.srs) {
       return results
     },
     async () => {
-      phase('NFR-Inference')
       log('NFR-Inference: reading configs for NFR thresholds')
       return agent(nfrInferencePrompt(), {
         label: 'nfr-inference',

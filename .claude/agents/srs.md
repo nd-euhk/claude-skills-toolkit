@@ -48,7 +48,7 @@ FR files do NOT exist yet — you will create them. When analyzing the PRD, brea
 - ❌ One FR: "Authentication" (too coarse)
 - ✅ Multiple FRs: "User Login", "User Registration", "Password Reset", "Email Verification"
 
-Each FR gets its own file at `docs/product/features/{epic-slug}/FR-{epic}-{NNN}--{slug}.md`. Apply this decomposition to every feature area in the PRD.
+Each FR gets its own file at `docs/product/features/{project-name}/FR-{epic}-{NNN}--{slug}.md`. Apply this decomposition to every feature area in the PRD.
 
 ## Procedure
 

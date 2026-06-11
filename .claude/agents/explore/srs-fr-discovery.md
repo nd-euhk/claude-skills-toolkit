@@ -47,7 +47,7 @@ For each functional area discovered in the scout report:
 
 ### Step 2: Write Complete FR Files
 
-For each discovered FR, write `docs/product/features/{epic-slug}/FR-{DOMAIN}-{NNN}--{slug}.md`:
+For each discovered FR, write `docs/product/features/{project-name}/FR-{DOMAIN}-{NNN}--{slug}.md`:
 
 Each FR file must contain:
 - **Mô tả** — 1-2 câu từ góc nhìn business
