@@ -59,7 +59,7 @@ SDLC (Software Development Life Cycle) framework này định nghĩa quy trình 
 
 **Output**:
 - `docs/product/PRD.md`
-- `docs/product/features/{project-name}/FR-*.md`
+- `docs/product/features/epic-{name}/FR-*.md`
 - `docs/product/release-criteria.md`
 - `agent_docs/features/FR-*.md`
 

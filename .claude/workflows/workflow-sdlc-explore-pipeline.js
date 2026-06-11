@@ -174,7 +174,7 @@ Input — read this exact file:
 
 Task: Discover and extract ALL functional requirements from this code area. Read the scout report first as your map. Then explore the actual source code at the paths it references to verify and enrich your findings. For each feature discovered, write a COMPLETE FR file.
 
-Output: docs/product/features/{project-name}/FR-{DOMAIN}-{NNN}--{slug}.md (one per FR, COMPLETE — not drafts)
+Output: docs/product/features/{epic-slug}/FR-{DOMAIN}-{NNN}--{slug}.md (one per FR, COMPLETE — not drafts)
 
 Each FR file must have: description, preconditions, input table, process steps, output schema, error codes, Gherkin Scenario Outline with Examples table, data model references, source code trace.
 

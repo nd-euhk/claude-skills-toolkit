@@ -255,7 +255,7 @@
 ### srs
 | Output | Đường dẫn | Khi nào sinh ra |
 |--------|-----------|-----------------|
-| FR files (có Gherkin Scenario Outlines) | `docs/product/features/{project-name}/FR-{epic}-{NNN}--{slug}.md` | Step 1 (1 file/FR) |
+| FR files (có Gherkin Scenario Outlines) | `docs/product/features/{epic-slug}/FR-{epic}-{NNN}--{slug}.md` | Step 1 (1 file/FR) |
 | SRS document | `docs/product/SRS.md` | Step 2 |
 | Traceability matrix | `agent_docs/traceability/requirements-matrix.md` | Step 3 |
 
