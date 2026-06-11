@@ -141,3 +141,17 @@ Fallback when `Workflow` tool is not functional or manual control is needed:
 | Gate retry ×3 | ×3 tokens per retry | Only final result in context |
 
 **Mechanism:** Workflow agents still consume tokens, but intermediate results (prompts, outputs, tool calls) stay in script variables — they don't pollute Claude's context window. Claude receives only the final structured result.
+
+## Comparison: explore-codebase vs sdlc-explore
+
+| Aspect | explore-codebase | sdlc-explore |
+|--------|-----------------|-----------------|
+| Phase 1-3 (Scout/Plan) | Manual orchestration | Same (no difference) |
+| Phase 4 (SDLC Pipeline) | Manual agent spawn + gate + retry + batching | Single `Workflow()` call |
+| Gate retry | Manual loop in Claude's context | Automatic in script |
+| Concurrency (≤15 rule) | Claude must batch manually | System handles automatically |
+| Intermediate results | In Claude's context | In script variables |
+| Resumability | Re-run from start on failure | Resume with cached results |
+| FR Distribution | Claude reads files, groups manually | Agent in workflow reads + returns structured data |
+| Token efficiency | All intermediate state in context | Only final structured result in context |
+| Phase 5-6 (Sprint/Summary) | Manual | Same (no difference) |

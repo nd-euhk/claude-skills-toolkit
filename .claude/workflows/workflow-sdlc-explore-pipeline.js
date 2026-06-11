@@ -22,7 +22,7 @@ const { projectName, runDate, slug, scoutReports, language, mode } = args
 const useEnglish = language === 'en'
 const langInstr = useEnglish
   ? ''
-  : 'Viết tất cả output bằng tiếng Việt. Thuật ngữ kỹ thuật và mã định danh giữ nguyên tiếng Anh.'
+  : 'Viết tất cả output bằng tiếng Việt. Phải viết có dấu đầy đủ (full diacritics — không được viết không dấu). Ví dụ: "được" chứ không phải "duoc", "không" chứ không phải "khong". Thuật ngữ kỹ thuật và mã định danh giữ nguyên tiếng Anh.'
 const isArchitect = mode === 'architect'
 const scoutList = scoutReports.map(f => `- ${f}`).join('\n')
 
@@ -62,6 +62,44 @@ const FR_GROUPS = {
 }
 
 // ── Helpers ──
+
+/** Check which phases have already produced valid output. One agent checks all. */
+async function checkPhaseStatus() {
+  const result = await agent(
+    `Check which SDLC exploration phases have already produced valid output for project ${projectName}.
+
+Check each phase:
+- SRS: docs/product/SRS.md exists and has substantial content (not empty, not just template)
+- HLD: docs/architecture/system-architecture.md AND agent_docs/domain-service-mapping.yaml exist with content
+- LLD services: For each service directory under agent_docs/tech-design/, check if {name}-service.md exists with content. Return list of service names that are complete.
+- LLD merge: agent_docs/tech-design/README.md AND agent_docs/tech-design/cross-cutting.md exist
+- IMP: List all files matching agent_docs/backend/*/implementation/FR-*-impl.md — return the group labels (directory names) that have impl files
+- TST: List all files matching agent_docs/backend/*/test-specs/FR-*-test.md — return the group labels that have test files
+
+Read files to verify they contain real content (not just headers/templates).
+Return {
+  srs: boolean,
+  hld: boolean,
+  lldServices: string[],   // names of services with complete LLD
+  lldMerge: boolean,
+  impGroups: string[],     // FR group labels with complete IMP
+  tstGroups: string[],     // FR group labels with complete TST
+}`,
+    { label: 'phase-status-check', agentType: 'Explore', schema: {
+      type: 'object',
+      properties: {
+        srs: { type: 'boolean' },
+        hld: { type: 'boolean' },
+        lldServices: { type: 'array', items: { type: 'string' } },
+        lldMerge: { type: 'boolean' },
+        impGroups: { type: 'array', items: { type: 'string' } },
+        tstGroups: { type: 'array', items: { type: 'string' } },
+      },
+      required: ['srs', 'hld', 'lldServices', 'lldMerge', 'impGroups', 'tstGroups']
+    }}
+  )
+  return result || { srs: false, hld: false, lldServices: [], lldMerge: false, impGroups: [], tstGroups: [] }
+}
 
 /** Spawn gate-verifier agent, return { passed, feedback } */
 async function gateCheck(phaseName) {
@@ -234,26 +272,47 @@ Constraints: Reverse-engineering mode. Test specifications only — no implement
 // PIPELINE
 // ═══════════════════════════════════════════
 
+// Check which phases are already complete (for idempotent re-runs)
+const done = await checkPhaseStatus()
+const skipped = []
+const completed = []
+
+let srsResult, hldResult
+
 // ── Phase 1: SRS ──
-phase('SRS')
-const srsResult = await runWithGate('SRS', 'srs', srsPrompt, 'SRS')
-if (!srsResult.passed) {
-  return { phase: 'SRS', error: 'Gate failed after 3 retries', feedback: srsResult.feedback }
+if (done.srs) {
+  log('✓ SRS: output already exists — skipping')
+  skipped.push('SRS')
+  srsResult = { passed: true }
+} else {
+  phase('SRS')
+  srsResult = await runWithGate('SRS', 'srs', srsPrompt, 'SRS')
+  if (!srsResult.passed) {
+    return { phase: 'SRS', error: 'Gate failed after 3 retries', feedback: srsResult.feedback, skipped, completed }
+  }
+  completed.push('SRS')
 }
 
 // ── Phase 2: HLD ──
-phase('HLD')
-const hldResult = await runWithGate('HLD', 'hld', hldPrompt, 'HLD')
-if (!hldResult.passed) {
-  return { phase: 'HLD', error: 'Gate failed after 3 retries', feedback: hldResult.feedback }
+if (done.hld) {
+  log('✓ HLD: output already exists — skipping')
+  skipped.push('HLD')
+  hldResult = { passed: true }
+} else {
+  phase('HLD')
+  hldResult = await runWithGate('HLD', 'hld', hldPrompt, 'HLD')
+  if (!hldResult.passed) {
+    return { phase: 'HLD', error: 'Gate failed after 3 retries', feedback: hldResult.feedback, skipped, completed }
+  }
+  completed.push('HLD')
 }
 
 // Architect mode — stop after HLD
 if (isArchitect) {
-  return { mode: 'architect', completed: ['SRS', 'HLD'], srsGate: srsResult, hldGate: hldResult }
+  return { mode: 'architect', completed: [...skipped, ...completed], skipped, ran: completed, srsGate: srsResult, hldGate: hldResult }
 }
 
-// ── Phase 3: Extract service list ──
+// ── Phase 3: Extract service list (always run — depends on HLD output) ──
 phase('LLD')
 const svcData = await agent(
   `${langInstr}
@@ -288,10 +347,15 @@ const enrichedServices = services.map((svc, i) => {
   return { ...svc, scoutReport, index: i + 1, total: services.length }
 })
 
-// ── Phase 3: LLD per service (pipeline — each service flows through design → gate independently) ──
+// ── Phase 3: LLD per service (pipeline with skip detection) ──
 const lldResults = await pipeline(
   enrichedServices,
   async (svc) => {
+    if (done.lldServices && done.lldServices.includes(svc.name)) {
+      log(`LLD-${svc.name}: output already exists — skipping`)
+      skipped.push(`LLD-${svc.name}`)
+      return { service: svc.name, gate: { passed: true }, skipped: true }
+    }
     log(`LLD: ${svc.name} (${svc.index}/${svc.total})`)
     const gate = await runWithGate(
       `LLD-${svc.name}`,
@@ -299,23 +363,30 @@ const lldResults = await pipeline(
       (fb, rn) => lldServicePrompt(svc, svc.total, svc.index, fb, rn),
       `LLD-service: ${svc.name}`
     )
+    if (gate.passed) completed.push(`LLD-${svc.name}`)
     return { service: svc.name, gate }
   }
 )
 
 const lldFailed = lldResults.filter(r => r && !r.gate.passed)
 if (lldFailed.length > 0) {
-  return { phase: 'LLD', error: `${lldFailed.length} service(s) failed gate`, failed: lldFailed.map(f => f.service) }
+  return { phase: 'LLD', error: `${lldFailed.length} service(s) failed gate`, failed: lldFailed.map(f => f.service), skipped, completed }
 }
 
 // ── Phase 4: LLD Merge ──
-phase('LLD Merge')
-const mergeResult = await runWithGate('LLD-merge', 'lld-merge', lldMergePrompt, 'LLD-merge')
-if (!mergeResult.passed) {
-  return { phase: 'LLD-merge', error: 'Gate failed after 3 retries', feedback: mergeResult.feedback }
+if (done.lldMerge) {
+  log('✓ LLD-merge: output already exists — skipping')
+  skipped.push('LLD-merge')
+} else {
+  phase('LLD Merge')
+  const mergeResult = await runWithGate('LLD-merge', 'lld-merge', lldMergePrompt, 'LLD-merge')
+  if (!mergeResult.passed) {
+    return { phase: 'LLD-merge', error: 'Gate failed after 3 retries', feedback: mergeResult.feedback, skipped, completed }
+  }
+  completed.push('LLD-merge')
 }
 
-// ── Phase 5: FR Distribution ──
+// ── Phase 5: FR Distribution (always run — depends on SRS+LLD, fast read-only) ──
 phase('FR Dist')
 const frDist = await agent(frDistPrompt(), {
   label: 'fr-distribution',
@@ -325,7 +396,7 @@ const frDist = await agent(frDistPrompt(), {
 })
 
 if (!frDist || !frDist.groups || frDist.groups.length === 0) {
-  return { phase: 'FR-Dist', error: 'FR distribution failed — no groups returned' }
+  return { phase: 'FR-Dist', error: 'FR distribution failed — no groups returned', skipped, completed }
 }
 
 log(`FR Distribution: ${frDist.totalFRs} FRs → ${frDist.totalGroups} groups across ${new Set(frDist.groups.map(g => g.service)).size} services`)
@@ -333,34 +404,59 @@ for (const g of frDist.groups) {
   log(`  ${g.label}: ${g.frIds.length} FRs [${g.topic || 'no topic'}]`)
 }
 
-// ── Phase 6: IMP + TST (pipeline — each group flows independently) ──
+// ── Phase 6: IMP + TST (pipeline with skip detection per group) ──
 phase('IMP+TST')
 const impTstResults = await pipeline(
   frDist.groups,
   async (group, _, idx) => {
     const index = idx + 1
     const total = frDist.totalGroups
+    const impDone = done.impGroups && done.impGroups.includes(group.label)
+    const tstDone = done.tstGroups && done.tstGroups.includes(group.label)
 
-    // Spawn IMP + TST in parallel
+    if (impDone && tstDone) {
+      log(`IMP+TST-${group.label}: output already exists — skipping`)
+      skipped.push(`IMP-${group.label}`, `TST-${group.label}`)
+      return {
+        group: group.label, service: group.service, frIds: group.frIds,
+        impGate: { passed: true }, tstGate: { passed: true }, skipped: true,
+      }
+    }
+
+    // Spawn IMP + TST in parallel (skip individually if one is done)
     const [impOk, tstOk] = await parallel([
-      () => runWithGate(
-        `IMP-${group.label}`,
-        'imp',
-        (fb, rn) => impPrompt(group, total, index, fb, rn),
-        `IMP: ${group.label}`
-      ),
-      () => runWithGate(
-        `TST-${group.label}`,
-        'tst',
-        (fb, rn) => tstPrompt(group, total, index, fb, rn),
-        `TST: ${group.label}`
-      ),
+      async () => {
+        if (impDone) {
+          log(`IMP-${group.label}: output already exists — skipping`)
+          skipped.push(`IMP-${group.label}`)
+          return { passed: true }
+        }
+        const r = await runWithGate(
+          `IMP-${group.label}`, 'imp',
+          (fb, rn) => impPrompt(group, total, index, fb, rn),
+          `IMP: ${group.label}`
+        )
+        if (r.passed) completed.push(`IMP-${group.label}`)
+        return r
+      },
+      async () => {
+        if (tstDone) {
+          log(`TST-${group.label}: output already exists — skipping`)
+          skipped.push(`TST-${group.label}`)
+          return { passed: true }
+        }
+        const r = await runWithGate(
+          `TST-${group.label}`, 'tst',
+          (fb, rn) => tstPrompt(group, total, index, fb, rn),
+          `TST: ${group.label}`
+        )
+        if (r.passed) completed.push(`TST-${group.label}`)
+        return r
+      },
     ])
 
     return {
-      group: group.label,
-      service: group.service,
-      frIds: group.frIds,
+      group: group.label, service: group.service, frIds: group.frIds,
       impGate: impOk || { passed: false, feedback: 'agent error' },
       tstGate: tstOk || { passed: false, feedback: 'agent error' },
     }
@@ -374,14 +470,16 @@ const tstFailed = valid.filter(r => !r.tstGate.passed)
 // ── Return ──
 return {
   mode: 'full',
-  completed: ['SRS', 'HLD', 'LLD', 'LLD-merge', 'FR-Dist', 'IMP+TST'],
+  completed: [...skipped, ...completed],
+  skipped,
+  ran: completed,
   services: services.length,
   frDistribution: { totalFRs: frDist.totalFRs, totalGroups: frDist.totalGroups, groups: frDist.groups.map(g => g.label) },
   results: {
     srs: srsResult,
     hld: hldResult,
     lld: lldResults.filter(Boolean).length,
-    merge: mergeResult,
+    merge: { passed: done.lldMerge || completed.includes('LLD-merge') },
     impTst: {
       total: valid.length,
       impPassed: valid.length - impFailed.length,

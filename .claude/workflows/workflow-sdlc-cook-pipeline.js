@@ -16,12 +16,27 @@ const { taskId, taskTitle, planFile, language, beAffected, feAffected, tstPath, 
 const useEnglish = language === 'en'
 const langInstr = useEnglish
   ? ''
-  : 'Viết tất cả output bằng tiếng Việt. Thuật ngữ kỹ thuật và mã định danh giữ nguyên tiếng Anh.'
+  : // Extended langInstr for CODE-GENERATING pipelines. Distinguishes code (EN) from comments/tests/docs (VI).
+    // Documentation-only pipelines (task, CR) use a simplified version — see workflow-sdlc-task-pipeline.js.
+    `QUY TẮC NGÔN NGỮ NGHIÊM NGẶT:
+
+1. CODE (tên biến, hàm, class, type, package, module, field, parameter): LUÔN LUÔN bằng tiếng Anh. Tuyệt đối không dùng tiếng Việt trong code. Ví dụ: "getUserById" chứ không phải "layNguoiDungTheoId".
+
+2. COMMENT TRONG CODE (//, /* */, ///, #, JSDoc, docstring, annotation): Viết bằng tiếng Việt có dấu đầy đủ (full diacritics). Ví dụ: "// Lấy thông tin người dùng từ database" chứ không phải "// Lay thong tin nguoi dung tu database".
+
+3. TEST CASE DESCRIPTION (test name, display name, @DisplayName, describe/it blocks): Viết bằng tiếng Việt có dấu đầy đủ. Ví dụ: "nên_trả_về_lỗi_khi_người_dùng_không_tồn_tại".
+
+4. DOCUMENTATION, README, SPEC FILES: Viết bằng tiếng Việt có dấu đầy đủ.
+
+5. THUẬT NGỮ KỸ THUẬT (API, HTTP, JSON, SQL, REST, GraphQL, class name reference): Giữ nguyên tiếng Anh.
+
+Nhắc lại: CODE = TIẾNG ANH. COMMENT + TEST NAME + DOCS = TIẾNG VIỆT CÓ DẤU.`
 
 const runBE = beAffected === true
 const runFE = feAffected === true
 
 // ── Schemas ──
+// GATE schema — keep in sync with canonical source: workflow-sdlc-task-pipeline.js
 const GATE = {
   type: 'object',
   properties: { passed: { type: 'boolean' }, feedback: { type: 'string' } },
@@ -29,6 +44,25 @@ const GATE = {
 }
 
 // ── Helpers ──
+
+/** Check which TDD phases have already produced output. For cook, only RED produces detectable artifact (test files). GREEN+REFACTOR always re-run — code quality needs fresh verification. */
+async function checkPhaseStatus(track) {
+  const result = await agent(
+    `Check if TDD RED phase for ${track.toUpperCase()} track has already produced test files for task ${taskId}: ${taskTitle}.
+
+Look for:
+- Test files in the project's standard test directory that correspond to the IMP spec at ${impPath} and TST spec at ${tstPath}
+- The test files should contain actual test code (not empty/template)
+
+Return { red: boolean } — true if test files already exist and have content.`,
+    { label: `phase-status-${track}`, agentType: 'Explore', schema: {
+      type: 'object',
+      properties: { red: { type: 'boolean' } },
+      required: ['red']
+    }}
+  )
+  return result || { red: false }
+}
 
 /** Spawn TDD gate agent with mode (light or full) */
 async function tddGateCheck(track, mode) {
@@ -140,23 +174,35 @@ async function runTddTrack(track) {
   const t = track.toUpperCase()
   log(`Starting ${t} TDD pipeline...`)
 
-  // Phase 1: RED — write failing tests
-  await runTddPhase('red', `tdd-${track}-red`, redPrompt(track), t)
+  const done = await checkPhaseStatus(track)
+  const skipped = []
+  const completed = []
 
-  // Phase 2: GREEN + LIGHT GATE (with re-spawn loop)
+  // Phase 1: RED — write failing tests (skip if tests already exist)
+  if (done.red) {
+    log(`✓ RED (${track}): test files already exist — skipping`)
+    skipped.push('red')
+  } else {
+    await runTddPhase('red', `tdd-${track}-red`, redPrompt(track), t)
+    completed.push('red')
+  }
+
+  // Phase 2: GREEN + LIGHT GATE (always run — implementation needs fresh verification)
   const lightResult = await runGreenWithLightGate(track, greenPromptMaker(track))
   if (!lightResult.passed) {
-    return { track, error: 'Light gate failed after 3 retries', feedback: lightResult.feedback, completed: ['red'] }
+    return { track, error: 'Light gate failed after 3 retries', feedback: lightResult.feedback, skipped, completed }
   }
+  completed.push('green', 'light')
 
-  // Phase 3: REFACTOR + FULL GATE (with re-spawn loop)
+  // Phase 3: REFACTOR + FULL GATE (always run — code quality needs fresh verification)
   const fullResult = await runRefactorWithFullGate(track, refactorPromptMaker(track))
   if (!fullResult.passed) {
-    return { track, error: 'Full gate failed after 3 retries', feedback: fullResult.feedback, completed: ['red', 'green', 'light'] }
+    return { track, error: 'Full gate failed after 3 retries', feedback: fullResult.feedback, skipped, completed }
   }
+  completed.push('refactor', 'full')
 
   log(`✓ ${t} TDD pipeline: COMPLETE`)
-  return { track, passed: true, completed: ['red', 'green', 'light', 'refactor', 'full'] }
+  return { track, passed: true, skipped, completed }
 }
 
 // ═══════════════════════════════════════════
@@ -192,8 +238,20 @@ return {
   mode: 'cook',
   completed: tracks.map(t => `TDD-${t.toUpperCase()}`),
   results: {
-    be: beResult ? { passed: !beFailed, error: beResult.error, feedback: beResult.feedback } : null,
-    fe: feResult ? { passed: !feFailed, error: feResult.error, feedback: feResult.feedback } : null,
+    be: beResult ? {
+      passed: !beFailed,
+      error: beResult.error,
+      feedback: beResult.feedback,
+      skipped: beResult.skipped || [],
+      ran: beResult.completed || [],
+    } : null,
+    fe: feResult ? {
+      passed: !feFailed,
+      error: feResult.error,
+      feedback: feResult.feedback,
+      skipped: feResult.skipped || [],
+      ran: feResult.completed || [],
+    } : null,
   },
   overall: {
     beRan: runBE,

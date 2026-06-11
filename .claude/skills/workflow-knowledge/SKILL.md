@@ -5,7 +5,7 @@ description: >-
   and best practices for multi-agent scripts. Auto-activates when Claude writes
   or edits workflow scripts, encounters the Workflow tool, or needs to decide
   between pipeline/parallel/agent orchestration strategies.
-version: 1.0.0
+version: 1.1.0
 allowed-tools: Read
 ---
 
@@ -215,7 +215,7 @@ That middle `transform` doesn't need the barrier. Rewrite as pipeline with the t
 
 ## Quality Patterns Quick Reference
 
-Quick decision guide. Full code examples for all 6 patterns in `references/quality-patterns.md` — adversarial verify, perspective-diverse verify, judge panel, loop-until-dry, multi-modal sweep, completeness critic, plus parallel-step and sequential-chain patterns.
+Quick decision guide. Full code examples for all 7 patterns in `references/quality-patterns.md` — adversarial verify, perspective-diverse verify, judge panel, loop-until-dry, multi-modal sweep, completeness critic, idempotent phase skip, plus parallel-step and sequential-chain patterns.
 
 | Pattern | When | How |
 |---|---|---|
@@ -225,6 +225,7 @@ Quick decision guide. Full code examples for all 6 patterns in `references/quali
 | **Loop-until-dry** | Unknown-size discovery | Keep spawning finders until K consecutive rounds return nothing new |
 | **Multi-modal sweep** | One search angle won't find everything | Parallel agents search by-container, by-content, by-entity, by-time |
 | **Completeness critic** | Ensure nothing missed | Final agent asks "what's missing?" — its findings become next round |
+| **Idempotent phase skip** | Re-run workflow after partial failure | One agent checks all phase outputs upfront; skip phases with valid output, re-run only failed ones |
 
 ## Canonical Patterns
 
@@ -261,15 +262,21 @@ while (bugs.length < 10) {
 }
 ```
 
+### idempotent-phase-skip: Retry only failed phases
+
+When a multi-phase workflow fails at phase N, re-running with the same args skips phases 1..N-1 (already complete) and re-runs only N onwards. One upfront Explore agent checks all phase output files. Key: one agent checks ALL phases (~1 agent overhead total), binary skip per phase, per-item granularity for service-level phases, special rules for code-generating and revision phases. Includes `--from-phase` variant for targeted force-skip.
+
+Full code with `checkPhaseStatus()`, `runWithGate()`, per-phase skip logic, `--from-phase` integration, and all 7 design decisions in `references/quality-patterns.md#idempotent-phase-skip`.
+
 ### exhaustive-review: Find → Dedup → Diverse-lens → Loop-until-dry
 
 Full code in `references/quality-patterns.md#loop-until-dry`. Pattern: track ALL evaluated findings in a `seen` set (NOT just confirmed), run diverse-lens verification per finding, stop after K consecutive dry rounds. **Critical:** dedup against `seen`, not `confirmed` — otherwise rejected findings reappear every round and the loop never converges.
 
 ## Anti-Patterns
 
-See `references/anti-patterns.md` for 10 anti-patterns with WRONG/RIGHT code pairs and severity labels (critical → advisory). Quick check before writing any script.
+See `references/anti-patterns.md` for 11 anti-patterns with WRONG/RIGHT code pairs and severity labels (critical → advisory). Quick check before writing any script.
 
-Top offenders: barrier-when-pipeline-would-do, no budget.total guard on while loops, dedup against confirmed instead of seen, stringified args, isolation worktree for read-only agents, silent truncation, Date.now/Math.random usage, TypeScript annotations, computed meta values, nested workflow deeper than 1 level.
+Top offenders: barrier-when-pipeline-would-do, no budget.total guard on while loops, dedup against confirmed instead of seen, stringified args, isolation worktree for read-only agents, re-running entire workflow when only one phase failed, silent truncation, Date.now/Math.random usage, TypeScript annotations, computed meta values, nested workflow deeper than 1 level.
 
 ## Prompt Patterns
 

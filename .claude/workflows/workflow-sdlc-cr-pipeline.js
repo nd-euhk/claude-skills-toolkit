@@ -15,14 +15,16 @@ export const meta = {
 // { taskId, taskTitle, taskDescription, planFile, language?: 'vi'|'en', runDate, slug, hldAffected: bool, lldAffected: bool }
 const { taskId, taskTitle, taskDescription, planFile, language, hldAffected, lldAffected } = args
 const useEnglish = language === 'en'
+// Canonical langInstr for DOCUMENTATION pipelines. See workflow-sdlc-task-pipeline.js for canonical source.
 const langInstr = useEnglish
   ? ''
-  : 'Viết tất cả output bằng tiếng Việt. Thuật ngữ kỹ thuật và mã định danh giữ nguyên tiếng Anh.'
+  : 'Viết tất cả output bằng tiếng Việt, có dấu đầy đủ (full diacritics). Ví dụ: "được" không phải "duoc", "không" không phải "khong". Thuật ngữ kỹ thuật và mã định danh giữ nguyên tiếng Anh.'
 
 const runHld = hldAffected === true
 const runLld = lldAffected === true
 
 // ── Schemas ──
+// GATE schema — keep in sync with canonical source: workflow-sdlc-task-pipeline.js
 const GATE = {
   type: 'object',
   properties: { passed: { type: 'boolean' }, feedback: { type: 'string' } },
@@ -30,6 +32,25 @@ const GATE = {
 }
 
 // ── Helpers ──
+
+/** Check which phases have already produced output. For CR, IMP+TST produce new files. HLD/LLD are revisions — always re-run if affected. */
+async function checkPhaseStatus() {
+  const result = await agent(
+    `Check which CR phases have already produced output for task ${taskId}: ${taskTitle}.
+
+Check each phase:
+- IMP: At least one file matching pattern agent_docs/backend/*/implementation/FR-*-impl.md exists and references this task ${taskId} in its content
+- TST: At least one file matching pattern agent_docs/backend/*/test-specs/FR-*-test.md exists and references this task ${taskId} in its content
+
+Return { imp: boolean, tst: boolean }`,
+    { label: 'phase-status-check', agentType: 'Explore', schema: {
+      type: 'object',
+      properties: { imp: { type: 'boolean' }, tst: { type: 'boolean' } },
+      required: ['imp', 'tst']
+    }}
+  )
+  return result || { imp: false, tst: false }
+}
 
 async function gateCheck(phaseName) {
   return agent(
@@ -117,51 +138,70 @@ Constraints: Test specifications only — no implementation code. Use your defau
 // PIPELINE
 // ═══════════════════════════════════════════
 
+// Check which phases are already complete (for idempotent re-runs)
+const done = await checkPhaseStatus()
+const skipped = []
 const completed = []
 const results = {}
 
-// ── Phase 1: HLD (conditional) ──
+// ── Phase 1: HLD (conditional — always re-run if affected, it's a revision) ──
 if (runHld) {
   phase('HLD')
   results.hld = await runWithGate('HLD-CR', 'hld', hldCrPrompt, 'HLD-revision')
   if (!results.hld.passed) {
-    return { mode: 'cr', phase: 'HLD', error: 'Gate failed after 3 retries', feedback: results.hld.feedback, conditional: { hld: true, lld: runLld }, completed }
+    return { mode: 'cr', phase: 'HLD', error: 'Gate failed after 3 retries', feedback: results.hld.feedback, conditional: { hld: true, lld: runLld }, skipped, completed }
   }
   completed.push('HLD')
-  log('HLD revision: SKIPPED (not affected by this CR)')
 } else {
   log('HLD revision: SKIPPED (not affected by this CR)')
 }
 
-// ── Phase 2: LLD (conditional) ──
+// ── Phase 2: LLD (conditional — always re-run if affected, it's a revision) ──
 if (runLld) {
   phase('LLD')
   results.lld = await runWithGate('LLD-CR', 'lld', lldCrPrompt, 'LLD-revision')
   if (!results.lld.passed) {
-    return { mode: 'cr', phase: 'LLD', error: 'Gate failed after 3 retries', feedback: results.lld.feedback, conditional: { hld: runHld, lld: true }, completed }
+    return { mode: 'cr', phase: 'LLD', error: 'Gate failed after 3 retries', feedback: results.lld.feedback, conditional: { hld: runHld, lld: true }, skipped, completed }
   }
   completed.push('LLD')
-  log('LLD revision: SKIPPED (not affected by this CR)')
 } else {
   log('LLD revision: SKIPPED (not affected by this CR)')
 }
 
-// ── Phase 3: IMP + TST (always, parallel) ──
+// ── Phase 3: IMP + TST (always, parallel, with skip detection) ──
 phase('IMP+TST')
 const [impResult, tstResult] = await parallel([
-  () => runWithGate('IMP-CR', 'imp', impCrPrompt, 'IMP-CR'),
-  () => runWithGate('TST-CR', 'tst', tstCrPrompt, 'TST-CR'),
+  async () => {
+    if (done.imp) {
+      log('✓ IMP: output already exists — skipping')
+      skipped.push('IMP')
+      return { passed: true }
+    }
+    const r = await runWithGate('IMP-CR', 'imp', impCrPrompt, 'IMP-CR')
+    if (r.passed) completed.push('IMP')
+    return r
+  },
+  async () => {
+    if (done.tst) {
+      log('✓ TST: output already exists — skipping')
+      skipped.push('TST')
+      return { passed: true }
+    }
+    const r = await runWithGate('TST-CR', 'tst', tstCrPrompt, 'TST-CR')
+    if (r.passed) completed.push('TST')
+    return r
+  },
 ])
 
 const impOk = impResult || { passed: false, feedback: 'agent error' }
 const tstOk = tstResult || { passed: false, feedback: 'agent error' }
 
-completed.push('IMP', 'TST')
-
 // ── Return ──
 return {
   mode: 'cr',
-  completed,
+  completed: [...skipped, ...completed],
+  skipped,
+  ran: completed,
   conditional: { hld: runHld, lld: runLld },
   results: {
     hld: results.hld || null,

@@ -14,12 +14,32 @@ export const meta = {
 }
 
 // ── Args ──
-// { taskId, taskTitle, taskDescription, planFile, language?: 'vi'|'en', runDate, slug }
-const { taskId, taskTitle, taskDescription, planFile, language } = args
+// { taskId, taskTitle, taskDescription, planFile, language?: 'vi'|'en', runDate, slug, fromPhase?: 'SRS'|'HLD'|'LLD'|'IMP+TST' }
+// When fromPhase='IMP+TST': SRS, HLD, LLD are force-skipped; IMP and TST are force-run.
+const { taskId, taskTitle, taskDescription, planFile, language, fromPhase } = args
 const useEnglish = language === 'en'
+// Canonical langInstr for DOCUMENTATION pipelines (task, CR, explore).
+// Code-generating pipelines (cook) use an extended version — see workflow-sdlc-cook-pipeline.js.
 const langInstr = useEnglish
   ? ''
-  : 'Viết tất cả output bằng tiếng Việt. Thuật ngữ kỹ thuật và mã định danh giữ nguyên tiếng Anh.'
+  : 'Viết tất cả output bằng tiếng Việt, có dấu đầy đủ (full diacritics). Ví dụ: "được" không phải "duoc", "không" không phải "khong". Thuật ngữ kỹ thuật và mã định danh giữ nguyên tiếng Anh.'
+
+// Phase ordering for --from-phase logic
+const PHASE_ORDER = ['SRS', 'HLD', 'LLD', 'IMP+TST', 'IMP', 'TST']
+function isBeforePhase(phaseName) {
+  if (!fromPhase) return false
+  const fromIdx = PHASE_ORDER.indexOf(fromPhase)
+  if (fromIdx === -1) return false
+  // Compound phase 'IMP+TST': phases before LLD are before both IMP and TST
+  if (fromPhase === 'IMP+TST' && PHASE_ORDER.indexOf(phaseName) <= PHASE_ORDER.indexOf('LLD')) return true
+  return PHASE_ORDER.indexOf(phaseName) < fromIdx
+}
+function isTargetPhase(phaseName) {
+  if (!fromPhase) return false
+  // Compound phase 'IMP+TST': targets both IMP and TST individually
+  if (fromPhase === 'IMP+TST' && (phaseName === 'IMP' || phaseName === 'TST')) return true
+  return fromPhase === phaseName
+}
 
 // ── Schemas ──
 const GATE = {
@@ -29,6 +49,37 @@ const GATE = {
 }
 
 // ── Helpers ──
+// Canonical source for GATE schema, gateCheck, runWithGate — keep in sync with:
+//   workflow-sdlc-cr-pipeline.js, workflow-sdlc-cook-pipeline.js
+
+/** Check which phases have valid output already. Returns { srs, hld, lld, imp, tst } all boolean. */
+async function checkPhaseStatus() {
+  const result = await agent(
+    `Check which SDLC phases have already produced valid output files for task ${taskId}: ${taskTitle}.
+
+Check each phase:
+- SRS: docs/product/SRS.md exists and has substantial content (not empty, not just template boilerplate)
+- HLD: docs/architecture/system-architecture.md AND agent_docs/domain-service-mapping.yaml exist with substantial content
+- LLD: agent_docs/tech-design/README.md exists with substantial content
+- IMP: At least one file matching pattern agent_docs/backend/*/implementation/FR-*-impl.md exists
+- TST: At least one file matching pattern agent_docs/backend/*/test-specs/FR-*-test.md exists
+
+For each phase, read the file(s) and verify they contain real content (not just headers/templates).
+Return { srs: boolean, hld: boolean, lld: boolean, imp: boolean, tst: boolean }`,
+    { label: 'phase-status-check', agentType: 'Explore', schema: {
+      type: 'object',
+      properties: {
+        srs: { type: 'boolean' },
+        hld: { type: 'boolean' },
+        lld: { type: 'boolean' },
+        imp: { type: 'boolean' },
+        tst: { type: 'boolean' },
+      },
+      required: ['srs', 'hld', 'lld', 'imp', 'tst']
+    }}
+  )
+  return result || { srs: false, hld: false, lld: false, imp: false, tst: false }
+}
 
 /** Spawn gate-verifier agent, return { passed, feedback } */
 async function gateCheck(phaseName) {
@@ -130,32 +181,82 @@ Constraints: Test specifications only — no implementation code. References IMP
 // PIPELINE
 // ═══════════════════════════════════════════
 
-// ── Phase 1: SRS ──
-phase('SRS')
-const srsResult = await runWithGate('SRS', 'srs', srsPrompt, 'SRS')
-if (!srsResult.passed) {
-  return { mode: 'task', phase: 'SRS', error: 'Gate failed after 3 retries', feedback: srsResult.feedback }
+// Check which phases are already complete (for idempotent re-runs)
+const done = await checkPhaseStatus()
+const skipped = []
+const completed = []
+
+// Helper: decide whether to skip or run a phase
+// forceRun > auto-detect > forceSkip
+function shouldSkip(phaseName) {
+  if (isTargetPhase(phaseName)) return false   // --from-phase target → always run
+  if (isBeforePhase(phaseName)) return true     // before --from-phase → force skip
+  return done[phaseName.toLowerCase()]          // after target → auto-detect
+}
+function skipReason(phaseName) {
+  if (isBeforePhase(phaseName)) return `--from-phase ${fromPhase} → skipping`
+  return 'output already exists — skipping'
 }
 
-// ── Phase 2: HLD ──
-phase('HLD')
-const hldResult = await runWithGate('HLD', 'hld', hldPrompt, 'HLD')
-if (!hldResult.passed) {
-  return { mode: 'task', phase: 'HLD', error: 'Gate failed after 3 retries', feedback: hldResult.feedback }
+if (shouldSkip('SRS')) {
+  log(`✓ SRS: ${skipReason('SRS')}`)
+  skipped.push('SRS')
+} else {
+  phase('SRS')
+  const srsResult = await runWithGate('SRS', 'srs', srsPrompt, 'SRS')
+  if (!srsResult.passed) {
+    return { mode: 'task', phase: 'SRS', error: 'Gate failed after 3 retries', feedback: srsResult.feedback, skipped, completed, fromPhase }
+  }
+  completed.push('SRS')
 }
 
-// ── Phase 3: LLD ──
-phase('LLD')
-const lldResult = await runWithGate('LLD', 'lld', lldPrompt, 'LLD')
-if (!lldResult.passed) {
-  return { mode: 'task', phase: 'LLD', error: 'Gate failed after 3 retries', feedback: lldResult.feedback }
+if (shouldSkip('HLD')) {
+  log(`✓ HLD: ${skipReason('HLD')}`)
+  skipped.push('HLD')
+} else {
+  phase('HLD')
+  const hldResult = await runWithGate('HLD', 'hld', hldPrompt, 'HLD')
+  if (!hldResult.passed) {
+    return { mode: 'task', phase: 'HLD', error: 'Gate failed after 3 retries', feedback: hldResult.feedback, skipped, completed, fromPhase }
+  }
+  completed.push('HLD')
 }
 
-// ── Phase 4: IMP + TST (parallel) ──
+if (shouldSkip('LLD')) {
+  log(`✓ LLD: ${skipReason('LLD')}`)
+  skipped.push('LLD')
+} else {
+  phase('LLD')
+  const lldResult = await runWithGate('LLD', 'lld', lldPrompt, 'LLD')
+  if (!lldResult.passed) {
+    return { mode: 'task', phase: 'LLD', error: 'Gate failed after 3 retries', feedback: lldResult.feedback, skipped, completed, fromPhase }
+  }
+  completed.push('LLD')
+}
+
+// ── Phase 4: IMP + TST (parallel, with skip detection) ──
 phase('IMP+TST')
 const [impResult, tstResult] = await parallel([
-  () => runWithGate('IMP', 'imp', impPrompt, 'IMP'),
-  () => runWithGate('TST', 'tst', tstPrompt, 'TST'),
+  async () => {
+    if (shouldSkip('IMP')) {
+      log(`✓ IMP: ${skipReason('IMP')}`)
+      skipped.push('IMP')
+      return { passed: true }
+    }
+    const r = await runWithGate('IMP', 'imp', impPrompt, 'IMP')
+    if (r.passed) completed.push('IMP')
+    return r
+  },
+  async () => {
+    if (shouldSkip('TST')) {
+      log(`✓ TST: ${skipReason('TST')}`)
+      skipped.push('TST')
+      return { passed: true }
+    }
+    const r = await runWithGate('TST', 'tst', tstPrompt, 'TST')
+    if (r.passed) completed.push('TST')
+    return r
+  },
 ])
 
 const impOk = impResult || { passed: false, feedback: 'agent error' }
@@ -164,11 +265,13 @@ const tstOk = tstResult || { passed: false, feedback: 'agent error' }
 // ── Return ──
 return {
   mode: 'task',
-  completed: ['SRS', 'HLD', 'LLD', 'IMP', 'TST'],
+  completed: [...skipped, ...completed],
+  skipped,
+  ran: completed,
   results: {
-    srs: srsResult,
-    hld: hldResult,
-    lld: lldResult,
+    srs: { passed: done.srs || completed.includes('SRS') },
+    hld: { passed: done.hld || completed.includes('HLD') },
+    lld: { passed: done.lld || completed.includes('LLD') },
     impTst: {
       impPassed: impOk.passed,
       impFeedback: impOk.feedback,

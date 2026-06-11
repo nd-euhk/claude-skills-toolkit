@@ -5,9 +5,9 @@ description: >-
   Use when starting a new feature (feature/task/story), handling a change request (cr), or cooking ready tasks for implementation (cook).
   Supports --auto flag to bypass plan mode. Skill handles interactive phases (plan mode, sprint, reports, AskUserQuestion).
   Delegates deterministic agent chains to workflow-sdlc-*-pipeline workflows for resumability and token efficiency.
-argument-hint: "[feature][task][story][cr][cook] [description] [--auto] [--lang vi|en] [--vi] [--en]"
-version: 1.0.1
-allowed-tools: Read, Write, Bash(*), AskUserQuestion, Agent, Skill, Workflow, EnterPlanMode, ExitPlanMode
+argument-hint: "[feature|task|story|cr|cook] [description] [--auto] [--lang vi|en] [--vi] [--en]"
+version: 1.2.0
+allowed-tools: Read, Bash(*), Write, AskUserQuestion, Agent, Skill, Workflow, EnterPlanMode, ExitPlanMode
 ---
 
 # SDLC Workflow (Hybrid: Skill + Workflow)
@@ -34,7 +34,7 @@ Extract from human input:
 INPUT: [workflow-type] [description] [--auto] [--lang vi|en] [--vi] [--en]
 
 MATCH workflow-type:
-  feature|task|story  → references/task-workflow.md
+  feature|task|story  → references/task-workflow.md       (aliases — same pipeline)
   cr                  → references/change-request-workflow.md
   cook                → references/cook-workflow.md
   NO MATCH            → AskUserQuestion to disambiguate
@@ -75,7 +75,7 @@ Each reference file contains: workflow args structure, invocation syntax, result
 
 **Workflow delegation.** Phase 3 is a single `workflow()` call. The workflow script handles all agent orchestration, gate retry, and concurrency. Do NOT manually spawn SDLC agents during execution.
 
-**Resumable.** If workflow is paused/killed, resume in-session — completed agents return cached results instantly.
+**Resumable.** If workflow is paused/killed, resume in-session — completed agents return cached results instantly. On gate failure, re-invoke with same args — completed phases auto-skipped via output detection. Use `fromPhase` arg to skip directly to a specific phase.
 
 **Plan mode stays in skill.** `EnterPlanMode`/`ExitPlanMode` are skill-level operations. Workflows don't support mid-run user input.
 

@@ -2,6 +2,14 @@
 
 Comprehensive error recovery guide for sdlc:workflow skill. Covers workflow failures, gate rejections, agent errors, and file issues.
 
+## Quick Reference by Workflow
+
+| Workflow | SRS/HLD failure | LLD failure | IMP/TST failure | Gate failure (cook) | Track failure (cook) |
+|----------|----------------|-------------|-----------------|---------------------|----------------------|
+| **Task** | Pattern 1: Blocking | Pattern 1: Optional | Pattern 1: Partial | — | — |
+| **CR** | Pattern 1: Blocking | Pattern 1: Optional | Pattern 1: Partial | — | — |
+| **Cook** | — | — | — | Pattern 1: retry/skip/abort | Pattern 2: Partial Cook |
+
 ## Error Categories
 
 | Category | Trigger | Severity | Default Action |
@@ -186,12 +194,109 @@ Execute Phase 3 manually — same as orchestrator skill.
 Equivalent results — only execution mechanism differs.
 ```
 
+## Pattern 8: Retry from Failed Phase (Idempotent Re-run)
+
+When a workflow phase fails after all gate retries, re-running the SAME workflow with identical args will:
+1. Check which phases already have valid output → skip them
+2. Re-run only the failed phase (and any subsequent phases)
+3. Already-passed phases cost 0 tokens (skipped entirely)
+
+### How it works
+
+Each workflow script now includes a `checkPhaseStatus()` helper that uses an Explore agent at startup to verify which outputs already exist. Before each phase, the script checks the status:
+
+```
+Phase SRS: output exists? → YES → skip (0 tokens)
+Phase HLD: output exists? → NO  → run + gate (fresh execution)
+Phase LLD: depends on HLD → run + gate
+...
+```
+
+### Usage
+
+When a workflow returns an error result:
+
+```
+Workflow returned: { phase: 'HLD', error: 'Gate failed after 3 retries' }
+```
+
+Response:
+```
+Report: "HLD failed gate. Previously completed: SRS (will be skipped on retry)."
+Ask: "HLD failed after 3 retries. What should I do?"
+Header: "Gate Failed"
+Options:
+  - "Retry from HLD" — re-invoke workflow with same args (SRS auto-skipped)
+  - "Retry from HLD (--from-phase)" — re-invoke with fromPhase='HLD' (force skip SRS, force run HLD)
+  - "Skip HLD and continue" — proceed to LLD (only for non-SRS phases)
+  - "Abort" — stop the pipeline
+```
+
+**Option A: "Retry from HLD"** (auto-detect) — re-invokes `Workflow()` with the exact same args. The workflow detects SRS output exists and skips it. HLD runs fresh.
+
+**Option B: "Retry from HLD (--from-phase)"** (targeted) — re-invokes `Workflow()` with `fromPhase: 'HLD'` added to args. Force-skips ALL phases before HLD (regardless of output existence), force-runs HLD. Faster than auto-detect (no upfront check agent needed for skipped phases).
+
+### --from-phase arg
+
+Task pipeline supports `fromPhase` in args to directly target a phase:
+
+```js
+const workflowArgs = {
+  taskId: "TASK-001",
+  taskTitle: "User Auth",
+  planFile: ".work/plans/task-20260611--user-auth.md",
+  language: "vi",
+  fromPhase: "LLD",  // skip SRS, HLD → run LLD, IMP, TST
+}
+```
+
+| fromPhase value | Phases skipped | Phases run |
+|-----------------|---------------|------------|
+| `"SRS"` | (none) | SRS, HLD, LLD, IMP, TST |
+| `"HLD"` | SRS | HLD, LLD, IMP, TST |
+| `"LLD"` | SRS, HLD | LLD, IMP, TST |
+| `"IMP+TST"` | SRS, HLD, LLD | IMP, TST |
+| (omitted) | auto-detect | only phases without existing output |
+
+**When to use which:**
+
+| Scenario | Use |
+|----------|-----|
+| First retry after failure | Auto-detect (no args change) |
+| SRS output deleted/corrupted, need full re-run from SRS | `fromPhase: "SRS"` |
+| Know exactly which phase failed, want fastest retry | `fromPhase: "{failed-phase}"` |
+| Unsure what state the output is in | Auto-detect (safer, checks everything) |
+
+### What gets skipped per pipeline
+
+| Pipeline | Phases auto-skipped on retry |
+|----------|------------------------------|
+| **Task** | SRS, HLD, LLD (if output exists), IMP, TST (per output) |
+| **CR** | IMP, TST (if output exists). HLD/LLD always re-run (revisions) |
+| **Explore** | SRS, HLD, LLD per service, LLD merge, IMP+TST per FR group |
+| **Cook** | RED (if test files exist). GREEN+REFACTOR always re-run (code needs fresh verification) |
+
+### Result structure with skip info
+
+On retry, workflow returns `skipped` and `ran` arrays, plus the `fromPhase` used:
+
+```js
+{
+  mode: 'task',
+  completed: ['SRS', 'HLD', 'LLD', 'IMP', 'TST'],
+  skipped: ['SRS'],           // phases that were already done
+  ran: ['HLD', 'LLD', 'IMP', 'TST'],  // phases that ran this invocation
+  fromPhase: 'HLD',           // if --from-phase was used
+  results: { ... }
+}
+```
+
 ## Retry Strategy Summary
 
 | Scenario | Max Retries | Who Decides | Mechanism |
 |----------|------------|-------------|-----------|
-| Gate rejection | 3 (in workflow) | Automatic | Workflow script re-spawns agent |
-| Workflow failure after 3 gate retries | 1 | Human | AskUserQuestion → re-invoke workflow |
+| Gate rejection (within phase) | 3 (in workflow) | Automatic | Workflow script re-spawns agent |
+| Workflow failure after 3 gate retries | 1 | Human | AskUserQuestion → re-invoke workflow (passed phases auto-skipped, or use --from-phase) |
 | Agent crash/timeout | 1 | Human | AskUserQuestion → re-spawn agent |
 | File missing | 1 | Human | AskUserQuestion → re-run phase |
 | Sprint error | 1 after pipeline | Automatic | Retry once, then report |

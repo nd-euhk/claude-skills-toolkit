@@ -108,12 +108,7 @@ Max 3 retries per gate.
 
 ### Step 3.4: Process Results
 
-Follow error handling patterns in `references/error-handling.md`. Quick reference:
-
-If workflow returns errors:
-- **Light gate failure** → Pattern 1: report, AskUserQuestion retry/skip/abort
-- **Full gate failure** → Pattern 1: report, AskUserQuestion retry/skip/abort
-- **BE only or FE only failure** → Pattern 2 (Partial Cook): report which track, offer retry/skip/abort
+For error handling: `references/error-handling.md` → Quick Reference table (Cook row).
 
 On success, proceed to Phase 4.
 

@@ -25,8 +25,15 @@ const workflowArgs = {
   language: "{vi|en}",
   runDate: "{YYYY-MM-DD}",
   slug: "{task-slug}",
+  // Optional: skip directly to a specific phase
+  fromPhase: "{SRS|HLD|LLD|IMP+TST}",  // omit for auto-detect
 }
 ```
+
+**`fromPhase` (optional):** Force-skip all phases before the target, force-run the target phase and everything after. Use when:
+- Retrying a known failed phase (faster than auto-detect)
+- Re-running from a specific phase after manual fixes
+- Omit for first run or when unsure (auto-detect handles everything)
 
 ### Step 3.2: Invoke Workflow
 
@@ -68,12 +75,7 @@ The workflow handles:
 
 ### Step 3.4: Process Results
 
-Follow error handling patterns in `references/error-handling.md`. Quick reference:
-
-If workflow returns errors:
-- **SRS/HLD failure** → Pattern 1 (Blocking): report, AskUserQuestion retry/abort
-- **LLD failure** → Pattern 1 (Optional): report, offer retry/skip/abort
-- **IMP/TST failure** → Pattern 1 (Partial): report which one, offer retry/skip/abort
+For error handling: `references/error-handling.md` → Quick Reference table (Task row).
 
 On success, proceed to Phase 4.
 

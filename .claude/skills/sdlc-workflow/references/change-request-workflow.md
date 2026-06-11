@@ -77,12 +77,7 @@ The workflow handles:
 
 ### Step 3.4: Process Results
 
-Follow error handling patterns in `references/error-handling.md`. Quick reference:
-
-If workflow returns errors:
-- **HLD failure** → Pattern 1 (Blocking if foundational): report, AskUserQuestion retry/skip/abort
-- **LLD failure** → Pattern 1 (Optional): report, offer retry/skip/abort
-- **IMP/TST failure** → Pattern 1 (Partial): report which one, offer retry/skip/abort
+For error handling: `references/error-handling.md` → Quick Reference table (CR row).
 
 On success, proceed to Phase 4.
 
