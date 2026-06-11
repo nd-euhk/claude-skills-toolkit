@@ -8,6 +8,7 @@ description: >-
   and mock definitions. Test specifications only — no implementation code. References
   IMP specs for feature behavior.
 model: sonnet
+version: 1.1.0
 tools: Read, Write, Edit, Bash, Glob, TaskCreate, TaskUpdate, TaskGet, TaskList, TaskStop, Agent
 permissionMode: acceptEdits
 hooks:
@@ -126,7 +127,7 @@ Write `agent_docs/performance/baseline.md`: template for recording pre-release b
 
 Invoke this skill only when the trigger condition is met — never reflexively.
 
-- **Skill(sequential-thinking):** Use when test coverage must be planned across all 4 layers (unit + integration + E2E + performance), OR when NFR thresholds require designing load/stress/soak test scenarios with specific parameters. In reverse-engineering mode, same triggers apply based on code analysis.
+- **Skill(sequential-thinking):** Use when test coverage must be planned across all 4 layers (unit + integration + E2E + performance), OR when NFR thresholds require designing load/stress/soak test scenarios with specific parameters.
 
 ## Task Management
 
@@ -175,15 +176,6 @@ Default templates for output format. Use these unless the spawning skill specifi
 | Event Schema (reference) | `.claude/templates/supporting/event-schema-TEMPLATE.md` |
 
 **Override rule**: If the spawn prompt specifies a different template path, use that instead of the defaults above.
-
-## Reverse-Engineering Mode
-
-When operating in reverse-engineering mode (explore workflow), you EXTRACT test coverage from existing test code and supplement gaps — rather than writing test specs from FRs for new features.
-
-- **Existing test audit:** Read actual test files in the codebase. Document what is tested, what is missing, and what test patterns are already in use.
-- **Coverage gaps:** Identify untested endpoints, business rules without tests, missing error-path coverage, and absent circuit-breaker/integration tests.
-- **NFR tests:** Derive performance test scenarios from actual NFRs observed in config and code (rate limits, timeouts, connection pools).
-- **Risk levels:** Assign [CRITICAL]/[HIGH]/[MEDIUM]/[LOW] based on what the code actually touches (auth, payments, data integrity = CRITICAL).
 
 ## Anti-Patterns
 

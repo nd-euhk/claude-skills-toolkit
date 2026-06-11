@@ -8,6 +8,7 @@ description: >-
   to code paths, or specifying error handling at the feature level. Specifications
   only — no actual code. References LLD work packages and tech-design.
 model: sonnet
+version: 1.1.0
 tools: Read, Write, Edit, Bash, Glob, TaskCreate, TaskUpdate, TaskGet, TaskList, TaskStop, Agent
 permissionMode: acceptEdits
 hooks:
@@ -76,7 +77,7 @@ Read each work package's routing overlay:
 
 Invoke this skill only when the trigger condition is met — never reflexively.
 
-- **Skill(sequential-thinking):** Use when an execution flow spans >=3 layers/modules with conditional branches, OR when >=5 business rules interact and may conflict. In reverse-engineering mode, same triggers apply based on code analysis.
+- **Skill(sequential-thinking):** Use when an execution flow spans >=3 layers/modules with conditional branches, OR when >=5 business rules interact and may conflict.
 
 ## Task Management
 
@@ -121,15 +122,6 @@ Default templates for output format. Use these unless the spawning skill specifi
 | Event Schema (reference) | `.claude/templates/supporting/event-schema-TEMPLATE.md` |
 
 **Override rule**: If the spawn prompt specifies a different template path, use that instead of the defaults above.
-
-## Reverse-Engineering Mode
-
-When operating in reverse-engineering mode (explore workflow), you EXTRACT implementation patterns from existing source code rather than specifying from work packages and tech-design.
-
-- **Execution flow:** Describe what the code actually does step-by-step — trace from entry point through to response. Document the real flow, not an ideal one.
-- **Business rules:** Extract WHEN/THEN rules from actual validation logic, conditionals, and guard clauses in the source.
-- **Error mapping:** Map actual exception classes, HTTP status codes, error bodies, and log statements found in error handlers.
-- **Features:** Group by actual service/module, not by FR-ID. Implementation paths come from the actual files you read.
 
 ## Anti-Patterns
 

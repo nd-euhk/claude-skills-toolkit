@@ -429,7 +429,7 @@ if (done.hld) {
   hldResult = { passed: true }
 } else {
   phase('HLD')
-  hldResult = await runWithGate('HLD', 'hld', hldPrompt, 'HLD')
+  hldResult = await runWithGate('HLD', 'hld-reverse', hldPrompt, 'HLD')
   if (!hldResult.passed) {
     return { phase: 'HLD', error: 'Gate failed after 3 retries', feedback: hldResult.feedback, skipped, completed }
   }
@@ -561,7 +561,7 @@ const impTstResults = await pipeline(
           return { passed: true }
         }
         const r = await runWithGate(
-          `IMP-${group.label}`, 'imp',
+          `IMP-${group.label}`, 'imp-reverse',
           (fb, rn) => impPrompt(group, total, index, fb, rn),
           `IMP: ${group.label}`
         )
@@ -575,7 +575,7 @@ const impTstResults = await pipeline(
           return { passed: true }
         }
         const r = await runWithGate(
-          `TST-${group.label}`, 'tst',
+          `TST-${group.label}`, 'tst-reverse',
           (fb, rn) => tstPrompt(group, total, index, fb, rn),
           `TST: ${group.label}`
         )
