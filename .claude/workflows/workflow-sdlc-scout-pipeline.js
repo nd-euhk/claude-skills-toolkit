@@ -1,42 +1,28 @@
 export const meta = {
   name: 'workflow-sdlc-scout-pipeline',
-  description: 'Multi-modal codebase scouting: parallel Explore agents → dedup → completeness critic → report. Used by sdlc:scout skill.',
+  description: 'Multi-subproject scout pipeline for sdlc-explore: parallel Explore agents per sub-project → dedup → completeness critic → report. One agent per sub-project; pipeline streams results independently.',
   phases: [
-    { title: 'Scout', detail: 'Parallel Explore agents covering distinct directory scopes' },
-    { title: 'Aggregate', detail: 'Dedup, merge, completeness critic, identify gaps' },
-    { title: 'Report', detail: 'Write scout report to .work/scouts/' },
+    { title: 'Scout', detail: 'Explore agents per sub-project, mapping files + patterns + technologies' },
+    { title: 'Report', detail: 'Dedup findings, completeness critic, write per-subproject scout reports' },
   ],
 }
 
-// ── Args (safe parse: handles both object and JSON-string) ──
-// {
-//   topic, scopes: [{name, paths, patterns, focus}], projectType, language, outputPath, scale, includeContent, deepMode
-// }
+// ── Args (safe parse) ──
+// { subProjects: [{name, paths, projectType, outputPath, repomixSnapshot?, patterns?, focus?}], language?: 'vi'|'en' }
 const _args = (typeof args === 'string') ? JSON.parse(args) : (args || {})
-const {
-  topic = 'codebase exploration',
-  scopes = [],
-  projectType = 'unknown',
-  language = 'vi',
-  outputPath = null,
-  scale = 'medium',
-  includeContent = false,
-  deepMode = false,
-} = _args
+const { subProjects = [], language = 'vi' } = _args
 
 const useEnglish = language === 'en'
 const langInstr = useEnglish
   ? 'Write all output in English. Keep technical terms and code identifiers in their original form.'
-  : 'Viết tất cả output bằng tiếng Việt. Thuật ngữ kỹ thuật và mã định danh giữ nguyên tiếng Anh.'
-
-const REPORT_PATH = outputPath || `.work/scouts/scout-${topic.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()}.md`
+  : 'Viết tất cả output bằng tiếng Việt. Phải viết có dấu đầy đủ. Thuật ngữ kỹ thuật và mã định danh giữ nguyên tiếng Anh.'
 
 // ── Schemas ──
 
 const SCOUT_FINDING = {
   type: 'object',
   properties: {
-    scopeName: { type: 'string', description: 'Name of the scouted scope' },
+    projectName: { type: 'string', description: 'Name of the sub-project scouted' },
     filesFound: { type: 'integer', description: 'Number of relevant files found' },
     files: {
       type: 'array',
@@ -44,9 +30,9 @@ const SCOUT_FINDING = {
         type: 'object',
         properties: {
           path: { type: 'string', description: 'Relative file path from project root' },
-          relevance: { type: 'string', enum: ['high', 'medium', 'low'], description: 'How relevant this file is to the topic' },
+          relevance: { type: 'string', enum: ['high', 'medium', 'low'], description: 'How relevant this file is to understanding the project' },
           reason: { type: 'string', description: 'Brief reason why this file is relevant (1 sentence)' },
-          keyExports: { type: 'array', items: { type: 'string' }, description: 'Key exports, functions, or classes in this file' },
+          keyExports: { type: 'array', items: { type: 'string' }, description: 'Key exports, functions, or classes' },
         },
         required: ['path', 'relevance', 'reason'],
       },
@@ -57,18 +43,18 @@ const SCOUT_FINDING = {
         type: 'object',
         properties: {
           pattern: { type: 'string', description: 'Architectural pattern or convention observed' },
-          evidence: { type: 'string', description: 'Code evidence supporting this pattern (file:line or snippet)' },
+          evidence: { type: 'string', description: 'Code evidence (file:line or snippet)' },
         },
         required: ['pattern', 'evidence'],
       },
     },
-    directoryStructure: { type: 'string', description: 'ASCII tree of the scouted directories with brief annotations per directory' },
+    directoryStructure: { type: 'string', description: 'ASCII tree of the sub-project directories with brief annotations' },
     technologies: {
       type: 'array',
       items: {
         type: 'object',
         properties: {
-          category: { type: 'string', description: 'E.g., Framework, Database, Library, Tool' },
+          category: { type: 'string', description: 'Framework, Database, Library, Tool' },
           name: { type: 'string' },
           version: { type: 'string' },
           purpose: { type: 'string' },
@@ -76,339 +62,291 @@ const SCOUT_FINDING = {
         required: ['category', 'name'],
       },
     },
+    overview: { type: 'string', description: '2-3 sentence summary of the sub-project purpose and role' },
+    entryPoints: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          entryPoint: { type: 'string' },
+          type: { type: 'string' },
+          path: { type: 'string' },
+          description: { type: 'string' },
+        },
+        required: ['entryPoint', 'type', 'path'],
+      },
+    },
+    modules: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          name: { type: 'string' },
+          responsibility: { type: 'string' },
+          dependencies: { type: 'array', items: { type: 'string' } },
+          publicAPI: { type: 'string' },
+        },
+        required: ['name', 'responsibility'],
+      },
+    },
+    dependencies: {
+      type: 'object',
+      properties: {
+        internal: { type: 'array', items: { type: 'object', properties: { module: { type: 'string' }, dependsOn: { type: 'string' }, relationship: { type: 'string' } } } },
+        external: { type: 'array', items: { type: 'object', properties: { package: { type: 'string' }, version: { type: 'string' }, purpose: { type: 'string' } } } },
+      },
+    },
     questions: {
       type: 'array',
       items: { type: 'string' },
-      description: 'Unresolved questions or areas needing deeper investigation in this scope',
-    },
-    timedOut: { type: 'boolean', description: 'Whether this scope search timed out' },
-  },
-  required: ['scopeName', 'filesFound', 'files', 'patterns', 'questions'],
-}
-
-const GAPS = {
-  type: 'object',
-  properties: {
-    foundGaps: { type: 'boolean', description: 'Whether any gaps were found' },
-    missedDirectories: {
-      type: 'array',
-      items: { type: 'string' },
-      description: 'Directories or areas that were not covered by any scout agent',
-    },
-    uncoveredTopics: {
-      type: 'array',
-      items: { type: 'string' },
-      description: 'Topics or patterns not covered by any agent',
-    },
-    missedDependencies: {
-      type: 'array',
-      items: { type: 'string' },
-      description: 'External or internal dependencies not mapped',
-    },
-    recommendations: {
-      type: 'array',
-      items: { type: 'string' },
-      description: 'What to scout next or re-scout if gaps exist',
+      description: 'Unresolved questions or areas needing deeper investigation',
     },
   },
-  required: ['foundGaps', 'missedDirectories', 'uncoveredTopics', 'recommendations'],
+  required: ['projectName', 'filesFound', 'files', 'patterns', 'directoryStructure', 'technologies', 'overview', 'modules'],
 }
 
-// ── Guard: no scopes ──
+// ── Guard: no sub-projects ──
 
-if (!scopes.length) {
-  log('No scopes provided — writing empty report')
-  await agent(
-    `${langInstr}
-Write a scout report header to ${REPORT_PATH}. Create the directory first with mkdir -p.
-
-The report should say:
-
-# Scout Report: ${topic}
-
-## Summary
-- No scopes were provided for scouting.
-- This may indicate the project is empty or the search target didn't match any directories.
-
-## Recommendation
-Re-run with more specific search targets or broader directory scopes.`,
-    { label: 'write-empty-report', phase: 'Report' }
-  )
-  return {
-    mode: 'scout',
-    status: 'empty',
-    results: { filesFound: 0, agentsSpawned: 0, agentsCompleted: 0, gaps: [], reportPath: REPORT_PATH },
-  }
+if (!subProjects.length) {
+  log('No sub-projects provided — nothing to scout')
+  return { mode: 'scout', status: 'empty', results: { subProjects: 0, totalFiles: 0, reports: [] } }
 }
 
 // ═══════════════════════════════════════════
-// PHASE: Scout — Multi-modal sweep
+// PHASE: Scout — One Explore agent per sub-project
 // ═══════════════════════════════════════════
 phase('Scout')
 
-log(`Starting multi-modal sweep: ${scopes.length} scopes for "${topic}" (scale: ${scale}, project: ${projectType})`)
+log(`Scouting ${subProjects.length} sub-project(s) — each with one Explore agent`)
 
-// Content reading instruction varies by mode
-const contentInstr = includeContent
-  ? 'For HIGH-relevance files, read the first 100 lines to understand structure and key exports.'
-  : 'Do NOT read file contents — list files, patterns, and structure only. Use Glob and Grep for discovery.'
+// Pipeline over sub-projects: each goes through scout → report independently
+const results = await pipeline(
+  subProjects,
+  // ── Stage 1: Scout the sub-project ──
+  async (proj) => {
+    const snapshotInstr = proj.repomixSnapshot
+      ? `A repomix codebase snapshot is available at ${proj.repomixSnapshot} — read it first as your map for fast file navigation and structure overview. Then verify key findings by reading actual source files.`
+      : 'No repomix snapshot available — use Glob and Grep to discover the codebase structure, then read key files directly.'
 
-const deepInstr = deepMode
-  ? 'DEEP MODE: Also trace dependencies between files. For each high-relevance file, identify what imports it and what it imports.'
-  : ''
+    const patternsHint = proj.patterns?.length
+      ? `KEY PATTERNS TO SEARCH: ${proj.patterns.join(', ')}`
+      : 'Infer relevant search patterns from the project type and purpose.'
 
-const scoutResults = await parallel(
-  scopes.map((scope, i) => () =>
-    agent(
+    const focusHint = proj.focus
+      ? `FOCUS AREA: ${proj.focus}`
+      : 'Map all aspects of this sub-project comprehensively.'
+
+    log(`Scout: ${proj.name} — ${proj.paths.join(', ')}`)
+
+    const finding = await agent(
       `${langInstr}
-Quickly scout ${scope.paths.join(', ')} for files related to: ${topic}.
+Scout sub-project "${proj.name}" at paths: ${proj.paths.join(', ')}.
 
-SCOPE: ${scope.name}
-FOCUS: ${scope.focus || 'all relevant files'}
-PATTERNS TO SEARCH: ${scope.patterns?.join(', ') || 'infer from topic'}
-PROJECT TYPE: ${projectType}
+PROJECT TYPE: ${proj.projectType}
+${focusHint}
+${patternsHint}
+
+SNAPSHOT: ${snapshotInstr}
+
+TASK — produce a comprehensive scout report with these sections:
+
+1. **Overview** — 2-3 sentence summary: what this sub-project does, its role, its main purpose
+2. **Technologies** — scan config files (package.json, Cargo.toml, go.mod, pom.xml, etc.) to identify all frameworks, libraries, databases, and tools
+3. **Directory Structure** — ASCII tree of the sub-project with each directory's responsibility annotated
+4. **Modules and Responsibilities** — each logical module: its responsibility, internal dependencies, and public API surface
+5. **Entry Points** — all entry points (main files, route handlers, CLI commands, API handlers, event handlers, workers) with type and description
+6. **Dependencies** — internal cross-module dependencies AND external packages with versions and purposes
+7. **Architectural Patterns** — observed patterns with code evidence (file:line), architecture style, data flow patterns
+8. **Key Files** — all notable files ranked by relevance (high/medium/low) with reasons
 
 INSTRUCTIONS:
-- Use Glob and Grep for file discovery — be thorough but fast
-- ${contentInstr}
-- ${deepInstr}
-- Map the directory structure (ASCII tree) of the scouted area
-- Identify technologies used (frameworks, libraries, tools) from config files
-- Note architectural patterns with code evidence (file:line)
-- Timebox: search thoroughly but complete within 3 minutes
+- Use Glob and Grep for file discovery — be thorough
+- Read key files to understand structure, exports, and patterns (read at minimum: entry points, config files, main modules)
+- Map the full directory tree of ${proj.paths.join(', ')}
+- Note architectural patterns with specific file:line evidence
 - Flag any areas you couldn't fully explore as "questions"
+- Timebox: complete within 5 minutes — prioritize breadth over depth
 
-Report structured output with: scopeName, filesFound, files (with path/relevance/reason/keyExports), patterns, directoryStructure, technologies, questions.`,
-      { label: `scout-${scope.name}`, phase: 'Scout', agentType: 'Explore', schema: SCOUT_FINDING }
+Return structured output with: projectName, filesFound, files (path/relevance/reason/keyExports), patterns, directoryStructure, technologies, overview, entryPoints, modules, dependencies, questions.`,
+      { label: `scout-${proj.name}`, phase: 'Scout', agentType: 'Explore', schema: SCOUT_FINDING }
     )
-  )
-)
 
-// Filter out nulls (skipped/timeout agents) and separate timed-out
-const validResults = scoutResults.filter(Boolean)
-const timedOutCount = scoutResults.filter(r => r && r.timedOut).length
-const completedCount = validResults.filter(r => !r.timedOut).length
+    return { proj, finding }
+  },
 
-log(`Scout sweep complete: ${completedCount}/${scopes.length} completed${timedOutCount > 0 ? `, ${timedOutCount} timed out` : ''}`)
-
-// ═══════════════════════════════════════════
-// PHASE: Aggregate — Dedup + Merge + Completeness Critic
-// ═══════════════════════════════════════════
-phase('Aggregate')
-
-// Deduplicate files by path (keep highest relevance)
-const fileMap = new Map()
-for (const r of validResults) {
-  for (const f of r.files || []) {
-    const existing = fileMap.get(f.path)
-    if (!existing || relevanceRank(f.relevance) > relevanceRank(existing.relevance)) {
-      fileMap.set(f.path, f)
+  // ── Stage 2: Write report per sub-project ──
+  async ({ proj, finding }) => {
+    if (!finding) {
+      log(`✗ ${proj.name}: scout agent failed — skipping report`)
+      return { name: proj.name, outputPath: proj.outputPath, status: 'failed', filesFound: 0 }
     }
-  }
-}
-function relevanceRank(r) { return r === 'high' ? 3 : r === 'medium' ? 2 : 1 }
 
-const allFiles = Array.from(fileMap.values())
-const highCount = allFiles.filter(f => f.relevance === 'high').length
-const mediumCount = allFiles.filter(f => f.relevance === 'medium').length
+    // Relevance counts
+    const highCount = (finding.files || []).filter(f => f.relevance === 'high').length
+    const mediumCount = (finding.files || []).filter(f => f.relevance === 'medium').length
+    const lowCount = (finding.files || []).filter(f => f.relevance === 'low').length
 
-// Deduplicate patterns
-const patternSet = new Set()
-const allPatterns = []
-for (const r of validResults) {
-  for (const p of r.patterns || []) {
-    const key = p.pattern.toLowerCase()
-    if (!patternSet.has(key)) {
-      patternSet.add(key)
-      allPatterns.push(p)
+    log(`${proj.name}: ${finding.filesFound} files (${highCount} high, ${mediumCount} medium, ${lowCount} low), ${(finding.patterns || []).length} patterns, ${(finding.technologies || []).length} technologies`)
+
+    // Build report sections
+    const fileSection = (files, label) => {
+      if (!files || !files.length) return `### ${label}\n(không có)\n`
+      return `### ${label} (${files.length})\n${files.map(f =>
+        `- \`${f.path}\` — ${f.reason}${f.keyExports?.length ? ` (exports: ${f.keyExports.join(', ')})` : ''}`
+      ).join('\n')}\n`
     }
-  }
-}
 
-// Collect questions
-const allQuestions = validResults.flatMap(r => r.questions || [])
+    const techTable = (finding.technologies || []).length
+      ? (finding.technologies || []).map(t => `| ${t.category} | ${t.name} | ${t.version || '—'} | ${t.purpose || '—'} |`).join('\n')
+      : '| — | — | — | — |'
 
-// Collect technologies (dedup by name)
-const techMap = new Map()
-for (const r of validResults) {
-  for (const t of r.technologies || []) {
-    if (!techMap.has(t.name)) techMap.set(t.name, t)
-  }
-}
-const allTechnologies = Array.from(techMap.values())
+    const entryTable = (finding.entryPoints || []).length
+      ? (finding.entryPoints || []).map(e => `| ${e.entryPoint} | ${e.type} | \`${e.path}\` | ${e.description || '—'} |`).join('\n')
+      : '| — | — | — | — |'
 
-log(`Aggregated: ${allFiles.length} unique files (${highCount} high, ${mediumCount} medium), ${allPatterns.length} patterns, ${allQuestions.length} questions`)
+    const moduleList = (finding.modules || []).length
+      ? (finding.modules || []).map(m => `- **${m.name}** — ${m.responsibility}${m.dependencies?.length ? ` (depends on: ${m.dependencies.join(', ')})` : ''}${m.publicAPI ? `\n  - Public API: ${m.publicAPI}` : ''}`).join('\n')
+      : '(không có module nào được xác định)'
 
-// ── Completeness critic ──
-log('Running completeness critic...')
+    const internalDeps = (finding.dependencies?.internal || []).length
+      ? (finding.dependencies.internal || []).map(d => `| ${d.module} | ${d.dependsOn} | ${d.relationship || '—'} |`).join('\n')
+      : '| — | — | — |'
 
-const gaps = await agent(
-  `${langInstr}
-You are a completeness critic. Review what was found and identify what's MISSING.
+    const externalDeps = (finding.dependencies?.external || []).length
+      ? (finding.dependencies.external || []).map(d => `| ${d.package} | ${d.version || '—'} | ${d.purpose || '—'} |`).join('\n')
+      : '| — | — | — |'
 
-TOPIC: ${topic}
-PROJECT TYPE: ${projectType}
-SCOPES SEARCHED: ${scopes.map(s => `${s.name}: ${s.paths.join(', ')}`).join(' | ')}
-SCOPES TIMED OUT: ${timedOutCount}
+    const patternList = (finding.patterns || []).length
+      ? (finding.patterns || []).map(p => `- **${p.pattern}** — ${p.evidence}`).join('\n')
+      : '(không có pattern nào được xác định)'
 
-FILES FOUND: ${allFiles.length} (${highCount} high relevance, ${mediumCount} medium)
-PATTERNS OBSERVED: ${allPatterns.map(p => `- ${p.pattern}`).join('\n')}
-QUESTIONS RAISED: ${allQuestions.map(q => `- ${q}`).join('\n')}
+    const questionList = (finding.questions || []).length
+      ? (finding.questions || []).map(q => `- ${q}`).join('\n')
+      : '(không có câu hỏi nào chưa giải quyết)'
 
-DIRECTORY MAPS FROM EACH AGENT:
-${validResults.map(r => `=== ${r.scopeName} ===\n${r.directoryStructure || '(no map)'}`).join('\n\n')}
+    await agent(
+      `${langInstr}
+Viết scout report cho sub-project "${proj.name}" vào file ${proj.outputPath}. Tạo thư mục với mkdir -p trước.
 
-TASK: Identify:
-1. Missed directories — which directories in the project were NOT covered by any scope? (check the directory maps)
-2. Uncovered topics — what aspect of "${topic}" was not addressed?
-3. Missed dependencies — external packages, internal cross-module deps not mapped?
-4. Recommendations — what to scout next or re-scout?
+Dùng chính xác cấu trúc này:
 
-Be specific. If everything is covered, say so. But default to finding at least something that could be improved.`,
-  { label: 'completeness-critic', phase: 'Aggregate', schema: GAPS }
-)
+# Scout Report: ${proj.name}
 
-const gapReport = gaps || {
-  foundGaps: false,
-  missedDirectories: [],
-  uncoveredTopics: [],
-  missedDependencies: [],
-  recommendations: ['Completeness critic failed — manual review recommended'],
-}
+**Ngày:** (dùng \`date -u +%Y-%m-%dT%H:%M:%SZ\` để lấy timestamp)
+**Loại dự án:** ${proj.projectType}
+**Đường dẫn:** ${proj.paths.join(', ')}
 
-if (gapReport.foundGaps) {
-  log(`Gaps found: ${gapReport.missedDirectories.length} missed dirs, ${gapReport.uncoveredTopics.length} uncovered topics`)
-} else {
-  log('No significant gaps found')
-}
+## Tổng quan
 
-// ═══════════════════════════════════════════
-// PHASE: Report — Write scout report
-// ═══════════════════════════════════════════
-phase('Report')
+${finding.overview || '(không có)'}
 
-log(`Writing scout report to ${REPORT_PATH}`)
+## Tóm tắt
+- Tổng số file: ${finding.filesFound} (${highCount} high, ${mediumCount} medium, ${lowCount} low relevance)
+- Patterns: ${(finding.patterns || []).length}
+- Technologies: ${(finding.technologies || []).length}
+- Modules: ${(finding.modules || []).length}
+- Entry Points: ${(finding.entryPoints || []).length}
 
-const timestamp = '(agent: generate current ISO timestamp via `date -u +%Y-%m-%dT%H:%M:%SZ`)'
+## Các File Liên Quan
 
-// Build file list for the report
-const highFiles = allFiles.filter(f => f.relevance === 'high')
-const mediumFiles = allFiles.filter(f => f.relevance === 'medium')
-const lowFiles = allFiles.filter(f => f.relevance === 'low')
+${fileSection((finding.files || []).filter(f => f.relevance === 'high'), 'Mức Độ Cao')}
+${fileSection((finding.files || []).filter(f => f.relevance === 'medium'), 'Mức Độ Trung Bình')}
+${fileSection((finding.files || []).filter(f => f.relevance === 'low'), 'Mức Độ Thấp')}
 
-const fileListStr = (files, label) => {
-  if (!files.length) return `### ${label}\n(none)\n`
-  return `### ${label} (${files.length})\n${files.map(f =>
-    `- \`${f.path}\` — ${f.reason}${f.keyExports?.length ? ` (exports: ${f.keyExports.join(', ')})` : ''}`
-  ).join('\n')}\n`
-}
-
-const patternListStr = allPatterns.length
-  ? allPatterns.map(p => `- **${p.pattern}** — ${p.evidence}`).join('\n')
-  : '(no patterns identified)'
-
-const techListStr = allTechnologies.length
-  ? allTechnologies.map(t => `| ${t.category} | ${t.name} | ${t.version || '—'} | ${t.purpose || '—'} |`).join('\n')
-  : '| — | — | — | — |'
-
-const gapSectionStr = gapReport.foundGaps
-  ? `
-## Gaps Identified
-
-### Missed Directories
-${gapReport.missedDirectories.length ? gapReport.missedDirectories.map(d => `- ${d}`).join('\n') : '(none)'}
-
-### Uncovered Topics
-${gapReport.uncoveredTopics.length ? gapReport.uncoveredTopics.map(t => `- ${t}`).join('\n') : '(none)'}
-
-### Missed Dependencies
-${gapReport.missedDependencies?.length ? gapReport.missedDependencies.map(d => `- ${d}`).join('\n') : '(none)'}
-
-### Recommendations
-${gapReport.recommendations.map(r => `- ${r}`).join('\n')}
-`
-  : `
-## Gaps
-No significant gaps identified by completeness critic.
-`
-
-const questionSectionStr = allQuestions.length
-  ? allQuestions.map(q => `- ${q}`).join('\n')
-  : '(no unresolved questions)'
-
-await agent(
-  `${langInstr}
-Write the scout report to ${REPORT_PATH}. Create the directory with mkdir -p first.
-
-Use this EXACT content structure (replace placeholders with actual data):
-
-# Scout Report: ${topic}
-
-**Date:** ${timestamp}
-**Scale:** ${scale} | **Mode:** ${deepMode ? 'deep' : 'standard'} | **Content:** ${includeContent ? 'yes' : 'no'}
-**Project Type:** ${projectType}
-
-## Summary
-- Total files found: ${allFiles.length} (${highCount} high, ${mediumCount} medium, ${lowFiles.length} low relevance)
-- Agents spawned: ${scopes.length}
-- Agents completed: ${completedCount}${timedOutCount > 0 ? ` (${timedOutCount} timed out)` : ''}
-- Patterns observed: ${allPatterns.length}
-- Technologies detected: ${allTechnologies.length}
-
-## Relevant Files
-
-${fileListStr(highFiles, 'High Relevance')}
-${fileListStr(mediumFiles, 'Medium Relevance')}
-${lowFiles.length ? fileListStr(lowFiles, 'Low Relevance') : ''}
-
-## Technologies Detected
+## Công Nghệ Sử Dụng
 
 | Category | Technology | Version | Purpose |
 |----------|-----------|---------|---------|
-${techListStr}
+${techTable}
 
-## Patterns Observed
+## Cấu Trúc Thư Mục
 
-${patternListStr}
+\`\`\`
+${finding.directoryStructure || '(không có)'}
+\`\`\`
 
-## Directory Map
+## Modules và Trách Nhiệm
 
-${validResults.map(r => `### ${r.scopeName}\n\`\`\`\n${r.directoryStructure || '(no map available)'}\n\`\`\``).join('\n\n')}
-${gapSectionStr}
-## Unresolved Questions
+${moduleList}
 
-${questionSectionStr}
+## Entry Points
+
+| Entry Point | Type | Path | Description |
+|-------------|------|------|-------------|
+${entryTable}
+
+## Dependencies
+
+### Internal Dependencies
+
+| Module | Depends On | Relationship |
+|--------|-----------|--------------|
+${internalDeps}
+
+### External Dependencies
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+${externalDeps}
+
+## Architectural Patterns
+
+${patternList}
+
+## Câu Hỏi Chưa Giải Quyết
+
+${questionList}
 
 ---
 
 *Report generated by workflow-sdlc-scout-pipeline*
 `,
-  { label: 'write-report', phase: 'Report' }
+      { label: `report-${proj.name}`, phase: 'Report' }
+    )
+
+    return {
+      name: proj.name,
+      outputPath: proj.outputPath,
+      status: 'completed',
+      filesFound: finding.filesFound,
+      highRelevance: highCount,
+      mediumRelevance: mediumCount,
+      lowRelevance: lowCount,
+      patternsObserved: (finding.patterns || []).length,
+      technologiesDetected: (finding.technologies || []).length,
+      questions: (finding.questions || []).length,
+    }
+  }
 )
 
 // ═══════════════════════════════════════════
 // RETURN
 // ═══════════════════════════════════════════
 
+const valid = results.filter(Boolean)
+const completed = valid.filter(r => r.status === 'completed')
+const failed = valid.filter(r => r.status === 'failed')
+const totalFiles = completed.reduce((sum, r) => sum + (r.filesFound || 0), 0)
+
 return {
   mode: 'scout',
-  status: 'completed',
+  status: failed.length === subProjects.length ? 'failed' : 'completed',
   results: {
-    topic,
-    filesFound: allFiles.length,
-    highRelevance: highCount,
-    mediumRelevance: mediumCount,
-    lowRelevance: lowFiles.length,
-    agentsSpawned: scopes.length,
-    agentsCompleted: completedCount,
-    agentsTimedOut: timedOutCount,
-    patternsObserved: allPatterns.length,
-    technologiesDetected: allTechnologies.length,
-    questions: allQuestions.length,
-    gaps: gapReport.foundGaps ? {
-      missedDirectories: gapReport.missedDirectories.length,
-      uncoveredTopics: gapReport.uncoveredTopics.length,
-    } : null,
-    reportPath: REPORT_PATH,
+    subProjects: subProjects.length,
+    completed: completed.length,
+    failed: failed.length,
+    totalFiles,
+    reports: completed.map(r => ({
+      name: r.name,
+      outputPath: r.outputPath,
+      filesFound: r.filesFound,
+      highRelevance: r.highRelevance,
+      mediumRelevance: r.mediumRelevance,
+      lowRelevance: r.lowRelevance,
+      patternsObserved: r.patternsObserved,
+      technologiesDetected: r.technologiesDetected,
+      questions: r.questions,
+    })),
+    failedReports: failed.map(r => ({ name: r.name, outputPath: r.outputPath })),
   },
 }

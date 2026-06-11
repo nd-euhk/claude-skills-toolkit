@@ -12,9 +12,9 @@ allowed-tools: Read, Bash(*), AskUserQuestion, Agent, Skill, Workflow, EnterPlan
 
 # Explore Codebase (Workflow-Driven)
 
-Explore codebases end-to-end: discover sub-projects → pack with repomix → scout with Skill(scout) → delegate SDLC Pipeline to workflow → sync sprint artifacts → summarize.
+Explore codebases end-to-end: discover sub-projects → pack with repomix → scout via workflow → delegate SDLC Pipeline to workflow → sync sprint artifacts → summarize.
 
-**Key difference from explore-codebase**: Phase 4 runs as a single `Workflow()` call instead of manual agent orchestration. Benefits: resumable pipeline, automatic gate retry, system-managed concurrency, token-efficient (intermediate results stay in script variables).
+**Key difference from explore-codebase**: Phase 2 (Scout) and Phase 4 (SDLC) each run as a single `Workflow()` call instead of manual agent orchestration. Benefits: resumable pipeline, automatic gate retry, system-managed concurrency, token-efficient (intermediate results stay in script variables).
 
 ## Quick Start
 
@@ -94,42 +94,73 @@ Skill(repomix, ". --style xml --remove-comments -o $PWD/.work/repomix/root--{slu
 
 Do NOT split into areas here — scout handles internal subdivision. If repomix fails: log warning, skip snapshot, continue.
 
-## Phase 2: Scout — Explore Each Sub-Project
+## Phase 2: Scout — Explore All Sub-Projects via Workflow
 
-Goal: produce a scout report per sub-project via Skill(scout), which spawns Agent(Explore) internally.
+Goal: produce a scout report per sub-project. All N sub-projects handled by **one** `Workflow()` call — the workflow spawns one Explore agent per sub-project, pipelines results independently, and writes all reports.
 
-### Step 2.1: Invoke Skill(scout) Per Sub-Project
+### Step 2.1: Prepare Workflow Args
 
-Invocation format:
-```
-Skill(scout, "Explore sub-project {project-name} at path {project-path}. 
-A repomix codebase snapshot is available at .work/repomix/{project-name}--{slug}.xml — use it for fast file navigation and structure overview.
-Total codebase size: ~{token_count} tokens.
+For each discovered sub-project, build an entry with paths, repomix snapshot, and output path:
 
-Produce a detailed scout report with these 7 sections:
-1. Overview — 2-3 sentence summary of purpose and role
-2. Technologies — table: Category | Technology | Version | Purpose
-3. Directory Structure — tree with each directory's responsibility
-4. Modules and Responsibilities — each module: responsibility, dependencies, public API
-5. Entry Points — table: Entry Point | Type | Path | Description
-6. Dependencies — internal (module → depends_on → relationship) + external (package|version|purpose)
-7. Architectural Patterns — observed patterns with code evidence, architecture style, data flow
+```js
+const subProjects = discoveredProjects.map(p => ({
+  name: p.name,                                // sub-project name
+  paths: [p.path],                             // array of directory paths to scout
+  projectType: p.type,                         // node | python | go | rust | ...
+  outputPath: `.work/scouts/scout-YYYYMMDD-${p.name}--${slug}.md`,
+  repomixSnapshot: p.repomixFile || null,      // .work/repomix/{name}--{slug}.xml or null
+  patterns: p.suggestedPatterns || null,        // optional: keyword hints for Grep
+  focus: p.focus || null,                       // optional: focus description
+}))
 
-Adjust your internal SCALE based on the token count — spawn more agents and subdivide further for larger codebases. 
-Write the final report to .work/scouts/scout-YYYYMMDD-{project-name}--{slug}.md.")
-```
-
-If repomix snapshot unavailable, omit the repomix reference line.
-
-**Batching**: If >15 sub-projects, batch into ceil(N/15) groups. Scout invocations within a batch run in parallel. Wait for batch completion before next batch.
-
-### Step 2.2: Verify All Scout Reports
-
-```bash
-ls .work/scouts/scout-*-{slug}.md 2>/dev/null
+const workflowArgs = {
+  subProjects,
+  language,  // from --lang flag, default 'vi'
+}
 ```
 
-**Missing report**: retry once. If retry fails → fallback to Agent(Explore). If fallback fails → AskUserQuestion: "Scout for {sub-project} failed. How to proceed?" (header: "Scout Failed", options: "Retry" | "Skip" | "Abort")
+**outputPath convention:** `.work/scouts/scout-YYYYMMDD-{project-name}--{slug}.md`
+
+### Step 2.2: Invoke Workflow
+
+```
+Workflow({ scriptPath: ".claude/workflows/workflow-sdlc-scout-pipeline.js", args: workflowArgs })
+```
+
+The workflow handles:
+- **Phase Scout**: pipeline over sub-projects — one Explore agent per sub-project, structured schema output (SCOUT_FINDING)
+- **Phase Report**: per sub-project — dedup files, write structured markdown report to outputPath
+
+All sub-projects stream independently via `pipeline()` — sub-project B's scout starts while A's report is being written.
+
+### Step 2.3: Process Results
+
+**Success:**
+```js
+{
+  mode: 'scout',
+  status: 'completed',
+  results: {
+    subProjects: 5,
+    completed: 5,
+    failed: 0,
+    totalFiles: 210,
+    reports: [
+      { name: "auth-service", outputPath: ".work/scouts/scout-20260611-auth-service--myproject.md", filesFound: 42, highRelevance: 15, ... },
+      // ...
+    ],
+  }
+}
+```
+
+**Partial failure:**
+```js
+{ mode: 'scout', status: 'completed', results: { completed: 4, failed: 1, failedReports: [{name, outputPath}], ... } }
+```
+
+### Step 2.4: Handle Failures
+
+**Missing report / failed agent**: retry once by re-invoking workflow with only the failed sub-projects. If retry fails → AskUserQuestion: "Scout for {sub-project} failed. How to proceed?" (header: "Scout Failed", options: "Retry with Agent(Explore)" | "Skip" | "Abort")
 
 ## Phase 3: Plan — Create Execution Plan
 
@@ -230,7 +261,7 @@ git -C <nested_repo_path> tag "explore-$(date +%Y%m%d)--{slug}"
 - **Idempotent retry.** On gate failure, re-invoke workflow with same args — completed phases auto-skipped (output detection). Use `fromPhase` arg to force-skip directly to a specific phase.
 - **Resumable.** If workflow is paused/killed, resume in-session — completed agents return cached results instantly.
 - **No sandbox.** Agents work directly on the project. Scout reports are the shared foundation.
-- **Delegation.** Delegate to Skill(scout) — never spawn Agent(Explore) directly. Sprint via Skill(sprint) — never modify sprint files directly.
+- **Delegation.** Phase 2 delegates to `workflow-sdlc-scout-pipeline` — never spawn Agent(Explore) directly for scouting. Sprint via Skill(sprint) — never modify sprint files directly.
 - **Explicit paths only.** After Phase 2, use exact file paths — never glob patterns.
 - **Language (`--lang`, `--en`).** `--lang vi|en` sets output language (default: `vi`). `--en` = `--lang en`. Only `vi`/`en` supported. Technical terms and code identifiers never translated. `--en --lang vi` → Vietnamese wins.
 
