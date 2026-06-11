@@ -5,7 +5,7 @@ description: >-
   Use when analyzing new projects, exploring architecture, generating system documentation, or syncing sprint artifacts.
   Supports multi-subproject discovery, plan mode, and sprint integration.
 argument-hint: "[full][architect][sync] [--auto] [--lang vi|en] [--vi]"
-version: 3.4.1
+version: 3.4.2
 allowed-tools: Read, Write, Edit, Bash(*), AskUserQuestion, Agent, Skill, EnterPlanMode, ExitPlanMode, TaskCreate, TaskUpdate, TaskList, TaskGet
 ---
 
@@ -84,12 +84,12 @@ Check installation: `repomix --version`. If missing, use AskUserQuestion:
 
 **Multi-subproject** — invoke sequentially per sub-project:
 ```
-Skill(repomix, "{path} --style xml --remove-comments -o .work/repomix/{project-name}--{slug}.xml")
+Skill(repomix, "{path} --style xml --remove-comments -o $PWD/.work/repomix/{project-name}--{slug}.xml")
 ```
 
 **Single project** — run repomix, record token count for scout scaling:
 ```
-Skill(repomix, ". --style xml --remove-comments -o .work/repomix/root--{slug}.xml")
+Skill(repomix, ". --style xml --remove-comments -o $PWD/.work/repomix/root--{slug}.xml")
 ```
 
 Do NOT split into areas here — scout handles internal subdivision. If repomix fails: log warning, skip snapshot, continue.

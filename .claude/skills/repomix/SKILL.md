@@ -6,6 +6,7 @@ when_to_use: "Invoke to pack repositories for LLM context or audits."
 category: dev-tools
 keywords: [codebase, pack, snapshot, llm-context]
 argument-hint: "[path] [--style xml|markdown|plain|json]"
+version: 1.1.0
 ---
 
 # Repomix Skill
@@ -213,6 +214,29 @@ Disable security checks if needed:
 repomix --no-security-check
 ```
 
+## CRITICAL: Working Directory — NEVER cd, Use repomix Directly
+
+**repomix accepts `[directories...]` as a positional argument.** You NEVER need to `cd` into the target directory. Just pass the path directly:
+
+```bash
+# CORRECT: pass directory as positional argument, use absolute -o path
+repomix /path/to/target --style xml --remove-comments -o /absolute/path/to/output.xml
+
+# CORRECT: current directory
+repomix . --style xml -o /absolute/path/to/output.xml
+
+# WRONG: cd corrupts the session's working directory
+cd /path/to/target && repomix --style xml -o output.xml
+```
+
+**Output paths MUST be absolute.** If the caller passes a relative `-o` path, resolve it against `$PWD` before running repomix.
+
+**Argument parsing**: The skill argument string is `[path] [repomix flags]`. Extract:
+1. `path` = first token (directory to pack). If `.` or missing → use `$PWD`.
+2. Everything else = repomix CLI flags (e.g., `--style xml --remove-comments -o output.xml`).
+
+If `-o` has a relative path, convert to absolute using `$PWD`.
+
 ## Implementation Workflow
 
 When user requests repository packaging:
@@ -228,6 +252,8 @@ When user requests repository packaging:
    - Enable/disable comment removal
 
 3. **Execute Packaging**
+   - **CRITICAL**: Pass target directory as positional argument — never `cd`
+   - **CRITICAL**: `-o` path must be absolute
    - Run repomix with appropriate options
    - Monitor token counts
    - Verify security checks
