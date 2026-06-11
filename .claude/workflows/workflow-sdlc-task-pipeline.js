@@ -1,15 +1,13 @@
 export const meta = {
   name: 'workflow-sdlc-task-pipeline',
-  description: 'Task SDLC Pipeline: SRS→HLD→LLD→IMP+TST with gate verification for new features. Used by sdlc:workflow skill.',
+  description: 'Task SDLC Pipeline: Preflight → SRS → Gate → HLD → Gate → LLD → Gate → IMP+TST with gate verification. Used by sdlc:workflow skill.',
   phases: [
+    { title: 'Preflight', detail: 'Check existing phase outputs, skip completed phases' },
     { title: 'SRS', detail: 'Software requirements specification' },
-    { title: 'Gate SRS', detail: 'Verify SRS quality gates' },
+    { title: 'Gate', detail: 'Quality gate verification — runs after each design phase' },
     { title: 'HLD', detail: 'High-level architecture design' },
-    { title: 'Gate HLD', detail: 'Verify HLD quality gates' },
     { title: 'LLD', detail: 'Low-level technical design' },
-    { title: 'Gate LLD', detail: 'Verify LLD quality gates' },
-    { title: 'IMP+TST', detail: 'Implementation + test specifications' },
-    { title: 'Gate IMP+TST', detail: 'Verify IMP+TST quality gates' },
+    { title: 'IMP+TST', detail: 'Implementation + test specifications in parallel' },
   ],
 }
 
@@ -183,6 +181,7 @@ Constraints: Test specifications only — no implementation code. References IMP
 // ═══════════════════════════════════════════
 
 // Check which phases are already complete (for idempotent re-runs)
+phase('Preflight')
 const done = await checkPhaseStatus()
 const skipped = []
 const completed = []

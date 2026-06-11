@@ -55,7 +55,7 @@ Read, don't assume. Use `debugging` (systematic-debugging Phase 1).
   - Options: auto-detected candidates from file-path heuristics + "None (config/infrastructure)" + "Unknown (let me type)"
   - If user selects "None" → `affected_fr: []` in BUG report (infrastructure bug)
 
-  **After FR(s) found:** Read each affected FR's doc at `docs/product/features/{epic-slug}/FR-{DOMAIN}-{NNN}--{slug}.md` or `agent_docs/features/FR-{DOMAIN}-{NNN}--{slug}.md`. Load Gherkin scenarios to establish expected behavior before forming hypotheses. If Gherkin scenarios conflict with observed behavior → this gap IS the bug.
+  **After FR(s) found:** Read each affected FR's doc at `docs/product/features/{project-name}/FR-{DOMAIN}-{NNN}--{slug}.md` or `agent_docs/features/FR-{DOMAIN}-{NNN}--{slug}.md`. Load Gherkin scenarios to establish expected behavior before forming hypotheses. If Gherkin scenarios conflict with observed behavior → this gap IS the bug.
 
   **Multi-FR handling:** A shared utility or cross-cutting concern may affect multiple FRs (e.g., `sanitizer.py` → FR-T-003 + FR-AUTH-001 + FR-AUTH-002). Trace ALL affected FRs. The BUG report's `affected_fr` field accepts an array.
 

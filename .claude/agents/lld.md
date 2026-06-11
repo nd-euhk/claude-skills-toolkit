@@ -31,7 +31,7 @@ Before starting, scan:
 3. Read `agent_docs/hard-boundaries.md`
 4. Read `agent_docs/contracts/api-conventions.md`
 5. Read `agent_docs/contracts/events.md`
-6. Glob and read all `docs/product/features/epic-*/FR-*.md`
+6. Glob and read all `docs/product/features/*/FR-*.md`
 7. Read `docs/product/SRS.md`
 
 If any required input is missing, stop and report exactly what is missing — do not guess.

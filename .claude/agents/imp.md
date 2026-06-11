@@ -29,7 +29,7 @@ Before starting, scan:
 1. Glob `agent_docs/features/FR-*.md` — every work package
 2. Glob `agent_docs/tech-design/{name}-service.md` — for service internals
 3. Glob `agent_docs/contracts/api-{domain}.yaml` — for API contracts
-4. Read relevant `docs/product/features/epic-*/FR-*.md` for business context
+4. Read relevant `docs/product/features/*/FR-*.md` for business context
 5. Read `agent_docs/tech-design/cross-cutting.md`
 
 If any required input is missing, stop and report exactly what is missing — do not guess.

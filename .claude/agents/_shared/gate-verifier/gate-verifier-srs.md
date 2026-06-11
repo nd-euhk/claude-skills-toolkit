@@ -4,7 +4,7 @@ Load this file when verifying the **srs** phase. Run every criterion below. For 
 
 ## 1. FR Granularity (MANDATORY — run first)
 
-Glob `docs/product/features/epic-*/FR-*.md`. For each FR file found, read the title and description. Flag any FR that is too coarse.
+Glob `docs/product/features/*/FR-*.md`. For each FR file found, read the title and description. Flag any FR that is too coarse.
 
 **Coarse FR detection signals:**
 - Single FR covering multiple independent user actions (e.g., "Authentication" covers login + register + password reset)
@@ -19,7 +19,7 @@ If a coarse FR is found, report it as FAIL with a suggested decomposition.
 
 ## 2. Gherkin Scenario Outlines
 
-Glob `docs/product/features/epic-*/FR-*.md`. For each FR:
+Glob `docs/product/features/*/FR-*.md`. For each FR:
 - Must contain at least one `Scenario Outline:` block with an `Examples:` table
 - Examples table must have concrete values (not placeholders like "TODO", "value1")
 - Must cover: happy path, at least one error case, at least one boundary case
@@ -34,7 +34,7 @@ Read `docs/product/SRS.md`. In the Non-Functional Requirements section:
 ## 4. Traceability Matrix
 
 Read `agent_docs/traceability/requirements-matrix.md`:
-- Every FR from `docs/product/features/epic-*/FR-*.md` must appear in the matrix
+- Every FR from `docs/product/features/*/FR-*.md` must appear in the matrix
 - Every FR must trace to at least one BRD objective
 - Every FR must reference at least one Gherkin scenario
 

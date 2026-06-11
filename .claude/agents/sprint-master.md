@@ -53,7 +53,7 @@ Before making changes, read the current state:
 3. Read `.work/board.md` if it exists
 4. Read `docs/product/SRS.md` — consolidated NFRs, feature summary, MoSCoW priorities
 5. Glob `agent_docs/features/FR-*.md` — discover stories and their current status
-6. Glob `docs/product/features/epic-*/FR-*.md` — detailed feature priorities
+6. Glob `docs/product/features/*/FR-*.md` — detailed feature priorities
 
 ## Operations
 

@@ -129,7 +129,7 @@ Write Mermaid diagrams to `docs/architecture/diagrams/`:
 
 #### Step 6: Backfill
 
-Scan all `docs/product/features/epic-*/FR-*.md` and `docs/product/SRS.md`:
+Scan all `docs/product/features/*/FR-*.md` and `docs/product/SRS.md`:
 - If any section says "to be determined", "will be defined", or "pending architecture" — update it with the now-decided architectural details
 - Do NOT change behavioral requirements; only fill in architecture-related gaps
 

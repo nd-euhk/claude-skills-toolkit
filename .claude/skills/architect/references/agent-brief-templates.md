@@ -11,7 +11,7 @@ Spawn Agent(architect-specialist) with this brief:
 
 **Inputs to read before starting:**
 1. docs/product/SRS.md
-2. Glob and read all docs/product/features/epic-*/FR-*.md
+2. Glob and read all docs/product/features/*/FR-*.md
 3. agent_docs/traceability/requirements-matrix.md
 4. agent_docs/user-context.md (if exists)
 

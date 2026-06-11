@@ -1,20 +1,17 @@
 export const meta = {
   name: 'workflow-sdlc-explore-pipeline',
-  description: 'SDLC Pipeline for codebase exploration: SRS→HLD→LLD→IMP+TST with gate verification. Supports full and architect modes.',
+  description: 'SDLC Pipeline for codebase exploration: Preflight → SRS(FR-Discovery+NFR-Inference+Consolidate) → Gate → HLD → LLD → LLD-Merge → FR-Dist → IMP+TST. Supports full and architect modes.',
   phases: [
-    { title: 'FR-Discovery', detail: 'Discover functional requirements from code' },
+    { title: 'Preflight', detail: 'Check existing phase outputs, skip completed phases' },
+    { title: 'FR-Discovery', detail: 'Discover functional requirements from code (per scout area)' },
     { title: 'NFR-Inference', detail: 'Infer non-functional requirements from configs' },
-    { title: 'SRS-Consolidate', detail: 'Consolidate into SRS.md + matrix' },
-    { title: 'Gate SRS', detail: 'Verify SRS quality gates' },
-    { title: 'HLD', detail: 'High-level architecture design' },
-    { title: 'Gate HLD', detail: 'Verify HLD quality gates' },
+    { title: 'SRS-Consolidate', detail: 'Consolidate into SRS.md + traceability matrix' },
+    { title: 'Gate', detail: 'Quality gate verification — runs after SRS, HLD, LLD, Merge, IMP+TST' },
+    { title: 'HLD', detail: 'High-level architecture design (reverse-engineer from code)' },
     { title: 'LLD', detail: 'Per-service low-level design' },
-    { title: 'Gate LLD', detail: 'Verify per-service LLD gates' },
-    { title: 'LLD Merge', detail: 'Cross-cutting concerns + service index' },
-    { title: 'Gate Merge', detail: 'Verify merge quality gates' },
-    { title: 'FR Dist', detail: 'Group functional requirements for IMP+TST' },
-    { title: 'IMP+TST', detail: 'Implementation + test specifications' },
-    { title: 'Gate IMP+TST', detail: 'Verify IMP+TST quality gates' },
+    { title: 'LLD-Merge', detail: 'Cross-cutting concerns + service tech-design index' },
+    { title: 'FR-Dist', detail: 'Group functional requirements for IMP+TST agents' },
+    { title: 'IMP+TST', detail: 'Implementation + test specifications in parallel' },
   ],
 }
 
@@ -177,7 +174,7 @@ Input — read this exact file:
 
 Task: Discover and extract ALL functional requirements from this code area. Read the scout report first as your map. Then explore the actual source code at the paths it references to verify and enrich your findings. For each feature discovered, write a COMPLETE FR file.
 
-Output: docs/product/features/{epic-slug}/FR-{DOMAIN}-{NNN}--{slug}.md (one per FR, COMPLETE — not drafts)
+Output: docs/product/features/{project-name}/FR-{DOMAIN}-{NNN}--{slug}.md (one per FR, COMPLETE — not drafts)
 
 Each FR file must have: description, preconditions, input table, process steps, output schema, error codes, Gherkin Scenario Outline with Examples table, data model references, source code trace.
 
@@ -337,6 +334,7 @@ Constraints: Reverse-engineering mode. Test specifications only — no implement
 // ═══════════════════════════════════════════
 
 // Check which phases are already complete (for idempotent re-runs)
+phase('Preflight')
 const done = await checkPhaseStatus()
 const skipped = []
 const completed = []
@@ -507,7 +505,7 @@ if (done.lldMerge) {
   log('✓ LLD-merge: output already exists — skipping')
   skipped.push('LLD-merge')
 } else {
-  phase('LLD Merge')
+  phase('LLD-Merge')
   const mergeResult = await runWithGate('LLD-merge', 'lld-merge', lldMergePrompt, 'LLD-merge')
   if (!mergeResult.passed) {
     return { phase: 'LLD-merge', error: 'Gate failed after 3 retries', feedback: mergeResult.feedback, skipped, completed }
@@ -516,10 +514,10 @@ if (done.lldMerge) {
 }
 
 // ── Phase 5: FR Distribution (always run — depends on SRS+LLD, fast read-only) ──
-phase('FR Dist')
+phase('FR-Dist')
 const frDist = await agent(frDistPrompt(), {
   label: 'fr-distribution',
-  phase: 'FR Dist',
+  phase: 'FR-Dist',
   agentType: 'general-purpose',
   schema: FR_GROUPS
 })

@@ -27,7 +27,7 @@ You are a Software Architect. Your task is to design the system architecture fro
 
 Before starting, scan:
 1. Read `docs/product/SRS.md`
-2. Glob and read all `docs/product/features/epic-*/FR-*.md`
+2. Glob and read all `docs/product/features/*/FR-*.md`
 3. Read `agent_docs/traceability/requirements-matrix.md`
 4. Read `agent_docs/user-context.md` if it exists
 

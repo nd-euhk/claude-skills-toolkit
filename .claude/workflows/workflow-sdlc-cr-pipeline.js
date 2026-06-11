@@ -1,13 +1,12 @@
 export const meta = {
   name: 'workflow-sdlc-cr-pipeline',
-  description: 'Change Request SDLC Pipeline: HLD(opt)→LLD(opt)→IMP+TST with gate verification. Used by sdlc:workflow skill.',
+  description: 'Change Request SDLC Pipeline: Preflight → HLD(opt) → Gate → LLD(opt) → IMP+TST with gate verification. Used by sdlc:workflow skill.',
   phases: [
-    { title: 'HLD', detail: 'Revise architecture (if affected)' },
-    { title: 'Gate HLD', detail: 'Verify HLD quality gates' },
-    { title: 'LLD', detail: 'Revise technical design (if affected)' },
-    { title: 'Gate LLD', detail: 'Verify LLD quality gates' },
-    { title: 'IMP+TST', detail: 'Implementation + test specifications' },
-    { title: 'Gate IMP+TST', detail: 'Verify IMP+TST quality gates' },
+    { title: 'Preflight', detail: 'Check existing phase outputs, skip completed phases' },
+    { title: 'HLD', detail: 'Revise architecture (if affected by CR)' },
+    { title: 'Gate', detail: 'Quality gate verification — runs after each design phase' },
+    { title: 'LLD', detail: 'Revise technical design (if affected by CR)' },
+    { title: 'IMP+TST', detail: 'Implementation + test specifications in parallel' },
   ],
 }
 
@@ -140,6 +139,7 @@ Constraints: Test specifications only — no implementation code. Use your defau
 // ═══════════════════════════════════════════
 
 // Check which phases are already complete (for idempotent re-runs)
+phase('Preflight')
 const done = await checkPhaseStatus()
 const skipped = []
 const completed = []

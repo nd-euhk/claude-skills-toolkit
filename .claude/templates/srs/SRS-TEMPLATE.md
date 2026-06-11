@@ -49,7 +49,7 @@ changelog:
 
 ## 1. Functional Requirements
 
-> Mỗi FR = 1 file riêng trong `docs/product/features/epic-{slug}/FR-{DOMAIN}-{NNN}--{slug}.md` (Phase 5 artifact — enrich từ PRD draft).
+> Mỗi FR = 1 file riêng trong `docs/product/features/{project-name}/FR-{DOMAIN}-{NNN}--{slug}.md` (Phase 5 artifact — enrich từ PRD draft).
 > Section này là index + summary cấp Master.
 > **Phase 7** sinh thêm work package ở `agent_docs/features/FR-*.md` — KHÔNG liệt kê ở Phase 5.
 

@@ -28,7 +28,7 @@ Before starting, scan:
 3. Read `agent_docs/contracts/api-conventions.md`
 4. Read `agent_docs/contracts/events.md`
 5. Read HLD output from prior phase
-6. Glob and read only this service's FRs: `docs/product/features/epic-*/FR-{DOMAIN}-*.md`
+6. Glob and read only this service's FRs: `docs/product/features/*/FR-{DOMAIN}-*.md`
 
 If any required input is missing, stop and report exactly what is missing — do not guess.
 
