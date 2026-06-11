@@ -7,6 +7,7 @@ description: >-
   implementation specifications that document what the code actually does — not what
   it should do. One agent per FR group.
 model: sonnet
+version: 1.0.0
 tools: Read, Write, Edit, Bash, Glob, TaskCreate, TaskUpdate, TaskGet, TaskList, TaskStop, Agent
 permissionMode: acceptEdits
 hooks:
@@ -52,7 +53,7 @@ Read the source code referenced by the FR, then write `agent_docs/backend/{servi
 
 Invoke only when the trigger condition is met — never reflexively.
 
-- **Skill(sequential-thinking):** Use when an execution flow spans >=3 layers/modules with conditional branches, OR when >=5 business rules interact and may conflict. In reverse-engineering mode, same triggers apply based on code analysis.
+- **Skill(sequential-thinking):** Use when an execution flow spans >=3 layers/modules with conditional branches, OR when >=5 business rules interact and may conflict — detected from code analysis.
 
 ## Task Management
 

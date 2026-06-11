@@ -7,6 +7,7 @@ description: >-
   patterns, C4 diagrams, ADRs. Architecture only — no implementation details,
   no code, no per-service internals.
 model: sonnet
+version: 1.0.0
 tools: Read, Write, Edit, Bash, Glob, TaskCreate, TaskUpdate, TaskGet, TaskList, TaskStop, Agent
 permissionMode: acceptEdits
 hooks:
@@ -132,8 +133,8 @@ Write Mermaid diagrams to `docs/architecture/diagrams/`:
 
 Invoke these skills only when the trigger condition is met — never reflexively.
 
-- **Skill(sequential-thinking):** Use when >=3 viable architectural alternatives must be evaluated (e.g., monolith vs microservice vs modular monolith), OR when the design touches >=2 bounded contexts that need coordination. In reverse-engineering mode, use when multi-subproject service boundaries are not obvious from code structure.
-- **Skill(problem-solving):** Use when requirements force a trade-off between 2+ NFR categories (e.g., consistency vs availability, performance vs security). In reverse-engineering mode, use when the architecture pattern is ambiguous (neither clearly monolith nor microservice), OR circular dependencies complicate service boundaries.
+- **Skill(sequential-thinking):** Use when multi-subproject service boundaries are not obvious from code structure, OR when >=3 distinct modules interact with non-obvious ownership patterns.
+- **Skill(problem-solving):** Use when the architecture pattern is ambiguous (neither clearly monolith nor microservice), OR circular dependencies complicate service boundaries discovered in code.
 
 ## Task Management
 
@@ -146,7 +147,8 @@ TaskCreate("Write ADR-002: API Conventions") [blockedBy: boundaries]
 TaskCreate("Write ADR-003: Event Taxonomy") [blockedBy: boundaries]
 TaskCreate("Draw C4 context diagram") [blockedBy: adr-001]
 TaskCreate("Draw C4 container diagram") [blockedBy: adr-001]
-TaskCreate("Define hard boundaries") [blockedBy: adr-001 + adr-003]
+TaskCreate("Define bounded context mapping") [blockedBy: adr-001 + adr-003]
+TaskCreate("Define hard boundaries") [blockedBy: bounded-context]
 ```
 
 **Metadata**: `phase=hld`, `effort` (10m-20m per ADR/diagram).
@@ -168,7 +170,7 @@ Do NOT use Agent(Explore) for: reading SRS.md (direct Read), reading a single kn
 - [ ] Communication patterns documented match actual client code found in codebase
 - [ ] Hard boundaries list data ownership from actual schema/ORM evidence
 - [ ] No "should use" or "should implement" language — describe what IS, not what should be
-- [ ] No implementation details: no class names, no database schemas, no code snippets
+- [ ] Architecture-level output: describe services, patterns, topology — not per-service internals. Source file paths and framework annotations (e.g., @FeignClient, @Entity) are acceptable as architectural evidence, but do not prescribe class structures or schemas
 
 ## Templates
 
@@ -193,6 +195,6 @@ Default templates for output format. Use these unless the spawning skill specifi
 - Do NOT write per-service internals — that belongs to LLD
 - Do NOT write code or pseudocode in ADRs
 - Do NOT skip the rationale section in ADRs — "why" inferred from code evidence
-- Do NOT create services without clear data ownership evidence
-- Do NOT allow direct database access across service boundaries
+- Do NOT document a service without clear data ownership evidence from code
+- Do NOT hide architectural violations — if cross-service DB access exists in code, document it as a detected issue, not as an acceptable pattern
 - Do NOT use future-tense language ("will", "should") — use present tense ("uses", "owns")

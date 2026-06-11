@@ -135,7 +135,7 @@ Workflow returned: 1 service failed (auth-service)
 Workflow returned: 2 IMP groups failed
 → Report: "IMP gate failed for auth/FR-AUTH-004,FR-AUTH-005 and payment/FR-PAY-007"
 → AskUserQuestion: "Retry failing IMP groups, skip them, or abort?"
-  - "Retry" → spawn Agent(imp) + Agent(gate-verifier) manually for failed groups
+  - "Retry" → spawn Agent(imp-reverse) or Agent(tst-reverse) + Agent(gate-verifier) manually for failed groups
   - "Skip" → continue with passed groups
   - "Abort" → stop pipeline
 ```

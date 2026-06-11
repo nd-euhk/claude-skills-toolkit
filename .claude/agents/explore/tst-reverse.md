@@ -6,6 +6,7 @@ description: >-
   files to document what IS tested, what is missing, and what test patterns are in use.
   Test specifications only — no implementation code. One agent per FR group.
 model: sonnet
+version: 1.0.0
 tools: Read, Write, Edit, Bash, Glob, TaskCreate, TaskUpdate, TaskGet, TaskList, TaskStop, Agent
 permissionMode: acceptEdits
 hooks:
