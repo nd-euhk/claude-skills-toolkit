@@ -18,9 +18,10 @@ export const meta = {
   ],
 }
 
-// ── Args ──
+// ── Args (safe parse: handles both object and JSON-string) ──
 // { projectName, runDate, slug, scoutReports: string[], language?: 'vi'|'en', mode?: 'full'|'architect' }
-const { projectName, runDate, slug, scoutReports, language, mode } = args
+const _args = (typeof args === 'string') ? JSON.parse(args) : (args || {})
+const { projectName, runDate, slug, scoutReports, language, mode } = _args
 const useEnglish = language === 'en'
 const langInstr = useEnglish
   ? ''

@@ -64,16 +64,34 @@ while (dry < 2) {
 }
 ```
 
-## 4. Stringified args 🔴 Critical
+## 4. Destructuring args without safe-parse guard 🔴 Critical
 
-**WRONG:** A stringified list reaches the script as one string — `.filter`/`.map` throw:
-```
-workflow with args: "[\"a.ts\", \"b.ts\"]"
+**WRONG:** Claude (or the calling skill) may pass `args` as a JSON string instead of an object. Destructuring a string crashes the script:
+```js
+// If args = '{"topic":"auth","scopes":[...]}' (JSON string from skill invocation)
+const { topic, scopes } = args
+// TypeError: Cannot destructure property 'topic' of string
 ```
 
-**RIGHT:** Pass arrays as actual JSON values:
+**RIGHT:** ALWAYS safe-parse args before destructuring. One-liner at the top of every workflow script:
+```js
+const _args = (typeof args === 'string') ? JSON.parse(args) : (args || {})
+const { topic, scopes } = _args
 ```
-workflow with args: ["a.ts", "b.ts"]
+
+**Why this happens:** Skills invoke workflows via `Workflow({ args: workflowArgs })`. Claude may serialize `workflowArgs` as a JSON string when passing it to the Workflow tool, especially when coming from a Skill() call chain (skill → Claude → Workflow tool). The workflow script receives `args` verbatim — if it's a string, destructuring fails. The guard handles both `object` and `string` forms transparently.
+
+**This applies to ALL forms of args, not just arrays:**
+```js
+// WRONG — all of these crash if args is a JSON string:
+const targets = args.map(t => ...)           // args is string → .map crashes
+const { topic } = args                        // args is string → destructure crashes
+const { scopes } = args                       // same
+
+// RIGHT — safe-parse first:
+const _args = (typeof args === 'string') ? JSON.parse(args) : (args || {})
+const { topic, scopes } = _args
+const targets = _args.targets || []
 ```
 
 ## 5. isolation: 'worktree' for read-only agents 🟠 High

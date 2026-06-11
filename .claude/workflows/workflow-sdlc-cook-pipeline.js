@@ -10,9 +10,10 @@ export const meta = {
   ],
 }
 
-// ── Args ──
+// ── Args (safe parse: handles both object and JSON-string) ──
 // { taskId, taskTitle, planFile, language?: 'vi'|'en', runDate, slug, beAffected: bool, feAffected: bool, tstPath, impPath }
-const { taskId, taskTitle, planFile, language, beAffected, feAffected, tstPath, impPath } = args
+const _args = (typeof args === 'string') ? JSON.parse(args) : (args || {})
+const { taskId, taskTitle, planFile, language, beAffected, feAffected, tstPath, impPath } = _args
 const useEnglish = language === 'en'
 const langInstr = useEnglish
   ? ''

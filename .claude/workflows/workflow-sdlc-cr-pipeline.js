@@ -11,9 +11,10 @@ export const meta = {
   ],
 }
 
-// ── Args ──
+// ── Args (safe parse: handles both object and JSON-string) ──
 // { taskId, taskTitle, taskDescription, planFile, language?: 'vi'|'en', runDate, slug, hldAffected: bool, lldAffected: bool }
-const { taskId, taskTitle, taskDescription, planFile, language, hldAffected, lldAffected } = args
+const _args = (typeof args === 'string') ? JSON.parse(args) : (args || {})
+const { taskId, taskTitle, taskDescription, planFile, language, hldAffected, lldAffected } = _args
 const useEnglish = language === 'en'
 // Canonical langInstr for DOCUMENTATION pipelines. See workflow-sdlc-task-pipeline.js for canonical source.
 const langInstr = useEnglish

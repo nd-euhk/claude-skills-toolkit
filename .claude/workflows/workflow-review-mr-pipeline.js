@@ -9,7 +9,7 @@ export const meta = {
   ],
 }
 
-// ── Args ──
+// ── Args (safe parse: handles both object and JSON-string) ──
 // {
 //   diff: string,           // full unified diff
 //   metadata: {             // MR metadata from gh/glab
@@ -27,7 +27,8 @@ export const meta = {
 //   adversarial: boolean,   // enable Verify phase
 //   runDate: string,        // YYYYMMDD for report filename
 // }
-const { diff, metadata, repoPath, platform, dimensions, adversarial, runDate } = args
+const _args = (typeof args === 'string') ? JSON.parse(args) : (args || {})
+const { diff, metadata, repoPath, platform, dimensions, adversarial, runDate } = _args
 
 const dimNames = dimensions.join(', ')
 

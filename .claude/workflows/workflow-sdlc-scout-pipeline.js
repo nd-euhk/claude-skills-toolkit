@@ -8,10 +8,11 @@ export const meta = {
   ],
 }
 
-// ── Args ──
+// ── Args (safe parse: handles both object and JSON-string) ──
 // {
 //   topic, scopes: [{name, paths, patterns, focus}], projectType, language, outputPath, scale, includeContent, deepMode
 // }
+const _args = (typeof args === 'string') ? JSON.parse(args) : (args || {})
 const {
   topic = 'codebase exploration',
   scopes = [],
@@ -21,7 +22,7 @@ const {
   scale = 'medium',
   includeContent = false,
   deepMode = false,
-} = args
+} = _args
 
 const useEnglish = language === 'en'
 const langInstr = useEnglish

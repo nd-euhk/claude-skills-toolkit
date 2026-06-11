@@ -9,11 +9,12 @@ export const meta = {
   ],
 }
 
-// ── Args ──
+// ── Args (safe parse: handles both object and JSON-string) ──
 // {
 //   bugId, rootCause, blastRadius, affectedFiles, fixFiles,
 //   projectType, preFixState, verifyCommands, language, workflowMode
 // }
+const _args = (typeof args === 'string') ? JSON.parse(args) : (args || {})
 const {
   bugId,
   rootCause,
@@ -25,7 +26,7 @@ const {
   verifyCommands = [],
   language = 'vi',
   workflowMode = 'standard',
-} = args
+} = _args
 
 const useEnglish = language === 'en'
 const langInstr = useEnglish

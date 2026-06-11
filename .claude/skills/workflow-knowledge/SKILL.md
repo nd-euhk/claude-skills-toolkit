@@ -5,7 +5,7 @@ description: >-
   and best practices for multi-agent scripts. Auto-activates when Claude writes
   or edits workflow scripts, encounters the Workflow tool, or needs to decide
   between pipeline/parallel/agent orchestration strategies.
-version: 1.1.0
+version: 1.2.0
 allowed-tools: Read
 ---
 
@@ -31,7 +31,7 @@ A workflow script IS the plan. With subagents/skills/teams, Claude holds the pla
 
 ## Script Structure
 
-Every workflow script begins with a `meta` export (PURE LITERAL — no variables, function calls, spreads, or template interpolation):
+Every workflow script begins with a `meta` export (PURE LITERAL — no variables, function calls, spreads, or template interpolation), followed immediately by a **safe-parse guard on `args`** (MANDATORY — handles the case where the caller passes args as a JSON string):
 
 ```js
 export const meta = {
@@ -42,6 +42,10 @@ export const meta = {
     { title: 'Fix', detail: 'one agent per flaky test' },
   ],
 }
+
+// MANDATORY: safe-parse args before destructuring (handles object and JSON-string)
+const _args = (typeof args === 'string') ? JSON.parse(args) : (args || {})
+const { topic, items } = _args
 ```
 
 ## API Reference
@@ -140,9 +144,20 @@ log(`Found ${bugs.length} bugs, starting verification...`)
 
 The value passed as Workflow's `args` input, verbatim. `undefined` if not provided. Pass arrays/objects as actual JSON values, NOT as JSON-encoded strings — a stringified list breaks `.filter`/`.map`.
 
+**⚠️ MANDATORY: Always use safe-parse at the top of every workflow script.** Claude (or another skill) may pass `args` as a JSON string instead of an object. Destructuring a string will crash the script with a TypeError. The one-liner guard handles both cases:
+
+```js
+// ALWAYS put this before destructuring args — never destructure `args` directly
+const _args = (typeof args === 'string') ? JSON.parse(args) : (args || {})
+const { topic, scopes, language } = _args
+```
+
+Without this guard, `const { topic } = '{"topic":"auth"}'` throws `TypeError: Cannot destructure property 'topic' of string`.
+
 ```js
 // Invocation: workflow with args: ["src/auth", "src/payment"]
-const targets = args  // ["src/auth", "src/payment"] — real array
+const _args = (typeof args === 'string') ? JSON.parse(args) : (args || {})
+const targets = _args  // ["src/auth", "src/payment"] — real array
 targets.map(t => agent(`Audit ${t}`))
 ```
 

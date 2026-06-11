@@ -13,10 +13,11 @@ export const meta = {
   ],
 }
 
-// ── Args ──
+// ── Args (safe parse: handles both object and JSON-string) ──
 // { taskId, taskTitle, taskDescription, planFile, language?: 'vi'|'en', runDate, slug, fromPhase?: 'SRS'|'HLD'|'LLD'|'IMP+TST' }
 // When fromPhase='IMP+TST': SRS, HLD, LLD are force-skipped; IMP and TST are force-run.
-const { taskId, taskTitle, taskDescription, planFile, language, fromPhase } = args
+const _args = (typeof args === 'string') ? JSON.parse(args) : (args || {})
+const { taskId, taskTitle, taskDescription, planFile, language, fromPhase } = _args
 const useEnglish = language === 'en'
 // Canonical langInstr for DOCUMENTATION pipelines (task, CR, explore).
 // Code-generating pipelines (cook) use an extended version — see workflow-sdlc-cook-pipeline.js.
