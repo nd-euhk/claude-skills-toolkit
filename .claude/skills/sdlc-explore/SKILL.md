@@ -6,7 +6,7 @@ description: >-
   Use when analyzing new projects, exploring architecture, generating system documentation, or syncing sprint artifacts.
   Supports multi-subproject discovery, plan mode, and sprint integration.
 argument-hint: "[full][architect][sync] [--auto] [--lang vi|en] [--en]"
-version: 1.2.0
+version: 1.3.1
 allowed-tools: Read, Bash(*), AskUserQuestion, Agent, Skill, Workflow, EnterPlanMode, ExitPlanMode
 ---
 
@@ -84,12 +84,12 @@ Check installation: `repomix --version`. If missing, use AskUserQuestion:
 
 **Multi-subproject** — invoke sequentially per sub-project:
 ```
-Skill(repomix, "{path} --style xml --remove-comments -o .work/repomix/{project-name}--{slug}.xml")
+Skill(repomix, "{path} --style xml --remove-comments -o $PWD/.work/repomix/{project-name}--{slug}.xml")
 ```
 
 **Single project** — run repomix, record token count for scout scaling:
 ```
-Skill(repomix, ". --style xml --remove-comments -o .work/repomix/root--{slug}.xml")
+Skill(repomix, ". --style xml --remove-comments -o $PWD/.work/repomix/root--{slug}.xml")
 ```
 
 Do NOT split into areas here — scout handles internal subdivision. If repomix fails: log warning, skip snapshot, continue.
@@ -146,6 +146,8 @@ ls .work/scouts/scout-*-{slug}.md 2>/dev/null
 
 This is the key difference from explore-codebase. Instead of manually orchestrating agents, delegate the entire SDLC pipeline to the **workflow-sdlc-explore-pipeline** workflow.
 
+**Pipeline phases** (internal to workflow): SRS decomposed into FR-Discovery (pipeline per scout report) → NFR-Inference (config analysis) → SRS-Consolidate → Gate SRS, then HLD → Gate HLD → LLD per service → LLD Merge → FR Distribution → IMP+TST → Gate IMP+TST.
+
 ### Step 4.1: Prepare Workflow Args
 
 Collect all inputs the workflow needs. Core fields: `projectName`, `runDate`, `slug` (from Phase 1), `scoutReports` (explicit file paths from Phase 2 output — never glob patterns), `language` (from `--lang` flag, default `vi`), `mode` (`full` or `architect`). Optional: `fromPhase` to force-skip directly to a specific phase on retry (omit on first run — workflow auto-detects completed phases).
@@ -158,7 +160,7 @@ Full args schema, result structures, and error handling patterns: `references/wo
 Workflow({ scriptPath: ".claude/workflows/workflow-sdlc-explore-pipeline.js", args: workflowArgs })
 ```
 
-The workflow handles: idempotent retry (completed phases auto-skipped via `checkPhaseStatus()`), gate verification with max 3 retries per phase, automatic concurrency management, and FR distribution. **Architect mode**: workflow stops after HLD gate, returns early.
+The workflow handles: idempotent retry (completed phases auto-skipped via `checkPhaseStatus()`), decomposed SRS phase (FR-Discovery agents run in pipeline per scout report, NFR-Inference runs in parallel), gate verification with max 3 retries per phase, automatic concurrency management, and FR distribution. **Architect mode**: workflow stops after HLD gate, returns early.
 
 ### Step 4.3: Process Workflow Results
 
@@ -170,7 +172,11 @@ Full result schemas for both modes: `references/workflow-handoff.md`.
 
 Verify workflow completed all expected phases. If workflow returned errors, use AskUserQuestion per failure type:
 
-**SRS/HLD failure (blocking):**
+**FR-Discovery failure (partial):**
+- Question: "FR-Discovery gate failed for {N} area(s): {names}. Other areas passed. How to proceed?" (header: "FR-Discovery Failed")
+- Options: "Retry failed areas" | "Skip and continue" | "Abort"
+
+**SRS-Consolidate/HLD failure (blocking):**
 - Question: "SRS phase failed gate after 3 retries. Feedback: {feedback}. How to proceed?" (header: "SRS Gate Failed")
 - Options: "Retry SRS" | "Skip and proceed" | "Abort"
 

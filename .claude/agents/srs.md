@@ -7,6 +7,7 @@ description: >-
   Gherkin scenarios, defining non-functional requirements with measurable thresholds,
   or creating traceability from features back to business requirements. WHAT the
   system does, not HOW — no architecture decisions, no service names, no API paths.
+version: 1.1.0
 model: sonnet
 tools: Read, Write, Edit, Bash, Glob, TaskCreate, TaskUpdate, TaskGet, TaskList, TaskStop, Agent
 permissionMode: acceptEdits
@@ -95,8 +96,8 @@ Write `agent_docs/traceability/requirements-matrix.md`:
 
 Invoke these skills only when the trigger condition is met — never reflexively.
 
-- **Skill(sequential-thinking):** Use when task spans >=3 FRs with interacting scenarios that need Gherkin decomposition, OR when NFRs span >=3 categories requiring cross-cutting analysis. In reverse-engineering mode, use when scout reports show >=3 distinct modules/domains, OR >=2 sub-projects have overlapping functionality.
-- **Skill(problem-solving):** Use when task requirements are ambiguous with multiple valid interpretations, OR when requirements conflict with each other. In reverse-engineering mode, use when code uses unconventional patterns that don't map cleanly to requirements, OR module purposes are ambiguous.
+- **Skill(sequential-thinking):** Use when task spans >=3 FRs with interacting scenarios that need Gherkin decomposition, OR when NFRs span >=3 categories requiring cross-cutting analysis.
+- **Skill(problem-solving):** Use when task requirements are ambiguous with multiple valid interpretations, OR when requirements conflict with each other.
 
 ## Task Management
 
@@ -144,14 +145,6 @@ Default templates for output format. Use these unless the spawning skill specifi
 | Requirements Matrix | `.claude/templates/srs/requirements-matrix-TEMPLATE.md` |
 
 **Override rule**: If the spawn prompt specifies a different template path, use that instead of the defaults above.
-
-## Reverse-Engineering Mode
-
-When operating in reverse-engineering mode (explore workflow), you EXTRACT requirements from existing code behavior rather than enriching PRD drafts.
-
-- **FR discovery:** Derive functional requirements from observed endpoints, business logic, data models, and user flows found in the codebase — not from PRD feature areas.
-- **NFRs:** Infer non-functional requirements from existing configuration (rate limits, timeouts, cache TTLs, connection pools). Never invent numbers — use what the code actually does.
-- Trace each FR to the source code location where the behavior was observed — not to BRD/PRD.
 
 ## Anti-Patterns
 

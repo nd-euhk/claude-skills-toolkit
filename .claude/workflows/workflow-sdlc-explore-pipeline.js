@@ -2,7 +2,9 @@ export const meta = {
   name: 'workflow-sdlc-explore-pipeline',
   description: 'SDLC Pipeline for codebase exploration: SRS→HLD→LLD→IMP+TST with gate verification. Supports full and architect modes.',
   phases: [
-    { title: 'SRS', detail: 'Software requirements specification' },
+    { title: 'FR-Discovery', detail: 'Discover functional requirements from code' },
+    { title: 'NFR-Inference', detail: 'Infer non-functional requirements from configs' },
+    { title: 'SRS-Consolidate', detail: 'Consolidate into SRS.md + matrix' },
     { title: 'Gate SRS', detail: 'Verify SRS quality gates' },
     { title: 'HLD', detail: 'High-level architecture design' },
     { title: 'Gate HLD', detail: 'Verify HLD quality gates' },
@@ -61,6 +63,20 @@ const FR_GROUPS = {
   required: ['groups', 'totalFRs', 'totalGroups']
 }
 
+const NFR_SCHEMA = {
+  type: 'object',
+  properties: {
+    performance: { type: 'object', properties: { p95Latency: { type: 'string' }, throughput: { type: 'string' }, description: { type: 'string' } } },
+    availability: { type: 'object', properties: { uptime: { type: 'string' }, rto: { type: 'string' }, rpo: { type: 'string' }, description: { type: 'string' } } },
+    security: { type: 'object', properties: { authMethod: { type: 'string' }, rateLimit: { type: 'string' }, description: { type: 'string' } } },
+    reliability: { type: 'object', properties: { retryStrategy: { type: 'string' }, circuitBreaker: { type: 'string' }, description: { type: 'string' } } },
+    maintainability: { type: 'object', properties: { patterns: { type: 'string' }, description: { type: 'string' } } },
+    usability: { type: 'object', properties: { observations: { type: 'string' }, description: { type: 'string' } } },
+    rawConfigs: { type: 'array', items: { type: 'object', properties: { file: { type: 'string' }, key: { type: 'string' }, value: { type: 'string' }, category: { type: 'string' } }, required: ['file', 'key', 'value'] } }
+  },
+  required: ['rawConfigs']
+}
+
 // ── Helpers ──
 
 /** Check which phases have already produced valid output. One agent checks all. */
@@ -69,6 +85,7 @@ async function checkPhaseStatus() {
     `Check which SDLC exploration phases have already produced valid output for project ${projectName}.
 
 Check each phase:
+- FR Discovery: Glob docs/product/features/**/FR-*.md — return count and list of FR-IDs found
 - SRS: docs/product/SRS.md exists and has substantial content (not empty, not just template)
 - HLD: docs/architecture/system-architecture.md AND agent_docs/domain-service-mapping.yaml exist with content
 - LLD services: For each service directory under agent_docs/tech-design/, check if {name}-service.md exists with content. Return list of service names that are complete.
@@ -78,6 +95,7 @@ Check each phase:
 
 Read files to verify they contain real content (not just headers/templates).
 Return {
+  frDiscovery: { done: boolean, count: number, frIds: string[] },
   srs: boolean,
   hld: boolean,
   lldServices: string[],   // names of services with complete LLD
@@ -88,6 +106,11 @@ Return {
     { label: 'phase-status-check', agentType: 'Explore', schema: {
       type: 'object',
       properties: {
+        frDiscovery: {
+          type: 'object',
+          properties: { done: { type: 'boolean' }, count: { type: 'number' }, frIds: { type: 'array', items: { type: 'string' } } },
+          required: ['done', 'count', 'frIds']
+        },
         srs: { type: 'boolean' },
         hld: { type: 'boolean' },
         lldServices: { type: 'array', items: { type: 'string' } },
@@ -95,10 +118,10 @@ Return {
         impGroups: { type: 'array', items: { type: 'string' } },
         tstGroups: { type: 'array', items: { type: 'string' } },
       },
-      required: ['srs', 'hld', 'lldServices', 'lldMerge', 'impGroups', 'tstGroups']
+      required: ['frDiscovery', 'srs', 'hld', 'lldServices', 'lldMerge', 'impGroups', 'tstGroups']
     }}
   )
-  return result || { srs: false, hld: false, lldServices: [], lldMerge: false, impGroups: [], tstGroups: [] }
+  return result || { frDiscovery: { done: false, count: 0, frIds: [] }, srs: false, hld: false, lldServices: [], lldMerge: false, impGroups: [], tstGroups: [] }
 }
 
 /** Spawn gate-verifier agent, return { passed, feedback } */
@@ -137,20 +160,56 @@ async function runWithGate(label, agentType, promptFn, gateLabel, maxRetries) {
 
 // ── Prompt builders ──
 
-function srsPrompt(feedback, retryNum) {
+function frDiscoveryPrompt(scoutReport, areaName, areaIndex, totalAreas, feedback, retryNum) {
   let prefix = feedback
-    ? `RETRY #${retryNum}: Previous SRS rejected by gate. Feedback: ${feedback}\nFix these specific issues in your re-generated output.\n\n`
+    ? `RETRY #${retryNum}: Previous FR discovery for ${areaName} rejected. Feedback: ${feedback}\nFix these specific issues.\n\n`
     : ''
   return `${prefix}${langInstr}
-Context: Exploring codebase ${projectName}. ${scoutReports.length} scout report(s) from exploration run (${runDate}, slug: ${slug}). Reports cover sub-projects that may interact but have independent codebases and technologies.
+Context: Exploring codebase ${projectName}. Area ${areaName} (${areaIndex} of ${totalAreas}). ${totalAreas - 1} other areas handled by parallel sibling agents.
 
-Inputs — read these exact files:
-${scoutList}
+Input — read this exact file:
+- Scout report: ${scoutReport}
 
-Task: Extract requirements from the codebase. Read all scout reports first. Treat each as a source of functional and non-functional requirements. If any area lacks detail, explore the codebase directly.
+Task: Discover and extract ALL functional requirements from this code area. Read the scout report first as your map. Then explore the actual source code at the paths it references to verify and enrich your findings. For each feature discovered, write a COMPLETE FR file.
 
-Output: docs/product/SRS.md and agent_docs/traceability/requirements-matrix.md
-Constraints: Reverse-engineering mode — extract from code, not imagination. Use your default templates.`
+Output: docs/product/features/{epic-slug}/FR-{DOMAIN}-{NNN}--{slug}.md (one per FR, COMPLETE — not drafts)
+
+Each FR file must have: description, preconditions, input table, process steps, output schema, error codes, Gherkin Scenario Outline with Examples table, data model references, source code trace.
+
+Constraints: Reverse-engineering mode — extract from actual code behavior, not imagination. Every FR must trace to a specific source file. Every Gherkin scenario must reflect actual code paths. Discover FR-IDs from scratch — do NOT rely on pre-existing FR files. Use your default templates.`
+}
+
+function nfrInferencePrompt() {
+  return `${langInstr}
+Context: Exploring codebase ${projectName}. ${scoutReports.length} scout report(s) from run (${runDate}, slug: ${slug}).
+
+Task: Infer non-functional requirements from existing configuration files. Search for and read: application configs (application*.yml, application*.properties, .env*), infrastructure configs (docker-compose*, Dockerfile*, k8s/*.yaml, terraform/*), build configs (package.json, pom.xml, Cargo.toml, go.mod), and any other config files you find.
+
+For each config value found, record: file path, config key, raw value, and category (performance/availability/security/reliability/maintainability/usability).
+
+Extract quantified thresholds: rate limits (req/s), timeouts (ms), cache TTLs (s), connection pool sizes, thread pool sizes, retry max attempts, circuit breaker thresholds. Never invent numbers — use only values found in configs.
+
+Return structured output. Do NOT write any files.`
+}
+
+function srsConsolidatePrompt(nfrData, feedback, retryNum) {
+  let prefix = feedback
+    ? `RETRY #${retryNum}: Previous SRS consolidation rejected by gate. Feedback: ${feedback}\nFix these specific issues.\n\n`
+    : ''
+  const nfrJson = nfrData ? JSON.stringify(nfrData, null, 2) : 'NFR data unavailable — infer NFRs from FR files and code patterns where possible.'
+  return `${prefix}${langInstr}
+Context: Exploring codebase ${projectName}. FR discovery complete — all FR-*.md files are written and complete. NFR inference complete — data provided below.
+
+Inputs:
+- All FR files: glob docs/product/features/**/FR-*.md (read every one)
+- NFR data (from config analysis):
+${nfrJson}
+
+Task: Consolidate all extracted FRs and NFRs into the final SRS document and traceability matrix. You do NOT explore code or write FR files — those are done.
+
+Output: docs/product/SRS.md (6 sections: Introduction, FR Summary Table, NFRs, External Interfaces, Constraints, Traceability Guide) AND agent_docs/traceability/requirements-matrix.md (FR-ID → Source Location → Gherkin → NFRs affected)
+
+Constraints: Synthesis only. Every FR from disk must appear in summary table. Every NFR must be quantified. No architecture decisions. Use your default templates.`
 }
 
 function hldPrompt(feedback, retryNum) {
@@ -279,14 +338,77 @@ const completed = []
 
 let srsResult, hldResult
 
-// ── Phase 1: SRS ──
+// ── Phase 1: SRS (Decomposed: FR-Discovery → NFR-Inference → SRS-Consolidate → Gate) ──
 if (done.srs) {
   log('✓ SRS: output already exists — skipping')
   skipped.push('SRS')
   srsResult = { passed: true }
 } else {
-  phase('SRS')
-  srsResult = await runWithGate('SRS', 'srs', srsPrompt, 'SRS')
+  // Prepare areas from scout reports for FR discovery
+  const areas = scoutReports.map((sr, i) => ({
+    scoutReport: sr,
+    name: sr.replace(/.*scout-\d{8}-/, '').replace(/--.*\.md$/, '').replace(/^scout-\d{8}-/, ''),
+    index: i + 1,
+    total: scoutReports.length,
+  }))
+  log(`SRS: Decomposed — ${areas.length} area(s) for FR discovery, NFR inference, consolidation`)
+
+  // Sub-phase 1a+1b: FR-Discovery (pipeline over areas) || NFR-Inference (single agent with schema)
+  const frDiscoveryDone = done.frDiscovery && done.frDiscovery.done
+
+  let frDiscoveryResults, nfrData
+  if (frDiscoveryDone) {
+    log(`✓ FR-Discovery: ${done.frDiscovery.count} FR files already exist — skipping`)
+    skipped.push('FR-Discovery')
+    frDiscoveryResults = areas.map(a => ({ area: a.name, skipped: true }))
+  }
+
+  // Run FR-Discovery and NFR-Inference in parallel
+  const [frDisc, nfr] = await parallel([
+    async () => {
+      if (frDiscoveryDone) return frDiscoveryResults
+      phase('FR-Discovery')
+      const results = await pipeline(
+        areas,
+        async (area) => {
+          log(`FR-Discovery: ${area.name} (${area.index}/${area.total})`)
+          const frResult = await runWithGate(
+            `FR-${area.name}`,
+            'srs-fr-discovery',
+            (fb, rn) => frDiscoveryPrompt(area.scoutReport, area.name, area.index, area.total, fb, rn),
+            `FR-Discovery: ${area.name}`
+          )
+          if (frResult && frResult.passed) completed.push(`FR-${area.name}`)
+          return { area: area.name, ...frResult }
+        }
+      )
+      return results
+    },
+    async () => {
+      phase('NFR-Inference')
+      log('NFR-Inference: reading configs for NFR thresholds')
+      return agent(nfrInferencePrompt(), {
+        label: 'nfr-inference',
+        phase: 'NFR-Inference',
+        agentType: 'general-purpose',
+        schema: NFR_SCHEMA,
+      })
+    },
+  ])
+
+  frDiscoveryResults = frDisc
+  nfrData = nfr
+
+  // Check FR discovery results
+  const frFailed = (frDiscoveryResults || []).filter(r => r && !r.passed)
+  if (frFailed.length > 0) {
+    return { phase: 'FR-Discovery', error: `${frFailed.length} area(s) failed`, failed: frFailed.map(f => f.area), skipped, completed }
+  }
+
+  // Sub-phase 1c: SRS-Consolidate
+  phase('SRS-Consolidate')
+  log(`SRS-Consolidate: synthesizing ${done.frDiscovery ? done.frDiscovery.count : (frDiscoveryResults || []).length} areas of FRs`)
+  srsResult = await runWithGate('SRS-Consolidate', 'srs-consolidate', (fb, rn) => srsConsolidatePrompt(nfrData, fb, rn), 'SRS')
   if (!srsResult.passed) {
     return { phase: 'SRS', error: 'Gate failed after 3 retries', feedback: srsResult.feedback, skipped, completed }
   }

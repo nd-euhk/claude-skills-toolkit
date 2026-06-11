@@ -76,6 +76,21 @@ Workflow({ scriptPath: ".claude/workflows/workflow-sdlc-explore-pipeline.js", ar
 
 ### Error — Phase Failure
 ```js
+// FR-Discovery partial failure
+{
+  phase: 'FR-Discovery',
+  error: '2 area(s) failed',
+  failed: ['auth-area', 'payment-area']
+}
+
+// SRS-Consolidate blocking failure
+{
+  phase: 'SRS',
+  error: 'Gate failed after 3 retries',
+  feedback: 'Missing non-functional requirements section...'
+}
+
+// LLD partial failure
 {
   phase: 'LLD',
   error: '2 service(s) failed gate',
@@ -83,17 +98,19 @@ Workflow({ scriptPath: ".claude/workflows/workflow-sdlc-explore-pipeline.js", ar
 }
 ```
 
-```js
-{
-  phase: 'SRS',
-  error: 'Gate failed after 3 retries',
-  feedback: 'Missing non-functional requirements section...'
-}
-```
-
 ## Error Handling Patterns
 
-### Pattern 1: SRS/HLD Failure → Blocking
+### Pattern 1: FR-Discovery Failure → Partial
+```
+Workflow returned: FR-Discovery gate failed for 1 area (auth-area).
+→ Report: "FR-Discovery gate failed for auth-area. Other areas passed."
+→ AskUserQuestion: "Retry failed area, skip it, or abort?"
+  - "Retry" → re-invoke workflow with same args (completed areas auto-skipped)
+  - "Skip" → continue with consolidated SRS from discovered FRs only
+  - "Abort" → stop pipeline
+```
+
+### Pattern 2: SRS-Consolidate/HLD Failure → Blocking
 ```
 Workflow returned SRS gate failure.
 → Report to human: "SRS phase failed gate after 3 retries. Feedback: {feedback}"
@@ -103,7 +120,7 @@ Workflow returned SRS gate failure.
   - "Abort" → stop pipeline
 ```
 
-### Pattern 2: LLD Service Failure → Partial
+### Pattern 3: LLD Service Failure → Partial
 ```
 Workflow returned: 1 service failed (auth-service)
 → Report: "LLD gate failed for auth-service. Other 2 services passed."
@@ -113,7 +130,7 @@ Workflow returned: 1 service failed (auth-service)
   - "Abort" → stop pipeline
 ```
 
-### Pattern 3: IMP/TST Group Failure → Partial
+### Pattern 4: IMP/TST Group Failure → Partial
 ```
 Workflow returned: 2 IMP groups failed
 → Report: "IMP gate failed for auth/FR-AUTH-004,FR-AUTH-005 and payment/FR-PAY-007"

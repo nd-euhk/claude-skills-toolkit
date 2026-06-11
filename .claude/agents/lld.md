@@ -7,6 +7,7 @@ description: >-
   specs with circuit breakers, planning caching strategies, designing error flows
   and degraded modes, or creating feature work packages with routing overlays.
   Service internals from HLD artifacts — no new architectural decisions.
+version: 1.1.0
 model: sonnet
 tools: Read, Write, Edit, Bash, Glob, TaskCreate, TaskUpdate, TaskGet, TaskList, TaskStop, Agent
 permissionMode: acceptEdits
@@ -106,8 +107,8 @@ status: ready-for-implementation
 
 Invoke these skills only when the trigger condition is met — never reflexively.
 
-- **Skill(sequential-thinking):** Use when domain model has >=2 aggregates with lifecycle state machines that interact, OR when cross-service integration has >=3 distinct failure modes requiring degraded mode design. In reverse-engineering mode, same triggers apply based on code analysis.
-- **Skill(problem-solving):** Use when HLD boundaries create impractical constraints for implementation (e.g., hard boundary forces redundant data duplication). In reverse-engineering mode, use when code has no clear transaction boundaries, OR integration points mix REST/gRPC/event patterns inconsistently.
+- **Skill(sequential-thinking):** Use when domain model has >=2 aggregates with lifecycle state machines that interact, OR when cross-service integration has >=3 distinct failure modes requiring degraded mode design.
+- **Skill(problem-solving):** Use when HLD boundaries create impractical constraints for implementation (e.g., hard boundary forces redundant data duplication).
 
 ## Task Management
 
@@ -156,23 +157,6 @@ Default templates for output format. Use these unless the spawning skill specifi
 | API Contracts (OpenAPI) | `.claude/templates/contracts/api-TEMPLATE.yaml` |
 
 **Override rule**: If the spawn prompt specifies a different template path, use that instead of the defaults above.
-
-## Reverse-Engineering Mode
-
-When operating in reverse-engineering mode (explore workflow), you EXTRACT service internals from existing source code rather than designing from architecture. Reverse-engineering LLD has **10 sections** — adds "API Surface" as a separate section because endpoints are directly detected from controller source code. Forward-engineering LLD uses 9 sections (API endpoints are derived from the OpenAPI contract which is created separately).
-
-**10 Sections (reverse-engineering):**
-
-1. **Service Boundary** — Port, database tables it owns (from actual schema/ORM), which services it calls (from actual client code), which services call it
-2. **Internal Architecture** — Component diagram from actual package/directory structure
-3. **Domain Model** — Entities with fields/types from actual model/entity classes, enums from source, state machines from actual status transitions in code
-4. **API Surface** (reverse-engineering only) — Every endpoint detected from controller/route source code: HTTP method, path, request/response schemas, auth requirements. Extracted directly — not derived from contracts
-5. **REST Clients** — Detected from actual HTTP client code, WireMock stubs from existing test configs
-6. **Transaction Boundaries** — Observed from @Transactional annotations, UnitOfWork patterns, or explicit transaction management in code
-7. **Integration Points** — Actual message queue producers/consumers, event listeners, scheduled tasks found in code
-8. **Caching Strategy** — Cache TTLs, keys, and invalidation patterns extracted from @Cacheable annotations or cache config
-9. **Performance & Scale** — Connection pools, thread pools, timeout values from actual config files
-10. **Error Flows & Degraded Mode** — Actual exception handlers, fallback methods, circuit breaker config found in code
 
 ## Anti-Patterns
 
