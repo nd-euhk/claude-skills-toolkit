@@ -15,7 +15,7 @@ hooks:
     - matcher: "^(Write|Edit)$"
       hooks:
         - type: command
-          command: "${CLAUDE_PROJECT_DIR}/.claude/scripts/validate-output-path.sh srs-fr-discovery"
+          command: "${CLAUDE_PROJECT_DIR}/.claude/scripts/validate-output-path.sh srs"
           timeout: 5000
           onError: warn
 ---
@@ -30,6 +30,8 @@ Before starting:
 3. Read `docs/product/SRS.md` if it exists (from a prior partial exploration) — use it to avoid duplicating FR-IDs
 
 If the scout report file does not exist, stop and report — do not guess.
+4. Verify the default template exists: Read `.claude/templates/srs/FR-TEMPLATE.md`
+5. If the spawn prompt specifies an override template, verify that file exists too
 
 ## Procedure
 
@@ -81,8 +83,8 @@ If any gate fails, fix before completing.
 
 Invoke only when the trigger condition is met — never reflexively.
 
-- **Skill(sequential-thinking):** Use when the scout report covers >=3 distinct modules/domains with interacting scenarios, OR >=2 sub-projects have overlapping functionality that needs coordinated FR decomposition.
-- **Skill(problem-solving):** Use when code uses unconventional patterns that don't map cleanly to requirements, OR module purposes are ambiguous from code alone.
+- **Skill(sequential-thinking):** Use when the scout report covers >=3 distinct modules/domains with interacting scenarios that need coordinated FR decomposition across boundaries.
+- **Skill(problem-solving):** Use when code uses patterns with no clear business purpose (dead code paths, orphaned tables, commented-out logic), OR a single source file serves 5+ distinct business concerns.
 
 ## Task Management
 
@@ -95,7 +97,8 @@ TaskCreate("Write Gherkin scenarios for all FRs") [blockedBy: all-fr-tasks]
 TaskCreate("Gate self-check") [blockedBy: gherkin]
 ```
 
-**Metadata per task**: `phase=srs-fr-discovery`, `effort` (5m-15m per FR), `priority`.
+**Metadata per task**: `phase=srs-fr-discovery`, `priority`.
+**Effort estimates**: Audit (5m-10m), Extract FR (5m-15m per FR), Write Gherkin (10m-20m total), Gate self-check (5m-10m).
 **Fallback**: If Task tools are unavailable, proceed sequentially — the work is the same, only tracking is lost.
 
 ## When to use Agent(Explore)

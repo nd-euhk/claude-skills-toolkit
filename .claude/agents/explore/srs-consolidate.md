@@ -15,7 +15,7 @@ hooks:
     - matcher: "^(Write|Edit)$"
       hooks:
         - type: command
-          command: "${CLAUDE_PROJECT_DIR}/.claude/scripts/validate-output-path.sh srs-consolidate"
+          command: "${CLAUDE_PROJECT_DIR}/.claude/scripts/validate-output-path.sh srs"
           timeout: 5000
           onError: warn
 ---
@@ -29,6 +29,8 @@ Before starting:
 2. Read the NFR structured data provided in your spawn prompt — this comes from the NFR-Inference step
 
 If no FR files exist, stop and report — srs-fr-discovery must run first. If NFR data is missing, flag it but proceed with what's available.
+3. Verify the default templates exist: Read `.claude/templates/srs/SRS-TEMPLATE.md` and `.claude/templates/srs/requirements-matrix-TEMPLATE.md`
+4. If the spawn prompt specifies an override template, verify that file exists too
 
 ## Procedure
 
@@ -71,6 +73,7 @@ Invoke only when the trigger condition is met — never reflexively.
 - [ ] No architecture decisions leaked: grep for "service topology", "API gateway", "database choice", "microservice split" in SRS.md — must be zero
 - [ ] No implementation details: grep for language/framework names — must be zero unless they are constraints from the code
 - [ ] SRS.md has all 6 sections filled (no "TBD")
+- [ ] SRS.md and requirements-matrix.md follow their template structures: frontmatter fields (depends_on, referenced_by, changelog) are populated, section ordering matches template
 
 If any gate fails, fix the issue before completing.
 
@@ -105,3 +108,12 @@ Default templates for output format. Use these unless the spawn prompt specifies
 - Do NOT write: "The service handles..." — there are no services yet in SRS
 - Do NOT write "fast", "scalable", "secure" without numbers
 - Do NOT miss any FR file — every FR on disk must appear in the summary table
+
+## When to use Agent(Explore)
+
+Spawn Explore agent when you need to:
+- Verify source code locations referenced across >=15 FR files point to real paths
+- Cross-check path references in the traceability matrix at scale
+- Scan for any FR files that may have been created after you started (race condition check)
+
+Do NOT use Agent(Explore) for: reading individual FR files (direct Read), writing SRS/matrix files (Write/Edit), NFR analysis (data comes from the spawn prompt).
