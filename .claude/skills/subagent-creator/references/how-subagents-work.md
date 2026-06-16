@@ -705,19 +705,29 @@ Claude Code includes built-in subagents available by default. Understand when to
 
 The `skills` field loads skill content into the subagent's context at startup.
 
-### Difference: skills field vs Task tool
+### Difference: skills field vs Skill tool vs Agent tool
 
 **`skills` field** (in frontmatter):
-- Skill content injected into subagent's context
-- Available for direct reference in prompt
-- Increases subagent context token usage
-- No separate invocation needed
+- Skill nội dung được inject thẳng vào system prompt khi subagent khởi tạo
+- Có sẵn để tham chiếu trực tiếp trong prompt — không cần invoke
+- KHÔNG cần khai báo `Skill` trong `tools`
+- Tăng token usage của subagent context
+- Phù hợp: skill nền tảng luôn cần (code standards, security checklists)
 
-**`Task` tool** (in subagent):
-- Launches a separate subagent
-- Independent execution context
-- Subagent can invoke other specialized agents
-- Useful for complex multi-step workflows
+**`Skill` tool** (in subagent's tools list):
+- Cho phép subagent gọi skill động tại runtime
+- Cần khai báo `Skill` trong `tools` để dùng
+- Chỉ tốn token khi thực sự invoke
+- Phù hợp: skill tùy chọn, dùng có điều kiện (sequential-thinking, problem-solving)
+
+**`Agent` tool** (in subagent's tools list):
+- Spawn nested subagent với execution context riêng
+- Subagent con có thể có skills/tools/configuration riêng
+- Hữu ích cho complex multi-step workflows
+- **Depth limits:**
+  - Foreground subagents: có thể spawn ở bất kỳ độ sâu nào
+  - Background subagents: từ độ sâu 5 trở lên, KHÔNG nhận `Agent` tool → không thể spawn thêm
+  - Giới hạn này cố định để tránh runaway concurrent trees.
 
 ### When to Use skills Field
 

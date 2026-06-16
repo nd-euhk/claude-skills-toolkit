@@ -1,6 +1,6 @@
 export const meta = {
   name: 'workflow-review-mr-pipeline',
-  description: 'Review MR/PR across 6 dimensions in parallel with optional adversarial verification, synthesis, and report generation',
+  description: 'Review MR/PR across 7 dimensions in parallel with optional adversarial verification, synthesis, and report generation',
   phases: [
     { title: 'Review', detail: '6 specialized subagents review in parallel' },
     { title: 'Verify', detail: 'Adversarially verify findings with diverse-lens skeptics (adversarial mode only)' },
@@ -37,6 +37,19 @@ const SUBAGENT_OUTPUT = {
   type: 'object',
   properties: {
     verdict: { type: 'string' },
+    decision_rationale: {
+      type: 'object',
+      properties: {
+        pr_alignment: { type: 'string' },
+        pr_alignment_detail: { type: 'string' },
+        project_alignment: { type: 'string' },
+        project_alignment_detail: { type: 'string' },
+        risk_value: { type: 'string' },
+        risk_value_detail: { type: 'string' },
+        confidence: { type: 'string' },
+      },
+      required: ['pr_alignment', 'project_alignment', 'risk_value', 'confidence'],
+    },
     findings: {
       type: 'array',
       items: {
@@ -45,10 +58,19 @@ const SUBAGENT_OUTPUT = {
           severity: { type: 'string' },
           category: { type: 'string' },
           description: { type: 'string' },
+          evidence: {
+            type: 'object',
+            properties: {
+              file: { type: 'string' },
+              line: { type: 'string' },
+              snippet: { type: 'string' },
+            },
+            required: ['file', 'line', 'snippet'],
+          },
           recommendation: { type: 'string' },
           affected_files: { type: 'array', items: { type: 'string' } },
         },
-        required: ['severity', 'description', 'recommendation'],
+        required: ['severity', 'description', 'evidence', 'recommendation'],
       },
     },
   },
@@ -70,6 +92,7 @@ const SYNTHESIS = {
   properties: {
     overallVerdict: { type: 'string', enum: ['APPROVED', 'NEEDS_ATTENTION', 'URGENT'] },
     mergedFindings: { type: 'array', items: { type: 'object' } },
+    decision_summary: { type: 'string' },
     summary: { type: 'string' },
   },
   required: ['overallVerdict', 'mergedFindings'],
@@ -93,6 +116,7 @@ const ALL_DIMENSIONS = {
   conventions: { agentType: 'review-mr-conventions', label: 'CLAUDE.md Compliance', verdictSeverity: 'VIOLATION' },
   impact: { agentType: 'review-mr-impact', label: 'Feature Impact', verdictSeverity: 'BLOCKER' },
   ops: { agentType: 'review-mr-ops', label: 'Operational Impact', verdictSeverity: 'BLOCKER' },
+  tests: { agentType: 'review-mr-tests', label: 'Test Quality', verdictSeverity: 'URGENT' },
 }
 
 // ── Helpers ──
@@ -344,10 +368,11 @@ ${synthesisInput}${verifiedContext}
 **Instructions**:
 1. **Deduplicate**: If multiple dimensions flagged the same underlying issue (same file + same line range, or same problem), merge them into ONE finding with multiple category tags. Example: missing input validation flagged by both security AND bugs → one finding tagged [security, bugs].
 2. **Compute overall verdict** (based on highest severity):
-   - Any CRITICAL, URGENT, or BLOCKER → **URGENT**
+   - Any CRITICAL, URGENT, CHEATING, or BLOCKER → **URGENT**
    - Any BUG_FOUND, VIOLATION, or HIGH_RISK → **NEEDS_ATTENTION**
    - Otherwise → **APPROVED**
 3. **Write a summary**: 2-3 sentences capturing the key risk of this MR.
+4. **Synthesize decision rationale**: Review all agents' decision_rationale fields. Write a 2-4 sentence `decision_summary` answering: Is this PR worth merging? Why? Does the risk justify the value? If agents disagree on alignment, note the conflict.
 
 Return the merged findings and overall verdict.`,
   {

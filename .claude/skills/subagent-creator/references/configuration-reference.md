@@ -127,10 +127,32 @@ model: inherit           # Keep consistency with parent conversation
 - `Bash` - Execute bash commands
 - `Grep` - Search file contents
 - `Glob` - Find files by pattern
-- `Task` - Launch subagents
+- `Agent` - Launch nested subagents (see depth limits below)
+- `Skill` - Invoke skills dynamically at runtime
 - `AskUserQuestion` - Ask user for input
-- `Skill` - Invoke skills
 - And any MCP tools available in parent conversation
+
+**Về Skill:** Có hai cách để subagent sử dụng skill:
+- **`skills` trong frontmatter** — Nội dung skill được inject trực tiếp vào system prompt khi agent khởi tạo. Subagent có thể tham chiếu skill content mà không cần gọi `Skill` tool. KHÔNG cần khai báo `Skill` trong `tools` nếu chỉ dùng cơ chế này.
+- **`Skill` tool** — Cho phép subagent gọi skill động tại runtime (tương tự như cách phiên chính gọi `/skill-name`). Cần khai báo `Skill` trong `tools` nếu muốn dùng cơ chế này.
+
+### `Agent` Tool — Spawn Nested Subagents
+
+Khi được cấp `Agent` tool (hoặc kế thừa từ parent), subagent có thể spawn nested subagents để phân tách các tác vụ phức tạp.
+
+**Depth limits:**
+| Chế độ | Giới hạn |
+|--------|----------|
+| **Foreground subagents** | Có thể spawn ở bất kỳ độ sâu nào |
+| **Background subagents** | Từ độ sâu 5 trở lên, KHÔNG nhận `Agent` tool và không thể spawn thêm |
+
+Giới hạn này cố định để tránh runaway concurrent trees.
+
+**Ngăn nested spawning:** Bỏ `Agent` khỏi `tools` hoặc thêm vào `disallowedTools`:
+```yaml
+tools: Read, Write, Edit, Bash    # Không có Agent → không thể spawn subagent con
+disallowedTools: Agent             # Hoặc chặn Agent khi kế thừa tất cả tools
+```
 
 **Format:**
 ```yaml
@@ -180,7 +202,7 @@ disallowedTools: Edit, Bash       # Comma-separated
 disallowedTools: Write, Edit
 
 # Start with all, deny dangerous tools
-disallowedTools: Bash, Task
+disallowedTools: Bash, Agent
 ```
 
 **Rules:**
@@ -232,37 +254,53 @@ See `permission-modes.md` for detailed behavior in foreground/background executi
 
 ### `skills`
 
-**Optional.** Load skill content into the subagent's context at startup. The full skill instruction set is injected into the subagent's prompt.
+**Optional.** Preload skill nội dung vào system prompt của subagent khi khởi tạo. Toàn bộ `SKILL.md` body được inject — subagent có thể tham chiếu trực tiếp đến skill instructions mà không cần gọi `Skill` tool.
+
+**⚠️ KHÔNG cần khai báo `Skill` trong `tools` nếu chỉ dùng cơ chế preload này.** `skills` trong frontmatter và `Skill` tool là hai cơ chế độc lập.
 
 **Format:**
 ```yaml
 skills: skill-name-1, skill-name-2
 ```
 
-**When to use:**
-- Subagent needs specific reusable instructions
-- Want injected skill context without invoking the skill as a tool
-- Skill content should be available in subagent's reasoning
+**Khi nào dùng `skills` (preload):**
+- Skill luôn cần trong mọi lần thực thi của subagent (nền tảng)
+- Muốn skill content có sẵn ngay từ đầu, không cần invoke
+- VD: `code-quality-standards`, `security-best-practices`
+
+**Khi nào dùng `Skill` tool (động):**
+- Skill chỉ cần trong một số tình huống nhất định
+- Muốn tiết kiệm token khi skill không phải lúc nào cũng dùng
+- Cần gọi skill với tham số hoặc vào thời điểm cụ thể
+- VD: `Skill(sequential-thinking)` khi cần phân tích phức tạp
 
 **Examples:**
 
 ```yaml
-# Load a skill for custom instructions
+# Preload: skill luôn có sẵn trong context
 skills: code-review-standards
 
-# Multiple skills
+# Preload nhiều skill
 skills: security-analysis, performance-optimization
+
+# Kết hợp: preload skill nền + Skill tool cho skill tùy chọn
+skills: code-quality-standards
+tools: Read, Write, Edit, Bash, Skill
+# → code-quality-standards luôn có sẵn. Có thể gọi Skill(sequential-thinking) khi cần.
 ```
 
 **Important:**
-- Subagents do NOT inherit skills from parent conversation
-- Explicitly list skills you want available
-- Full skill content is loaded (not just name reference)
-- Increases token usage (skills are loaded into context)
+- Subagents KHÔNG kế thừa skills từ parent conversation
+- Phải liệt kê tường minh tất cả skill cần preload
+- Toàn bộ nội dung skill được load (tăng token usage)
+- `skills` field KHÔNG thay thế `Skill` tool — chúng bổ trợ cho nhau
 
-**Difference from `Task` tool:**
-- `skills` field: Skill content injected into context (direct access to instructions)
-- `Task` tool: Launch a specialized subagent (separate execution context)
+**Phân biệt ba cơ chế:**
+| Cơ chế | Cách hoạt động | Cần khai báo gì |
+|--------|---------------|-----------------|
+| `skills` field | Inject SKILL.md vào system prompt lúc khởi tạo | `skills: skill-name` trong frontmatter |
+| `Skill` tool | Gọi skill động tại runtime như function call | `Skill` trong `tools` list |
+| `Agent` tool | Spawn nested subagent (có thể có skills riêng) | `Agent` trong `tools` list |
 
 ### `hooks`
 

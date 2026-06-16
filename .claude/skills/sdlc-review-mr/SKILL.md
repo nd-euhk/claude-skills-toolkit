@@ -6,7 +6,7 @@ description: >-
   Supports optional adversarial verification to reduce false positives.
   Use when reviewing MR/PR, review merge request, check MR, audit pull request,
   code review before merge, evaluate merge request changes, or run pre-merge review.
-  Supports --arch, --security, --bugs, --conventions, --impact, --ops, --full, --adversarial flags.
+  Supports --arch, --security, --bugs, --conventions, --impact, --ops, --tests, --full, --adversarial flags.
 version: 1.0.1
 allowed-tools:
   - Read
@@ -26,7 +26,7 @@ allowed-tools:
 
 # Review Merge Request (Workflow-Driven)
 
-Deep review of GitLab/GitHub merge requests across 6 independent dimensions, orchestrated via the Workflow tool for resumability and token efficiency. Optional adversarial verification reduces false positives by having each finding survive 3 independent skeptical reviews.
+Deep review of GitLab/GitHub merge requests across 7 independent dimensions, orchestrated via the Workflow tool for resumability and token efficiency. Optional adversarial verification reduces false positives by having each finding survive 3 independent skeptical reviews.
 
 **Key difference from `/review-mr`:** This skill delegates the review pipeline (dispatch → verify → synthesize → report) to a deterministic Workflow script. The main agent handles only interactive phases (input parsing, workspace discovery, MR selection, comment posting). This means: resumable on failure, visible progress in `/workflows`, and lower token usage in context.
 
@@ -60,7 +60,7 @@ Deep review of GitLab/GitHub merge requests across 6 independent dimensions, orc
 ## Quick Start
 
 ```bash
-# Full review (all 6 dimensions in parallel)
+# Full review (all 7 dimensions in parallel)
 /sdlc-review-mr --full https://github.com/owner/repo/pull/123
 
 # Full review with adversarial verification (fewer false positives)
@@ -69,9 +69,11 @@ Deep review of GitLab/GitHub merge requests across 6 independent dimensions, orc
 # Single dimension
 /sdlc-review-mr --security gl-456          # GitLab MR #456, security only
 /sdlc-review-mr --arch gh-789              # GitHub PR #789, architecture only
+/sdlc-review-mr --tests gh-789             # GitHub PR #789, test quality only
 
 # Multiple dimensions with adversarial
 /sdlc-review-mr --security --bugs --adversarial gh-789
+/sdlc-review-mr --tests --bugs gh-789      # Test quality + bug detection
 
 # Interactive (no args)
 /sdlc-review-mr                            # Menu routing + workspace discovery
@@ -82,7 +84,7 @@ Deep review of GitLab/GitHub merge requests across 6 independent dimensions, orc
 ### Phase 1: Parse Input
 
 Extract from user args:
-- **Dimension flags**: `--arch`, `--security`, `--bugs`, `--conventions`, `--impact`, `--ops`, `--full`
+- **Dimension flags**: `--arch`, `--security`, `--bugs`, `--conventions`, `--impact`, `--ops`, `--tests`, `--full`
 - **Mode flag**: `--adversarial` — enable adversarial verification (default: off)
 - **MR identifier**: URL (`https://github.com/...`), or platform prefix + number (`gh-123`, `gl-456`), or bare number
 
@@ -95,12 +97,12 @@ If MR identifier found → skip to Phase 3.
 Use **batch `AskUserQuestion`** with 2 questions:
 
 **Question 1** (header: "Scope", multiSelect: false):
-1. "Full Review (all 6 dimensions)" (Recommended)
-2. "Code Quality: Architecture + Bugs + Conventions"
+1. "Full Review (all 7 dimensions)" (Recommended)
+2. "Code Quality: Architecture + Bugs + Conventions + Tests"
 3. "Safety & Impact: Security + Feature Impact + Operational"
 4. "Specific dimensions"
 
-If user selects "Specific dimensions", present a follow-up `AskUserQuestion` (multiSelect: true) with: Architecture, Security, Bugs, CLAUDE.md Conventions, Feature Impact, Operational Impact.
+If user selects "Specific dimensions", present a follow-up `AskUserQuestion` (multiSelect: true) with: Architecture, Security, Bugs, CLAUDE.md Conventions, Feature Impact, Operational Impact, Test Quality.
 
 **Question 2** (header: "Verification", multiSelect: false):
 1. "Standard (faster)" (Recommended)
@@ -110,8 +112,8 @@ Map menu selections to flags:
 
 | Menu Choice | dimensions[] | adversarial |
 |---|---|---|
-| Full Review | `['arch','security','bugs','conventions','impact','ops']` | from Q2 |
-| Code Quality | `['arch','bugs','conventions']` | from Q2 |
+| Full Review | `['arch','security','bugs','conventions','impact','ops','tests']` | from Q2 |
+| Code Quality | `['arch','bugs','conventions','tests']` | from Q2 |
 | Safety & Impact | `['security','impact','ops']` | from Q2 |
 | Specific dimensions | user-selected dimensions | from Q2 |
 
@@ -177,7 +179,7 @@ const result = await Workflow({
 ```
 
 The workflow runs these phases internally (visible in `/workflows`):
-1. **Review** — 6 subagents in parallel
+1. **Review** — 7 subagents in parallel
 2. **Verify** — adversarial verification (only if `adversarial: true`)
 3. **Synthesize** — merge, deduplicate, compute overall verdict
 4. **Report** — generate markdown report → `.work/review-mr/`
@@ -207,7 +209,7 @@ Post using `gh pr comment` or `glab mr note`. Each finding = one comment with fo
 ## Error Handling
 
 ### Partial subagent failure
-If workflow returns `failedDimensions: ['security']`, the report still includes results from other 5 dimensions. Tell user and offer to retry failed dimension(s) manually via `Agent(review-mr-security, ...)`.
+If workflow returns `failedDimensions: ['security']`, the report still includes results from other 6 dimensions. Tell user and offer to retry failed dimension(s) manually via `Agent(review-mr-security, ...)`.
 
 ### Workflow unavailable
 If `.claude/workflows/workflow-review-mr-pipeline.js` doesn't exist:
@@ -233,10 +235,10 @@ If workflow returns `verdict: 'ERROR'`:
   → review-mr-security + review-mr-bugs in parallel → adversarial verification
 
 /sdlc-review-mr --full gl-456
-  → GitLab MR #456 → all 6 subagents in parallel → standard (no adversarial)
+  → GitLab MR #456 → all 7 subagents in parallel → standard (no adversarial)
 
 /sdlc-review-mr --full --adversarial gl-456
-  → GitLab MR #456 → all 6 subagents → adversarial verification of all findings
+  → GitLab MR #456 → all 7 subagents → adversarial verification of all findings
 
 /sdlc-review-mr
   → Batch AskUserQuestion (Q1: scope, Q2: verification) → workspace discovery
@@ -256,15 +258,16 @@ All reports saved to: `.work/review-mr/REVIEW-YYYYMMDD--{platform}-{number}-{san
 
 ## Subagent Architecture
 
-This skill reuses the same 6 subagent definitions as `/review-mr`:
+This skill reuses the same 7 subagent definitions as `/review-mr`:
 - `.claude/agents/review-mr-arch.md` → `agentType: 'review-mr-arch'`
 - `.claude/agents/review-mr-security.md` → `agentType: 'review-mr-security'`
 - `.claude/agents/review-mr-bugs.md` → `agentType: 'review-mr-bugs'`
 - `.claude/agents/review-mr-conventions.md` → `agentType: 'review-mr-conventions'`
 - `.claude/agents/review-mr-impact.md` → `agentType: 'review-mr-impact'`
 - `.claude/agents/review-mr-ops.md` → `agentType: 'review-mr-ops'`
+- `.claude/agents/review-mr-tests.md` → `agentType: 'review-mr-tests'`
 
-All 6 run in parallel inside the workflow. Each receives the full MR diff + metadata.
+All 7 run in parallel inside the workflow. Each receives the full MR diff + metadata.
 
 ## Key Principles
 
@@ -287,6 +290,7 @@ All 6 run in parallel inside the workflow. Each receives the full MR diff + meta
 - `../review-mr/references/dimension-conventions.md` — CLAUDE.md compliance workflow + checklist
 - `../review-mr/references/dimension-impact.md` — Feature impact workflow + checklist
 - `../review-mr/references/dimension-ops.md` — Operational impact workflow + checklist
+- `../review-mr/references/dimension-tests.md` — Test quality workflow + checklist (cheating patterns, test-to-impl mapping, assertion quality)
 - `../review-mr/references/workspace-discovery.md` — Multi-repo workspace discovery
 - `../review-mr/references/gh-cli-reference.md` — GitHub CLI commands
 - `../review-mr/references/glab-cli-reference.md` — GitLab CLI commands

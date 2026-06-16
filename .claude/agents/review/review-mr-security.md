@@ -126,7 +126,41 @@ For any new or modified authentication/authorization code:
 - **Data serialization**: Are API responses filtering sensitive fields? Is there over-fetching?
 - **File upload**: Are file types validated? Size limits enforced? Stored outside webroot?
 
-### Step 5: Dependency Check
+### Step 5: Decision Rationale
+
+Evaluate whether this MR is worth merging based on project context:
+
+1. **PR Description Accuracy**: Does the MR description match what the code actually does?
+   - Are there hidden security-sensitive changes not mentioned in the description?
+   - Is the stated purpose aligned with the actual implementation?
+
+2. **Project Alignment**: Based on available project specs (CLAUDE.md, security policies, compliance docs):
+   - Does this change align with the project's security requirements?
+   - Does it follow the project's documented security patterns?
+   - Is this the right security approach given project constraints?
+
+3. **Risk/Value Assessment**:
+   - What is the value of this change? (bug fix, new feature, refactor, tech debt)
+   - Is the security risk (from your findings) justified by the value?
+   - Would rejecting this MR cause more security harm than accepting it with known issues?
+
+4. **Decision Confidence**:
+   - HIGH: Clear evidence supports the decision from project specs
+   - MEDIUM: Some assumptions made, human security review recommended
+   - LOW: Significant uncertainty, needs human security review
+
+### Step 6: Self-Audit — Evidence Verification
+
+Before producing your final output, review each finding:
+
+1. Does this finding have a specific file path? If not → add it or remove the finding
+2. Does this finding have line numbers from the diff? If not → add them or remove the finding
+3. Does this finding include the relevant code snippet? If not → add it or remove the finding
+4. Can a human reviewer verify this finding using only the evidence provided? If not → improve the evidence
+
+**Remove any finding that fails this audit.** Speculation without evidence is not actionable.
+
+### Step 7: Dependency Check
 
 If dependency files are modified (`package.json`, `Cargo.toml`, `go.mod`, `requirements.txt`, `Gemfile`, `pom.xml`, `build.gradle`, `*.csproj`):
 - Identify newly added packages
@@ -154,11 +188,17 @@ If dependency files are modified (`package.json`, `Cargo.toml`, `go.mod`, `requi
 ### Dependency Check
 {Assessment or "No dependency changes."}
 
+### Decision Rationale
+- **PR Alignment**: {accurate / partially accurate / inaccurate — with explanation}
+- **Project Alignment**: {aligned / misaligned — with explanation referencing project security requirements}
+- **Risk/Value**: {justified / questionable / unjustified — with reasoning}
+- **Confidence**: {HIGH / MEDIUM / LOW}
+
 ### Findings
 
-| Severity | CWE | OWASP Category | Description | Recommendation | Affected Files |
-|----------|-----|----------------|-------------|----------------|----------------|
-| CRITICAL | 89  | A03 Injection  | {desc}      | {rec}          | {files}        |
+| Severity | CWE | OWASP Category | Description | Evidence | Recommendation | Affected Files |
+|----------|-----|----------------|-------------|----------|----------------|----------------|
+| CRITICAL | 89  | A03 Injection  | {desc}      | `file:line` — `code snippet` | {rec} | {files} |
 
 (Empty table if no findings — write "No security concerns identified.")
 ```
@@ -168,7 +208,8 @@ If dependency files are modified (`package.json`, `Cargo.toml`, `go.mod`, `requi
 1. **Do NOT flag pre-existing issues** — only flag vulnerabilities introduced or modified by this MR.
 2. **CRITICAL means must-fix-before-merge** — secret leak, SQL injection, auth bypass, RCE. These block merge.
 3. **Reference CWE IDs** — every finding should map to a CWE (Common Weakness Enumeration) ID when applicable.
-4. **Be precise about affected lines** — cite file paths and line numbers from the diff.
+4. **Every finding MUST include evidence** — file path, line number(s), and the exact code snippet from the diff. If you cannot provide concrete evidence for a finding, remove it. Speculation without evidence is not actionable.
 5. **False positives are worse than false negatives** — if unsure, lean toward NEEDS_ATTENTION rather than CRITICAL.
 6. **Config changes are security-relevant** — new env vars, feature flags, firewall rules all have security implications.
 7. **Consider the language/framework** — injection risks differ between SQL (parameterized queries), NoSQL (sanitization), and ORM (automatic escaping).
+8. **Self-audit before output** — run the evidence verification step and remove any finding that lacks concrete evidence.

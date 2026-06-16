@@ -34,6 +34,9 @@ Bảng kiểm tra toàn diện cho validation subagent.
 - [ ] Nếu dùng `disallowedTools` (denylist), đã chặn đúng tools nguy hiểm chưa?
 - [ ] Bash được scoped với command patterns nếu cần?
 - [ ] Subagent có thực sự cần Write/Edit không?
+- [ ] Có `Agent` tool không? Nếu có, subagent thực sự cần spawn nested subagents?
+- [ ] Nếu là background subagent: `Agent` tool sẽ bị chặn từ độ sâu 5. Có ảnh hưởng gì không?
+- [ ] Có `Skill` tool không? Nếu không, có cần gọi skill động không? Nếu có, có nên chuyển một số skill sang `skills` field để tiết kiệm round-trip không?
 
 ## Phase 5: Permissions
 
@@ -61,7 +64,10 @@ Bảng kiểm tra toàn diện cho validation subagent.
 - [ ] Subagent đã được test với real delegation scenarios chưa?
 - [ ] Có cần `maxTurns` để giới hạn số lượt không?
 - [ ] `memory` scope có phù hợp không (user/project/local)?
-- [ ] `skills` preload có hữu ích không?
+- [ ] `skills` preload: skill nào được preload? Có thực sự cần LUÔN có trong context không?
+- [ ] `skills` field vs `Skill` tool: Đã chọn đúng cơ chế chưa? (skill nền tảng → preload; skill tùy chọn → `Skill` tool)
+- [ ] Nếu dùng `skills` field: Có skill nào hiếm dùng gây lãng phí token không?
+- [ ] Nếu dùng `Skill` tool: Đã khai báo `Skill` trong `tools` chưa?
 - [ ] `mcpServers` có cần thiết không?
 - [ ] `isolation: worktree` có cần cho parallel execution không?
 - [ ] `effort` level có phù hợp với task không?

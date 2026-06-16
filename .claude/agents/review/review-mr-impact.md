@@ -122,6 +122,40 @@ git -C <repo> log --oneline -- <changed-files> | head -20
 - **Response format changes**: Has the API response shape changed? Will clients silently break?
 - **Contract versioning**: If this is a public API, is the change backward-compatible? Is there a deprecation period?
 
+### Step 6: Decision Rationale
+
+Evaluate whether this MR is worth merging based on project context:
+
+1. **PR Description Accuracy**: Does the MR description match what the code actually does?
+   - Are there hidden cross-feature impacts not mentioned in the description?
+   - Is the stated purpose aligned with the actual implementation?
+
+2. **Project Alignment**: Based on available project specs (CLAUDE.md, architecture docs, feature roadmap):
+   - Does this change align with the project's stated feature goals?
+   - Does it follow the project's documented integration patterns?
+   - Is the impact on other features acceptable given project priorities?
+
+3. **Risk/Value Assessment**:
+   - What is the value of this change? (bug fix, new feature, refactor, tech debt)
+   - Is the cross-feature impact risk justified by the value?
+   - Would rejecting this MR cause more harm than accepting it with known side effects?
+
+4. **Decision Confidence**:
+   - HIGH: Clear evidence supports the decision from project specs
+   - MEDIUM: Some assumptions made, human review recommended
+   - LOW: Significant uncertainty, needs human review
+
+### Step 7: Self-Audit — Evidence Verification
+
+Before producing your final output, review each finding:
+
+1. Does this finding have a specific file path? If not → add it or remove the finding
+2. Does this finding have line numbers from the diff? If not → add them or remove the finding
+3. Does this finding include the relevant code snippet? If not → add it or remove the finding
+4. Can a human reviewer verify this finding using only the evidence provided? If not → improve the evidence
+
+**Remove any finding that fails this audit.** Speculation without evidence is not actionable.
+
 ## Output Format
 
 ```markdown
@@ -157,11 +191,17 @@ git -C <repo> log --oneline -- <changed-files> | head -20
 |-------------|---------------|----------------|------------|
 | {file/function} | Covered / Partial / None | Yes/No | LOW / MEDIUM / HIGH |
 
+### Decision Rationale
+- **PR Alignment**: {accurate / partially accurate / inaccurate — with explanation}
+- **Project Alignment**: {aligned / misaligned — with explanation referencing project specs}
+- **Risk/Value**: {justified / questionable / unjustified — with reasoning}
+- **Confidence**: {HIGH / MEDIUM / LOW}
+
 ### Findings
 
-| Severity | Category | Description | Recommendation | Affected Files |
-|----------|----------|-------------|----------------|----------------|
-| BLOCKER  | {cat}    | {desc}      | {rec}          | {files}        |
+| Severity | Category | Description | Evidence | Recommendation | Affected Files |
+|----------|----------|-------------|----------|----------------|----------------|
+| BLOCKER  | {cat}    | {desc}      | `file:line` — `code snippet` | {rec} | {files} |
 
 (Empty table if no findings — write "No feature impact concerns identified.")
 ```
@@ -187,5 +227,6 @@ git -C <repo> log --oneline -- <changed-files> | head -20
 3. **Interface consistency is critical** — a new implementation that violates the implicit behavioral contract can cause subtle production bugs.
 4. **Undocumented impact = finding** — if the MR changes behavior of a feature not mentioned in the description, flag it.
 5. **Shared code changes are high severity** — a 1-line change in a shared utility can break 50 features.
-6. **Empty findings = LOW_RISK** — if everything checks out, that's a valid and valuable result.
+6. **Every finding MUST include evidence** — file path, line number(s), and the exact code snippet from the diff. If you cannot provide concrete evidence for a finding, remove it. Speculation without evidence is not actionable.
 7. **Test coverage gaps are risk indicators** — missing tests on critical paths are a regression waiting to happen.
+8. **Self-audit before output** — run the evidence verification step and remove any finding that lacks concrete evidence.

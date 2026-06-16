@@ -104,7 +104,41 @@ For each rule extracted from CLAUDE.md:
    - New features: is documentation included or referenced?
    - API changes: are API docs updated?
 
-### Step 4: Cross-Reference With Project Context
+### Step 4: Decision Rationale
+
+Evaluate whether this MR is worth merging based on project context:
+
+1. **PR Description Accuracy**: Does the MR description match what the code actually does?
+   - Are there hidden convention-breaking changes not mentioned in the description?
+   - Is the stated purpose aligned with the actual implementation?
+
+2. **Project Alignment**: Based on available project specs (CLAUDE.md, coding standards):
+   - Does this change follow the project's documented conventions?
+   - Does it introduce patterns that conflict with CLAUDE.md rules?
+   - Is the approach consistent with the project's documented style?
+
+3. **Risk/Value Assessment**:
+   - What is the value of this change? (bug fix, new feature, refactor, tech debt)
+   - Do convention violations create maintenance risk?
+   - Would accepting this MR set a bad precedent for future changes?
+
+4. **Decision Confidence**:
+   - HIGH: Clear evidence supports the decision from CLAUDE.md
+   - MEDIUM: Some assumptions made, human review recommended
+   - LOW: Significant uncertainty, needs human review
+
+### Step 5: Self-Audit — Evidence Verification
+
+Before producing your final output, review each finding:
+
+1. Does this finding have a specific file path? If not → add it or remove the finding
+2. Does this finding have line numbers from the diff? If not → add them or remove the finding
+3. Does this finding include the relevant code snippet? If not → add it or remove the finding
+4. Can a human reviewer verify this finding using only the evidence provided? If not → improve the evidence
+
+**Remove any finding that fails this audit.** Speculation without evidence is not actionable.
+
+### Step 6: Cross-Reference With Project Context
 
 - Are new dependencies on the approved list (if defined in CLAUDE.md)?
 - Does the code follow the "preferred approach" described in CLAUDE.md?
@@ -137,11 +171,17 @@ For each rule extracted from CLAUDE.md:
 ### Documentation
 {Assessment or "Documentation requirements met."}
 
+### Decision Rationale
+- **PR Alignment**: {accurate / partially accurate / inaccurate — with explanation}
+- **Project Alignment**: {aligned / misaligned — with explanation referencing CLAUDE.md}
+- **Risk/Value**: {justified / questionable / unjustified — with reasoning}
+- **Confidence**: {HIGH / MEDIUM / LOW}
+
 ### Findings
 
-| Severity  | Rule Source | Description | Recommendation | Affected Files |
-|-----------|-------------|-------------|----------------|----------------|
-| VIOLATION | CLAUDE.md L42 — Naming | {desc} | {rec} | {files} |
+| Severity  | Rule Source | Description | Evidence | Recommendation | Affected Files |
+|-----------|-------------|-------------|----------|----------------|----------------|
+| VIOLATION | CLAUDE.md L42 — Naming | {desc} | `file:line` — `code snippet` | {rec} | {files} |
 
 (Empty table if no findings — write "All CLAUDE.md conventions followed. No compliance issues found.")
 ```
@@ -167,3 +207,5 @@ For each rule extracted from CLAUDE.md:
 5. **Empty findings is valid** — if CLAUDE.md has few or no concrete rules, COMPLIANT with no findings is the correct result.
 6. **Check directory-specific CLAUDE.md** — a file in `src/api/` may be governed by both root CLAUDE.md AND `src/api/CLAUDE.md`.
 7. **New files get extra scrutiny** — new files that don't follow conventions are more concerning than modified files that don't change conventions.
+8. **Every finding MUST include evidence** — file path, line number(s), and the exact code snippet from the diff. If you cannot provide concrete evidence for a finding, remove it. Speculation without evidence is not actionable.
+9. **Self-audit before output** — run the evidence verification step and remove any finding that lacks concrete evidence.

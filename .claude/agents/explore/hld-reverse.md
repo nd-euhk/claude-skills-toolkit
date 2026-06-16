@@ -97,6 +97,8 @@ Write each ADR to `docs/architecture/ADRs/`. These explain WHY the architecture 
 - Rationale: why this event architecture
 - Consequences: eventual consistency trade-offs observed in code
 
+**Additional ADRs** (ADR-004+): Extract any other significant architectural decision the project needs. Each follows the same context/decision/rationale/consequences format.
+
 ### Step 5: Agent Documentation
 
 Write `agent_docs/architecture.md`:

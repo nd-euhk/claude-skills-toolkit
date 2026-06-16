@@ -228,6 +228,56 @@ That middle `transform` doesn't need the barrier. Rewrite as pipeline with the t
 | No mid-run user input | Only agent permission prompts can pause. For sign-off between stages, run separate workflows |
 | Standard JS only | No TypeScript annotations. `await`, `JSON`, `Math` (except random), `Array` available |
 
+## Agent Capabilities: Skills & MCP
+
+Các agent được spawn trong workflow có thể sử dụng skills và MCP tools — nhưng cơ chế khác với phiên chính.
+
+### Skills trong Workflow Agents
+
+Có **hai cơ chế độc lập** để agent trong workflow sử dụng skill:
+
+**1. `skills` trong frontmatter của agent definition — Preload tĩnh:**
+
+Khi bạn dùng `agentType: 'phase-hld-specialist'`, agent đó chạy với định nghĩa trong `.claude/agents/phase-hld-specialist.md`. Nếu file đó khai báo:
+
+```yaml
+skills: sequential-thinking, problem-solving
+```
+
+Thì toàn bộ nội dung `SKILL.md` của các skill đó được **inject thẳng vào system prompt** của agent khi khởi tạo. Agent có thể tham chiếu trực tiếp đến skill content. **Không cần `Skill` tool, không cần gọi invoke.**
+
+**2. `Skill` tool — Gọi động tại runtime:**
+
+Nếu agent definition có `Skill` trong `tools` list:
+```yaml
+tools: Read, Write, Edit, Bash, Skill, Agent
+```
+
+Thì agent có thể gọi `Skill(sequential-thinking)` như một function call để load và thực thi skill đó — giống hệt cách phiên chính gọi `/sequential-thinking`.
+
+**3. Workflow agent KHÔNG kế thừa skill từ phiên chính:**
+
+Skills đã load trong main session không tự động có trong workflow agent. Mỗi agent cần được cấu hình riêng qua `skills` field hoặc `Skill` tool.
+
+**Quyết định nhanh:**
+
+| Tình huống | Dùng |
+|-----------|------|
+| Skill nền tảng, luôn cần | `skills: skill-name` trong frontmatter |
+| Skill tùy chọn, dùng có điều kiện | `Skill` trong `tools` + gọi `Skill(name)` |
+| Tiết kiệm token | `Skill` tool (chỉ tốn token khi invoke) |
+| Hiệu năng (tránh round-trip) | `skills` field (có sẵn ngay) |
+
+### MCP Tools trong Workflow Agents
+
+Tất cả MCP servers đã kết nối trong phiên đều **tự động khả dụng** cho workflow agents. Schema được load on-demand qua ToolSearch — không tốn context window cho đến khi cần.
+
+**Lưu ý:** MCP servers yêu cầu xác thực tương tác (ví dụ: `claude.ai`) có thể không khả dụng trong headless/cron runs.
+
+### Nested Subagents (Agent Tool)
+
+Workflow agent có `Agent` trong `tools` có thể spawn nested subagents. Xem `Agent Tool` trong subagent-creator's configuration-reference.md để biết depth limits (foreground: không giới hạn, background: tối đa độ sâu 4).
+
 ## Quality Patterns Quick Reference
 
 Quick decision guide. Full code examples for all 7 patterns in `references/quality-patterns.md` — adversarial verify, perspective-diverse verify, judge panel, loop-until-dry, multi-modal sweep, completeness critic, idempotent phase skip, plus parallel-step and sequential-chain patterns.

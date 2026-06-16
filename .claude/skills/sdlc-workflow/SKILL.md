@@ -1,100 +1,168 @@
 ---
-name: sdlc:workflow
+name: sdlc-workflow
 description: >-
-  Orchestrate SDLC workflows end-to-end using Workflow tool for deterministic agent chains.
-  Use when starting a new feature (feature/task/story), handling a change request (cr), or cooking ready tasks for implementation (cook).
-  Supports --auto flag to bypass plan mode. Skill handles interactive phases (plan mode, sprint, reports, AskUserQuestion).
-  Delegates deterministic agent chains to workflow-sdlc-*-pipeline workflows for resumability and token efficiency.
-argument-hint: "[feature|task|story|cr|cook] [description] [--auto] [--lang vi|en] [--vi] [--en]"
+  Điều phối SDLC workflow end-to-end. Dùng khi bắt đầu feature mới (task), xử lý
+  change request (cr), hoặc nấu task đã sẵn sàng để triển khai (cook). Hỗ trợ chế
+  độ tự động (auto) và thủ công (manual) với xác minh gate.
+argument-hint: "[task|cr|cook] [desc]"
+disable-model-invocation: true
 version: 1.2.0
-allowed-tools: Read, Bash(*), Write, AskUserQuestion, Agent, Skill, Workflow, EnterPlanMode, ExitPlanMode
+allowed-tools: Read, AskUserQuestion, EnterPlanMode, ExitPlanMode
 ---
 
-# SDLC Workflow (Hybrid: Skill + Workflow)
+# SDLC Workflow — Điều Phối Pipeline
 
-Orchestrate full SDLC using **Skill** for interactive phases and **Workflow** for deterministic agent chains. Three workflow variants cover the entire development lifecycle.
-
-**Key difference from orchestrator**: Phase 3 (deterministic agent chains) runs as a single `workflow()` call instead of manual agent orchestration. Benefits: resumable pipeline, automatic gate retry, system-managed concurrency, token-efficient (intermediate results stay in script variables).
+Điều phối SDLC workflow end-to-end bằng cách xác định ý định của con người, kiểm tra trạng thái sprint board, và route sang skill `sdlc-phase-manual` hoặc `sdlc-phase-auto`.
 
 ## Quick Start
 
-### Step 1: Parse Arguments
+### Step 1: Parse Input
 
-Extract from human input:
-- **workflow type**: `feature`, `task`, `story` → Task Pipeline | `cr` → CR Pipeline | `cook` → Cook Pipeline
-- **description**: free-text describing what to build/change
-- **--auto flag**: if present, skip plan mode and execute directly
-- **--lang <vi|en>**: output language. `vi` = Vietnamese (default), `en` = English. Reject any other value.
-- **--vi flag**: shorthand for `--lang vi`. If both `--vi` and `--lang` present, `--lang` takes precedence.
-- **--en flag**: shorthand for `--lang en`. If both `--en` and `--lang` present, `--lang` takes precedence.
+Trích xuất từ human input:
 
-### Step 2: Route to Workflow
+| Argument | Mô tả | Giá trị |
+|----------|-------|---------|
+| **workflow type** | Loại workflow | `task` — feature/task/story mới |
+| | | `cr` — change request |
+| | | `cook` — nấu task đã sẵn sàng |
+| **desc** | Mô tả tự do | Free-text mô tả cần làm gì |
+
+**Nếu thiếu workflow type hoặc desc**, dùng `AskUserQuestion` để thu thập:
 
 ```
-INPUT: [workflow-type] [description] [--auto] [--lang vi|en] [--vi] [--en]
+Câu hỏi 1: "Bạn muốn thực hiện loại workflow nào?" (header: "Workflow")
+  - "Task — feature/task/story mới"
+  - "CR — Change Request"
+  - "Cook — Triển khai task đã sẵn sàng"
 
-MATCH workflow-type:
-  feature|task|story  → references/task-workflow.md       (aliases — same pipeline)
-  cr                  → references/change-request-workflow.md
-  cook                → references/cook-workflow.md
-  NO MATCH            → AskUserQuestion to disambiguate
+Câu hỏi 2: "Mô tả ngắn gọn" (header: "Mô tả", free-text)
 ```
 
-**If no match**, use AskUserQuestion:
-- Question: "Which workflow?" (header: "Workflow")
-  Options: "New Feature/Task/Story" | "Change Request (CR)" | "Cook (Implement Ready Tasks)"
-- Then ask: "Skip plan mode?" (header: "Auto Mode")
-  Options: "Yes (--auto)" | "No (enter plan mode)"
+### Step 2: Xác Minh Trạng Thái Sprint Board
 
-## Common Phase: Plan Mode
+Trước khi tiếp tục, xác minh item tồn tại trong sprint board với trạng thái phù hợp.
 
-Applies when `--auto` is NOT present.
+Dùng `Skill(sprint)` để kiểm tra board:
 
-1. Call `EnterPlanMode`
-2. Spawn `Agent(Plan)` to clarify requirements and draft the plan:
-   - **Skill(sequential-thinking)** when: Task touches >=2 bounded contexts or >=3 FRs; CR impacts both HLD+LLD; Cook spans BE+FE with shared API contracts
-   - **Skill(problem-solving)** when: requirements ambiguous or conflict with known constraints; CR violates hard boundary; Cook tasks have implicit cross-dependencies
-3. On approval, spawn `Agent(general-purpose)` to write plan to:
-   - Task: `.work/plans/task-YYYYMMDD-{FR-name}--{slug}.md`
-   - CR: `.work/plans/cr-YYYYMMDD-{FR-name}--{slug}.md`
-   - Cook: `.work/plans/cook-YYYYMMDD-{FR-name}--{slug}.md`
-4. Confirm: "Plan written. Continue?" (header: "Proceed", options: "Continue to execution" | "Let me review")
-5. Call `ExitPlanMode` to proceed.
+| Workflow Type | Trạng Thái Yêu Cầu Trong Board | Cách Kiểm Tra |
+|---------------|-------------------------------|---------------|
+| **task** | `todo` | Board phải có task với trạng thái `todo` khớp với desc |
+| **cr** | `done` hoặc `in review` | Board phải có task với trạng thái `done` hoặc `in review` khớp với desc |
+| **cook** | `ready` | Board phải có task với trạng thái `ready` khớp với desc |
 
-## Workflow Overview
+**Nếu không tìm thấy trong board — phân biệt theo workflow type:**
 
-| Workflow | Interactive (Skill) | Deterministic (Workflow) | Reference |
-|----------|---------------------|--------------------------|-----------|
-| **Task** | Pick TODO → Plan(opt) → Sprint → Summary + Next | SRS→gate→HLD→gate→LLD→gate→IMP+TST(//)→gate | `references/task-workflow.md` |
-| **CR** | Pick Done/In Review → Plan(opt) → Sprint → Report + Next | HLD(opt)→gate(opt)→LLD(opt)→gate(opt)→IMP+TST(//)→gate | `references/change-request-workflow.md` |
-| **Cook** | Pick Ready → Plan(opt) → Sprint → Report + Next | TDD red→green→gate:light→refactor→gate:full (BE+FE //) | `references/cook-workflow.md` |
+**Với `task`:**
+- Báo: "Không tìm thấy task '{desc}' với trạng thái `todo` trong board."
+- Gọi `Skill(brainstorming)` để cùng human làm rõ task này:
+  - Task này là gì? Scope ra sao?
+  - Có liên quan đến bounded context nào không?
+  - Có cần tạo mới trong board không?
+- Sau brainstorming, nếu human xác nhận → gọi `Skill(sprint)` thêm task vào board với trạng thái `todo`, rồi tiếp tục sang Step 3.
+- Nếu human không muốn tiếp tục → dừng skill.
 
-Each reference file contains: workflow args structure, invocation syntax, result processing, error handling patterns (see `references/error-handling.md`), sprint integration, report format, and next-step routing.
+**Với `cr`:**
+- Báo: "Không tìm thấy CR '{desc}' với trạng thái `done` hoặc `in review` trong board."
+- Gọi `Skill(brainstorming)` để cùng human làm rõ impact dự kiến của CR:
+  - CR này ảnh hưởng đến những phase nào? (HLD, LLD, IMP, TST?)
+  - Có breaking changes không?
+  - Scope thay đổi dự kiến là gì?
+- Sau brainstorming, nếu human xác nhận → tiếp tục sang Step 3 với bối cảnh đã brainstorm.
+- Nếu human không muốn tiếp tục → dừng skill.
+
+**Với `cook`:**
+> **TODO — sẽ xử lý sau.** Luồng cook khi không tìm thấy trong board sẽ được thiết kế trong bản cập nhật tiếp theo. Hiện tại, nếu không tìm thấy cook trong board với trạng thái `ready`, báo lỗi: "Task '{desc}' chưa sẵn sàng để cook (cần trạng thái `ready` trong board)." và dừng skill.
+
+### Step 3: Xác Định Chế Độ và Gate Verify (Batch AskUserQuestion)
+
+Dùng MỘT lần gọi `AskUserQuestion` batch với 2 câu hỏi để xác định đồng thời:
+
+```
+Câu hỏi 1: "Chế độ thực thi?" (header: "Chế Độ")
+  - "Tự động (Auto)" — Không tương tác, chạy tự động qua workflow-sdlc-auto-pipeline
+  - "Thủ công (Manual)" — Có sự tham gia của con người qua brainstorming tương tác
+
+Câu hỏi 2: "Có chạy gate verify không?" (header: "Gate Verify")
+  - "Có" — Chạy Agent(Explore) xác minh gate criteria sau mỗi phase
+  - "Không (--no-gate)" — Bỏ qua gate verification
+```
+
+⏸️ Chờ human trả lời cả 2 câu hỏi.
+
+### Step 3b: Plan Mode — Phê Duyệt Trước Khi Thực Thi
+
+Sau khi có kết quả Step 3, vào `EnterPlanMode` để human phê duyệt kế hoạch thực thi:
+
+**Nội dung plan phải hiển thị:**
+- **Workflow type:** task / cr / cook
+- **Mô tả:** desc từ Step 1
+- **Chế độ:** Auto / Manual
+- **Gate verify:** Có / Không
+- **Phase(s) sẽ chạy:** Liệt kê các phase (SRS, HLD, LLD, IMP, TST)
+- **Output dự kiến:** Các file sẽ được tạo/cập nhật
+
+Viết plan vào `.claude/plans/` và gọi `ExitPlanMode`. Đợi human phê duyệt.
+
+> **Quy tắc:** Tương tự, sau brainstorming (Step 2, nhánh không tìm thấy trong board) cũng phải vào `EnterPlanMode` trước khi tiếp tục sang Step 3 — để human xác nhận kết quả brainstorming và scope trước khi chọn chế độ.
+
+### Step 4: Route Sang Phase Executor
+
+Dựa trên kết quả Step 3:
+
+| Chế Độ | Gate Verify | Route |
+|---------|-------------|-------|
+| Tự động (Auto) | Có | `Skill(sdlc-phase-auto)` với args: `[phase] [desc]` |
+| Tự động (Auto) | Không | `Skill(sdlc-phase-auto)` với args: `[phase] [desc] --no-gate` |
+| Thủ công (Manual) | Có | `Skill(sdlc-phase-manual)` với args: `[phase] [desc]` |
+| Thủ công (Manual) | Không | `Skill(sdlc-phase-manual)` với args: `[phase] [desc] --no-gate` |
+
+**Xác định phase từ workflow type:**
+
+| Workflow Type | Phase(s) | Ghi Chú |
+|---------------|----------|---------|
+| **task** | SRS → HLD → LLD → IMP+TST | Pipeline tuần tự đầy đủ. Cả `sdlc-phase-auto` và `sdlc-phase-manual` đều nhận tất cả phase trong một lần gọi (vd: `srs hld lld imp tst`) và tự xử lý tuần tự nội bộ. |
+| **cr** | HLD(opt) → LLD(opt) → IMP+TST | Chỉ chạy phase bị ảnh hưởng bởi change. Xác định phase cần chạy dựa trên impact của CR. Truyền các phase bị ảnh hưởng trong một lần gọi. |
+| **cook** | IMP+TST | Chạy song song IMP và TST. Cả `sdlc-phase-auto` và `sdlc-phase-manual` đều nhận `imp tst` trong một lần gọi. |
+
+**Với chế độ Manual + task (nhiều phase):** Gọi `Skill(sdlc-phase-manual)` MỘT LẦN với tất cả phase: `srs hld lld imp tst [desc]`. `sdlc-phase-manual` tự xử lý tuần tự nội bộ: khởi tạo một lần → mỗi phase vào plan mode → execute (specialist + verify) → report → human review → phase tiếp theo. Bạn không cần gọi lại skill cho từng phase.
+
+**Với chế độ Manual + cr:** Xác định phase bị ảnh hưởng, gọi `Skill(sdlc-phase-manual)` MỘT LẦN với danh sách phase bị ảnh hưởng (vd: `hld lld imp tst [desc]`).
+
+**Error handling:** Nếu `Skill(sdlc-phase-auto)` hoặc `Skill(sdlc-phase-manual)` không khả dụng (skill not found) → báo lỗi rõ ràng cho human: "Không tìm thấy skill [tên-skill]. Hãy kiểm tra plugin đã được cài đặt đúng cách chưa." Không tự động fallback hoặc thử alternative path.
+
+### Step 5: Hiển Thị Kết Quả
+
+Sau khi phase executor hoàn thành, hiển thị tóm tắt cho human:
+
+- Workflow type đã chạy
+- Chế độ: Auto/Manual
+- Gate verify: Có/Không
+- Phase đã thực thi và trạng thái
+- Output files đã tạo
+- Bất kỳ blockers hoặc issues nào
+
+Nếu có failure, dùng `AskUserQuestion` hỏi human muốn xử lý thế nào:
+- "Thử lại phase bị fail"
+- "Bỏ qua và tiếp tục"
+- "Dừng pipeline"
+
+## Luồng Chi Tiết
+
+Sơ đồ luồng chi tiết cho từng workflow type (task, cr, cook): xem `references/flows.md`.
 
 ## Key Notes
 
-**Workflow delegation.** Phase 3 is a single `workflow()` call. The workflow script handles all agent orchestration, gate retry, and concurrency. Do NOT manually spawn SDLC agents during execution.
+**Skill(sprint) integration.** Luôn dùng `Skill(sprint)` để kiểm tra và cập nhật sprint board — không bao giờ sửa file sprint trực tiếp.
 
-**Resumable.** If workflow is paused/killed, resume in-session — completed agents return cached results instantly. On gate failure, re-invoke with same args — completed phases auto-skipped via output detection. Use `fromPhase` arg to skip directly to a specific phase.
+**Không tự thực thi agent.** Skill này KHÔNG spawn subagent. Mọi execution được ủy thác cho `sdlc-phase-manual` hoặc `sdlc-phase-auto`.
 
-**Plan mode stays in skill.** `EnterPlanMode`/`ExitPlanMode` are skill-level operations. Workflows don't support mid-run user input.
+**Plan mode trước khi thực thi.** Skill này vào `EnterPlanMode` sau khi xác định chế độ (Step 3b) và sau brainstorming (Step 2, nhánh không tìm thấy trong board). Human phải phê duyệt plan trước khi route sang phase executor.
 
-**Sprint integration.** Use `Skill(sprint)` for board state — never modify sprint files directly.
+**Batch AskUserQuestion.** Step 3 dùng MỘT lần gọi `AskUserQuestion` duy nhất với 2 câu hỏi. Không tách thành 2 lần gọi riêng — điều này giảm số lần tương tác với human.
 
-**Report paths.** `mkdir -p .work/plans .work/reports .work/tasks .work/cooks .work/change-requests` before writing.
+**Language.** Toàn bộ giao tiếp với human bằng tiếng Việt. Technical terms và code identifiers giữ nguyên tiếng Anh.
 
-**Error recovery.** Workflow returns structured error results. Skill processes them using patterns from `references/error-handling.md` — decision trees for workflow failures, gate rejections, agent errors, file issues, and partial failures. Never auto-retry on workflow errors; always AskUserQuestion for human decision.
+**Error handling.** Mọi lỗi từ phase executor được hiển thị cho human kèm theo tùy chọn xử lý (thử lại, bỏ qua, dừng). Không tự động retry nếu không có sự đồng ý của human.
 
-**Workflow file guard.** Before invoking `Workflow()`, verify the script exists: `ls .claude/workflows/workflow-sdlc-{type}-pipeline.js`. If missing, fall back to manual agent orchestration (same as orchestrator skill).
+**Manual multi-phase.** Với chế độ Manual, gọi `Skill(sdlc-phase-manual)` MỘT LẦN duy nhất với tất cả phase cần chạy (vd: `srs hld lld imp tst [desc]`). `sdlc-phase-manual` xử lý toàn bộ chuỗi nội bộ: khởi tạo một lần (brainstorming cho TẤT CẢ phase) → từng phase tuần tự (EnterPlanMode → execute → report → human review). Bạn không cần gọi lại skill nhiều lần — việc tuần tự hóa và tương tác với human giữa các phase được xử lý bên trong skill.
 
-**Language (`--lang`, `--vi`, `--en`).** `--lang vi|en` sets output language for ALL generated documentation. Default: `vi` (Vietnamese). `--vi` = `--lang vi`. `--en` = `--lang en`. Only `vi`/`en` supported — reject any other value. If multiple flags present: `--lang` takes precedence over `--vi`/`--en`. Technical terms and code identifiers never translated.
-
-**Artifacts written in target language:**
-- Agent briefs: prepend "Write all output in {language}" as the first line
-- Plan files, SDLC artifacts (SRS, HLD, LLD, IMP, TST), sprint artifacts, summary reports
-
-**Artifacts kept in original form (never translated):**
-- Technical terms: API, HTTP, JSON, class names, package names
-- Code identifiers: function names, variable names, file paths
-
-**Orchestrator compatibility.** This skill is a drop-in alternative to `/orchestrator`. Same args, same workflows, same outputs. The only difference is Phase 3 execution: Workflow tool instead of manual agent spawning.

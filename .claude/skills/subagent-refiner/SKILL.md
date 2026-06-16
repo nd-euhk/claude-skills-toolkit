@@ -6,7 +6,7 @@ description: >-
   Sử dụng khi: refine subagent, cải thiện subagent, kiểm tra subagent có phù hợp
   không, tối ưu subagent, đánh giá subagent. Luôn dùng EnterPlanMode để lập kế
   hoạch và ExitPlanMode để chờ phê duyệt trước khi thực thi thay đổi.
-version: 1.1.0
+version: 1.2.0
 allowed-tools: Read,Edit,Write,Glob,Grep,AskUserQuestion,EnterPlanMode,ExitPlanMode,Task(*)
 ---
 
@@ -189,13 +189,29 @@ Trong plan mode, thực hiện đánh giá toàn diện subagent:
 
 **CHIỀU 2: Model** — Phù hợp task complexity: Haiku (đơn giản), Sonnet (trung bình), Opus (phức tạp), inherit (linh hoạt). Xem https://code.claude.com/docs/en/sub-agents#choose-a-model để biết thứ tự ưu tiên khi resolve model.
 
-**CHIỀU 3: Tools** — Least privilege, allowlist vs denylist, tool dư thừa/thiếu, Bash scoping (`Bash(git:*)`). Xem https://code.claude.com/docs/en/tools-reference cho danh sách tools đầy đủ và permission requirements.
+**CHIỀU 3: Tools** — Least privilege, allowlist vs denylist, tool dư thừa/thiếu, Bash scoping (`Bash(git:*)`), `Agent` tool và depth limits, `Skill` tool vs `skills` field. Xem https://code.claude.com/docs/en/tools-reference cho danh sách tools đầy đủ và permission requirements.
+
+Đặc biệt với `Agent` tool:
+- Subagent có thực sự cần spawn nested subagents không? Nếu không → bỏ `Agent` khỏi `tools` hoặc thêm vào `disallowedTools`
+- Nếu là background subagent: từ độ sâu 5 trở lên, Agent tool bị chặn — có ảnh hưởng đến use case không?
+- Nếu có `Agent` tool: subagent có thể tự spawn thêm, cần đánh giá nguy cơ runaway concurrent trees
+
+Đặc biệt với Skill:
+- `skills` trong frontmatter (preload) KHÔNG cần `Skill` tool. Nếu skill chỉ dùng qua preload → có thể bỏ `Skill` khỏi `tools`
+- Ngược lại, nếu cần gọi skill động (`Skill(name)`) → cần `Skill` trong `tools`
 
 **CHIỀU 4: Permission Mode** — default/acceptEdits/auto/dontAsk/bypassPermissions/plan. Phù hợp use case và môi trường? Plugin subagents: permissionMode bị ignore.
 
 **CHIỀU 5: Prompt** — Rõ ràng, có cấu trúc (Purpose → Behaviors → Constraints → Examples), delegation signals mạnh, token hiệu quả.
 
-**CHIỀU 6: Cấu hình khác** — memory (user/project/local), skills preload, mcpServers, maxTurns, isolation (worktree), background, effort.
+**CHIỀU 6: Cấu hình khác** — memory (user/project/local), skills preload (`skills` field vs `Skill` tool), mcpServers, maxTurns, isolation (worktree), background, effort.
+
+Đặc biệt với `skills` field:
+- `skills` trong frontmatter preload toàn bộ SKILL.md vào system prompt — luôn tốn token dù có dùng hay không
+- `Skill` tool cho phép gọi động — chỉ tốn token khi thực sự invoke
+- **Quy tắc đánh giá:** Skill luôn cần (nền tảng) → preload. Skill tùy chọn (dùng có điều kiện) → `Skill` tool
+- **Cảnh báo:** Preload skill hiếm dùng = lãng phí context window. Cân nhắc chuyển sang `Skill` tool
+- **Cảnh báo:** Dùng `Skill` tool mà không khai báo `Skill` trong `tools` → lỗi khi gọi
 
 #### 3.3 Xác định vấn đề và cơ hội cải thiện
 

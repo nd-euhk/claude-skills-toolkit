@@ -112,21 +112,55 @@ For new or modified database queries:
 - **Configuration drift**: New env vars in code — are they set in all environments (dev, staging, prod)?
 - **Resource differences**: Does the change assume resources (DB size, memory, CPU) that differ between environments?
 
-### Step 5: Rollback Complexity
+### Step 5: Decision Rationale
 
-#### 5a. Rollback Feasibility
+Evaluate whether this MR is worth merging based on project context:
+
+1. **PR Description Accuracy**: Does the MR description match what the code actually does?
+   - Are there hidden operational impacts not mentioned in the description?
+   - Is the stated purpose aligned with the actual implementation?
+
+2. **Project Alignment**: Based on available project specs (CLAUDE.md, deployment docs, infrastructure as code):
+   - Does this change align with the project's operational standards?
+   - Does it follow the project's documented deployment and rollback patterns?
+   - Is the operational approach correct given project constraints?
+
+3. **Risk/Value Assessment**:
+   - What is the value of this change? (bug fix, new feature, refactor, tech debt)
+   - Is the operational risk (from your findings) justified by the value?
+   - Would rejecting this MR cause more operational harm than accepting it?
+
+4. **Decision Confidence**:
+   - HIGH: Clear evidence supports the decision from project specs
+   - MEDIUM: Some assumptions made, human ops review recommended
+   - LOW: Significant uncertainty, needs human ops review
+
+### Step 6: Self-Audit — Evidence Verification
+
+Before producing your final output, review each finding:
+
+1. Does this finding have a specific file path? If not → add it or remove the finding
+2. Does this finding have line numbers from the diff? If not → add them or remove the finding
+3. Does this finding include the relevant code snippet? If not → add it or remove the finding
+4. Can a human reviewer verify this finding using only the evidence provided? If not → improve the evidence
+
+**Remove any finding that fails this audit.** Speculation without evidence is not actionable.
+
+### Step 7: Rollback Complexity
+
+#### 7a. Rollback Feasibility
 
 - **Can this be rolled back?** — If the deployment fails, what's the path back?
 - **DB rollback**: Is the DB migration reversible? Has the down-migration been tested?
 - **Data compatibility after rollback**: If new data was written, can old code read and process it?
 
-#### 5b. State & Data
+#### 7b. State & Data
 
 - **New data models**: After rollback, what happens to data written by the new code version?
 - **Config/database drift**: After rollback, will configs be left in an inconsistent state?
 - **Cache invalidation**: Do caches need to be cleared after rollback?
 
-#### 5c. Monitoring & Verification
+#### 7c. Monitoring & Verification
 
 - **Health indicators**: What metrics/logs should be monitored after deploy to verify this change is healthy?
 - **Smoke test path**: What's the critical path to verify the deployment succeeded?
@@ -173,11 +207,17 @@ For new or modified database queries:
 - **Data compatibility**: {Old code can/cannot read new data}
 - **Monitoring plan**: {Adequate/Insufficient}
 
+### Decision Rationale
+- **PR Alignment**: {accurate / partially accurate / inaccurate — with explanation}
+- **Project Alignment**: {aligned / misaligned — with explanation referencing project ops standards}
+- **Risk/Value**: {justified / questionable / unjustified — with reasoning}
+- **Confidence**: {HIGH / MEDIUM / LOW}
+
 ### Findings
 
-| Severity | Category | Description | Recommendation | Affected Files |
-|----------|----------|-------------|----------------|----------------|
-| BLOCKER  | {cat}    | {desc}      | {rec}          | {files}        |
+| Severity | Category | Description | Evidence | Recommendation | Affected Files |
+|----------|----------|-------------|----------|----------------|----------------|
+| BLOCKER  | {cat}    | {desc}      | `file:line` — `code snippet` | {rec} | {files} |
 
 (Empty table if no findings — write "No operational concerns identified.")
 ```
@@ -204,3 +244,5 @@ For new or modified database queries:
 5. **Consider the full deploy lifecycle** — deploy → verify → monitor → (if needed) rollback. Every step must be possible.
 6. **Environment parity matters** — what works in dev with 100 rows may fail in prod with 100M rows.
 7. **If there's nothing to assess** (e.g., pure docs change) → report LOW_RISK and explain why. Don't fabricate findings.
+8. **Every finding MUST include evidence** — file path, line number(s), and the exact code snippet from the diff. If you cannot provide concrete evidence for a finding, remove it. Speculation without evidence is not actionable.
+9. **Self-audit before output** — run the evidence verification step and remove any finding that lacks concrete evidence.
