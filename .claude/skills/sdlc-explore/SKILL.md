@@ -2,19 +2,19 @@
 name: sdlc:explore
 description: >-
   Explore and analyze codebases end-to-end with workflow-driven SDLC pipeline (SRS, HLD, LLD, IMP, TST).
-  Delegates the deterministic Phase 4 agent chain to the workflow-sdlc-explore-pipeline workflow for resumability and token efficiency.
+  Processes ONE service at a time to avoid overload in multi-subproject workspaces. Libs are scouted together with their first service.
+  State persisted in .explore/state.json for resumability across sessions.
   Use when analyzing new projects, exploring architecture, generating system documentation, or syncing sprint artifacts.
-  Supports multi-subproject discovery, plan mode, and sprint integration.
 argument-hint: "[full][architect][sync] [--auto] [--lang vi|en] [--en]"
-version: 1.3.3
+version: 2.0.1
 allowed-tools: Read, Bash(*), AskUserQuestion, Agent, Skill, Workflow, EnterPlanMode, ExitPlanMode
 ---
 
-# Explore Codebase (Workflow-Driven)
+# Explore Codebase — One Service At A Time
 
-Explore codebases end-to-end: discover sub-projects → pack with repomix → scout via workflow → delegate SDLC Pipeline to workflow → sync sprint artifacts → summarize.
+Explore codebases: discover sub-projects → classify (service/lib) → pick ONE service → scout service+libs → explore pipeline → sprint → summary → ask human for next service.
 
-**Key difference from explore-codebase**: Phase 2 (Scout) and Phase 4 (SDLC) each run as a single `Workflow()` call instead of manual agent orchestration. Benefits: resumable pipeline, automatic gate retry, system-managed concurrency, token-efficient (intermediate results stay in script variables).
+**Key design principle:** Mỗi lần chỉ xử lý 1 service. Libs được scout chung với service đầu tiên. Trạng thái lưu trong `.explore/state.json` để resume giữa các phiên. Không còn tình trạng scout tất cả sub-projects cùng lúc gây quá tải.
 
 ## Quick Start
 
@@ -30,176 +30,166 @@ Extract from human input:
 
 | Mode | Flow | Use when |
 |------|------|----------|
-| **Full** | Scout → Plan(opt) → Workflow Pipeline (all phases) → Sprint → Summary | First exploration, need all docs |
-| **Architect** | Scout → Plan(opt) → Workflow Pipeline (SRS+HLD only) → Summary | Architecture only |
-| **Sync** | Git Change Detection → Impact Analysis → Smart Suggestions → Selected Phases | Update existing docs |
+| **Full** | Load state → Pick service → Scout → Plan(opt) → Explore Pipeline → Sprint → Summary → AskHuman next | First exploration, need all docs |
+| **Architect** | Load state → Pick service → Scout → Plan(opt) → Explore Pipeline (SRS+HLD only) → Summary → AskHuman next | Architecture only |
+| **Sync** | Load state → Detect changes per service → AskHuman pick service+phases → Execute → AskHuman next | Update existing docs |
 
 If no mode specified, use AskUserQuestion:
-- Question: "Which exploration mode?" (header: "Explore Mode")
+- Question: "Chọn chế độ khám phá?" (header: "Explore Mode")
 - Options: "Full Pipeline" | "Architecture Only" | "Sync Documents"
 
-**Routing:**
-- `full` → Phases 1 → 2 → 3 → 4 (complete pipeline) → 5 → 6
-- `architect` → Phases 1 → 2 → 3 → 4 (stops after HLD gate) → 6
-- `sync` → See `references/sync-mode.md` for the complete Sync Mode workflow (Git change detection, impact analysis, smart suggestions, then selected Phase 4 phases → 5 → 6)
+## Phase 0: Load State
 
-## Phase 1: Scout — Discover Sub-Projects
+Goal: tạo hoặc load `.explore/state.json`, merge với discovered projects.
 
-Goal: discover sub-projects via 4 patterns, pull latest source, pack each with repomix.
+### Step 0.1: Create directories
 
-### Step 1.1: Universal Project Discovery
+```bash
+mkdir -p .explore .work/reports .work/repomix .work/scouts .work/plans
+```
+
+### Step 0.2: Universal Project Discovery
 
 Detect all sub-project patterns simultaneously. Merge results, deduplicate overlaps.
 
-- **Pattern 1 — Git Submodules**: `git submodule status`. Record commit hash, path, branch. These directories are excluded from Patterns 2-3.
+- **Pattern 1 — Git Submodules**: `git submodule status`. Record commit hash, path, branch. Excluded from Patterns 2-3.
 - **Pattern 2 — Nested Git Repos**: Find independent git repos inside the project (typically gitignored). Check `git check-ignore` for each.
-- **Pattern 3 — Monorepo Directories**: Look for `packages/*/`, `apps/*/`, `services/*/`, `modules/*/` plus build files (`package.json`, `Cargo.toml`, `go.mod`, `pom.xml`). Skip directories from Patterns 1-2.
+- **Pattern 3 — Monorepo Directories**: Look for `packages/*/`, `apps/*/`, `services/*/`, `modules/*/` plus build files (`package.json`, `Cargo.toml`, `go.mod`, `pom.xml`). Skip dirs from Patterns 1-2.
 - **Pattern 4 — Single Project (Fallback)**: If no other patterns found → single project = current repo.
 
-### Step 1.2: Classify
+### Step 0.3: Classify Each Project
 
-- **1 project**: 1 repomix snapshot, 1 scout invocation. Scout scales internally based on token count.
-- **>1 project**: each sub-project gets its own repomix snapshot and scout report. Nested repos/submodules have independent git history → must be processed independently.
+Dùng build detection logic trong `references/state-management.md` để phân loại từng project thành `service` hoặc `libs`.
 
-### Step 1.3: Pull Latest Source (skip in Sync mode)
+**Tóm tắt nhanh (ưu tiên từ cao xuống thấp):**
+1. Có `Dockerfile` ở root → **service**
+2. `docker-compose.yml` reference đến project → **service**
+3. Spring Boot: `pom.xml` có `spring-boot-maven-plugin` → **service** (không có → **libs**)
+4. Node.js: `package.json` có `"start"` script HOẶC web framework dep → **service** (không → **libs**)
+5. Go: `main.go` có `func main()` → **service** (không → **libs**)
+6. Rust: `Cargo.toml` có web framework HOẶC có `src/main.rs` → **service** (không → **libs**)
+7. Python: `pyproject.toml` có web framework HOẶC uvicorn/gunicorn → **service** (không → **libs**)
+8. Fallback: có file entry point (`main.*`, `index.*`, `server.*`) → **service** (mặc định → **libs**)
+
+### Step 0.4: Initialize or Merge State
+
+**Nếu `.explore/state.json` chưa tồn tại:**
+Tạo mới với tất cả projects đã discover (status = `todo`).
+
+**Nếu đã tồn tại:**
+- Load state hiện tại
+- Merge: project mới thêm vào với status `todo`
+- Project cũ: nếu commit hash thay đổi → reset status về `todo`
+- Project không còn tồn tại → xóa khỏi state
+- Rebuild `nextActions`
+
+Chi tiết merge logic: `references/state-management.md`.
+
+**Run identifier**: `{slug}` = short kebab-case project purpose (e.g., `payment-api`). Combined with `YYYYMMDD` date prefix.
+
+## Phase 1: Pick Service + Gather Libs
+
+### Step 1.1: Display state + pick service
+
+**Display state summary** (table format — see `references/state-management.md`, section "Display State Summary"):
+
+```
+| # | Service | Type | Status | Last Scout | Last Explore | Last Sync |
+| ...plus libs status line showing scout status and which service they were scouted with...
+```
+
+**Pick service từ state:** Filter `state.projects` by `type: 'service'`, group by `status`. Logic chi tiết trong `references/state-management.md`, section "State Operations".
+
+**Nếu không còn service nào `todo`:**
+- Báo cáo: "Tất cả service đã được xử lý."
+- Nếu `sync` mode: hiển thị cả service đã `explore-done` để chọn sync
+- Kết thúc.
+
+**Nếu chỉ có 1 service `todo`:**
+- Tự động chọn service đó (không cần hỏi).
+
+**Nếu có nhiều service `todo`:**
+```
+AskUserQuestion:
+- Question: "Chọn service để xử lý tiếp:" (header: "Next Service")
+- Options: danh sách các service todo + "Dừng ở đây"
+```
+
+### Step 1.2: Gather libs
+
+```js
+const { freshLibs, reusedLibs } = getLibsForService(state, selectedService)
+// Xem references/state-management.md, section "Libs Reuse Logic" cho logic đầy đủ
+```
+
+**Nếu có `reusedLibs.length > 0`:**
+```
+AskUserQuestion:
+- Question: "{N} thư viện đã được scout trước đó (với {scoutedWith}). Dùng lại hay scout lại?"
+  (header: "Libs Scout")
+- Options:
+  - "Dùng lại scout có sẵn (Recommended)"
+  - "Scout lại tất cả"
+  - "Scout lại libs đã thay đổi" (chỉ hiển thị nếu có libs có commit hash thay đổi)
+```
+
+Kết quả: `batchProjects = [selectedService, ...freshLibs, ...(reusedLibs nếu chọn scout lại)]`
+
+### Step 1.3: Update state — bắt đầu scout
+
+Cập nhật `state.json`: `current.service`, `current.phase = "scouting"`.
+Xem `references/state-management.md`, section "State Operations" cho full state mutation pattern.
+
+## Phase 2: Scout — Delegate to sdlc-scout
+
+Goal: scout 1 service + các libs được chọn. **Delegate toàn bộ cho `Skill(sdlc-scout, ...)`** — skill này tự xử lý repomix packing, strategy routing (scout skill vs pipeline workflow), caching, và audit.
+
+### Step 2.1: Pull Latest Source (skip in Sync mode)
 
 ```bash
 git submodule foreach 'git pull'  # if submodules exist
 git pull                          # root repo
 ```
 
-### Step 1.4: Create Report Directories
+### Step 2.2: Invoke sdlc-scout Skill
 
-```bash
-mkdir -p .work/reports .work/repomix .work/scouts .work/plans
-```
-
-**Run identifier**: `{slug}` = short kebab-case project purpose (e.g., `payment-api`). Combined with `YYYYMMDD` date prefix.
-
-### Step 1.5: Pack Each Sub-Project with repomix
-
-**CRITICAL: MUST use `Skill(repomix, ...)` — NEVER run repomix via Bash directly.**
-
-The repomix skill handles installation checks, absolute `-o` path resolution, token counting, and Secretlint security validation. Bypassing it with Bash loses ALL of these protections and introduces silent failures (relative output paths, missing security audit, no token report for scout scaling).
-
-**Do NOT do this** (Bash bypass — loses all protections):
-```
-Bash(repomix /path/to/project --style xml -o output.xml)
-```
-
-**ALWAYS do this** (Skill — full validation pipeline):
-```
-Skill(repomix, "{path} --style xml --remove-comments -o $PWD/.work/repomix/{project-name}--{slug}.xml")
-```
-
-The Skill tool auto-checks installation. If repomix is missing, the skill will detect it. If the skill reports it's not installed, use AskUserQuestion:
-- Question: "Repomix is not installed. It accelerates exploration by pre-packing files. Install?" (header: "Repomix")
-- Options: "Install repomix (Recommended)" | "Skip — proceed without it"
-
-**Multi-subproject** — invoke Skill sequentially per sub-project. Pass directory as first positional argument, use absolute `-o` path (Skill resolves relative paths against `$PWD` but absolute is safer):
-```
-Skill(repomix, "{path} --style xml --remove-comments -o $PWD/.work/repomix/{project-name}--{slug}.xml")
-```
-
-**Single project** — same pattern, record token count from Skill output for scout scaling:
-```
-Skill(repomix, ". --style xml --remove-comments -o $PWD/.work/repomix/root--{slug}.xml")
-```
-
-Do NOT split into areas here — scout handles internal subdivision. If repomix fails: log warning, skip snapshot, continue.
-
-## Phase 2: Scout — Explore All Sub-Projects via Workflow
-
-Goal: produce a scout report per sub-project. All N sub-projects handled by **one** `Workflow()` call — the workflow spawns one Explore agent per sub-project, pipelines results independently, and writes all reports.
-
-### Step 2.1: Prepare Workflow Args
-
-For each discovered sub-project, build an entry with paths, repomix snapshot, and output path:
-
-```js
-const subProjects = discoveredProjects.map(p => ({
-  name: p.name,                                // sub-project name
-  paths: [p.path],                             // array of directory paths to scout
-  projectType: p.type,                         // node | python | go | rust | ...
-  outputPath: `.work/scouts/scout-YYYYMMDD-${p.name}--${slug}.md`,
-  repomixSnapshot: p.repomixFile || null,      // .work/repomix/{name}--{slug}.xml or null
-  patterns: p.suggestedPatterns || null,        // optional: keyword hints for Grep
-  focus: p.focus || null,                       // optional: focus description
-}))
-
-const workflowArgs = {
-  subProjects,
-  language,  // from --lang flag, default 'vi'
-}
-```
-
-**outputPath convention:** `.work/scouts/scout-YYYYMMDD-{project-name}--{slug}.md`
-
-### Step 2.2: Invoke Workflow
+Truyền paths của service + libs cần scout, mode `explore` để dùng pipeline workflow:
 
 ```
-Workflow({ scriptPath: ".claude/workflows/workflow-sdlc-scout-pipeline.js", args: workflowArgs })
+Skill(sdlc-scout, "{service_path} {lib_paths...} --mode explore --lang {language}")
 ```
 
-The workflow handles:
-- **Phase Preflight**: idempotent skip — check existing reports, skip already-completed sub-projects
-- **Phase Scout**: pipeline over sub-projects — one Explore agent per sub-project, structured schema output (SCOUT_FINDING)
-- **Phase Report**: per sub-project — dedup files, write structured markdown report to outputPath
-- **Phase Audit**: cross-project completeness check — identify gaps, missed directories, uncovered topics
+**Cách sdlc-scout xử lý:**
+- **Repomix packing**: Tự động detect cần repomix không, tự gọi `Skill(repomix, ...)` nếu cần.
+- **Strategy routing**: Nếu tổng số file > 200 → pipeline workflow (`workflow-sdlc-scout-pipeline.js`). Nếu ≤ 200 → scout skill trực tiếp.
+- **Caching**: Kiểm tra existing reports trong `.work/scouts/`, skip nếu đã có.
+- **Audit**: Tự chạy completeness check sau khi scout.
 
-All sub-projects stream independently via `pipeline()` — sub-project B's scout starts while A's report is being written.
+### Step 2.3-2.4: Process Results + Update State
 
-### Step 2.3: Process Results
+sdlc-scout trả về object chứa `reports[]` — mỗi report có `name`, `outputPath`, `filesFound`, `highRelevance`, `patternsObserved`, `technologiesDetected`.
 
-**Success:**
-```js
-{
-  mode: 'scout',
-  status: 'completed',
-  results: {
-    subProjects: 5,
-    completed: 5,
-    failed: 0,
-    totalFiles: 210,
-    reports: [
-      { name: "auth-service", outputPath: ".work/scouts/scout-20260611-auth-service--myproject.md", filesFound: 42, highRelevance: 15, ... },
-      // ...
-    ],
-  }
-}
-```
+Gọi `updateAfterScout(state, serviceName, libNames, { reports })` rồi ghi `.explore/state.json`.
+Xem `references/state-management.md`, section "Update after scout" cho full function signature.
 
-**Partial failure:**
-```js
-{ mode: 'scout', status: 'completed', results: { completed: 4, failed: 1, failedReports: [{name, outputPath}], ... } }
-```
-
-### Step 2.4: Handle Failures
-
-**Missing report / failed agent**: retry once by re-invoking workflow with only the failed sub-projects. If retry fails → AskUserQuestion: "Scout for {sub-project} failed. How to proceed?" (header: "Scout Failed", options: "Retry with Agent(Explore)" | "Skip" | "Abort")
-
-## Phase 3: Plan — Create Execution Plan
+## Phase 3: Plan — (Optional)
 
 **If --auto**: skip Phase 3, proceed directly to Phase 4.
 
 **If no --auto**:
 1. Call `EnterPlanMode`
-2. Spawn `Agent(Plan)` to clarify scope. Use `Skill(sequential-thinking)` if ≥3 sub-projects with cross-dependencies OR ≥4 SDLC phases requested. Use `Skill(problem-solving)` if scout reports show conflicting architectural signals.
-3. On approval, spawn `Agent(general-purpose)` to write `.work/plans/explore-YYYYMMDD--{slug}.md`
+2. Spawn `Agent(Plan)` to clarify scope. Phạm vi: chỉ service đang xử lý.
+3. On approval, spawn `Agent(general-purpose)` to write `.work/plans/explore-YYYYMMDD-{service}--{slug}.md`
 4. AskUserQuestion: "Plan written. Continue?" (header: "Proceed", options: "Continue to execution" | "Let me review")
 5. Call `ExitPlanMode`
 
-## Phase 4: Workflow-Driven SDLC Pipeline
+## Phase 4: Explore Pipeline — Single Service
 
-This is the key difference from explore-codebase. Instead of manually orchestrating agents, delegate the entire SDLC pipeline to the **workflow-sdlc-explore-pipeline** workflow.
-
-**Pipeline phases** (internal to workflow): SRS decomposed into FR-Discovery (pipeline per scout report) → NFR-Inference (config analysis) → SRS-Consolidate → Gate SRS, then HLD → Gate HLD → LLD per service → LLD Merge → FR Distribution → IMP+TST → Gate IMP+TST.
+Delegate SDLC pipeline cho **workflow-sdlc-explore-pipeline**. Chỉ chạy cho 1 service hiện tại.
 
 ### Step 4.1: Prepare Workflow Args
 
-Collect all inputs the workflow needs. Core fields: `projectName`, `runDate`, `slug` (from Phase 1), `scoutReports` (explicit file paths from Phase 2 output — never glob patterns), `language` (from `--lang` flag, default `vi`), `mode` (`full` or `architect`). Optional: `fromPhase` to force-skip directly to a specific phase on retry (omit on first run — workflow auto-detects completed phases).
-
-Full args schema, result structures, and error handling patterns: `references/workflow-handoff.md`.
+Build `workflowArgs` object với các field: `projectName`, `runDate`, `slug`, `scoutReports[]`, `language`, `mode`, `focusedService`. Schema đầy đủ và field descriptions: `references/workflow-handoff.md`, section "Args Structure (Skill → Workflow)".
 
 ### Step 4.2: Invoke Workflow
 
@@ -207,49 +197,31 @@ Full args schema, result structures, and error handling patterns: `references/wo
 Workflow({ scriptPath: ".claude/workflows/workflow-sdlc-explore-pipeline.js", args: workflowArgs })
 ```
 
-The workflow handles: idempotent retry (completed phases auto-skipped via `checkPhaseStatus()`), decomposed SRS phase (FR-Discovery agents run in pipeline per scout report, NFR-Inference runs in parallel), gate verification with max 3 retries per phase, automatic concurrency management, and FR distribution. **Architect mode**: workflow stops after HLD gate, returns early.
+Workflow handles: idempotent retry, decomposed SRS, gate verification, single-service LLD, FR distribution, IMP+TST.
 
-### Step 4.3: Process Workflow Results
+### Step 4.3: Process Results + Handle Failures
 
-On success, the workflow returns a structured result. On error, it returns `phase` (which phase failed), `error` (description), and optionally `failed` (list of failed services/groups).
+**Thành công:** `updateAfterExplore(state, serviceName, result)` — xem `references/state-management.md`, section "Update after explore".
 
-Full result schemas for both modes: `references/workflow-handoff.md`.
-
-### Step 4.4: Pipeline Self-Check
-
-Verify workflow completed all expected phases. If workflow returned errors, use AskUserQuestion per failure type:
-
-**FR-Discovery failure (partial):**
-- Question: "FR-Discovery gate failed for {N} area(s): {names}. Other areas passed. How to proceed?" (header: "FR-Discovery Failed")
-- Options: "Retry failed areas" | "Skip and continue" | "Abort"
-
-**SRS-Consolidate/HLD failure (blocking):**
-- Question: "SRS phase failed gate after 3 retries. Feedback: {feedback}. How to proceed?" (header: "SRS Gate Failed")
-- Options: "Retry SRS" | "Skip and proceed" | "Abort"
-
-**LLD service failure (partial):**
-- Question: "LLD gate failed for {N} service(s): {names}. Other services passed. How to proceed?" (header: "LLD Gate Failed")
-- Options: "Retry failed services" | "Skip and continue" | "Abort"
-
-**IMP/TST group failure (partial):**
-- Question: "IMP/TST gate failed for {N} group(s): {group_ids}. How to proceed?" (header: "IMP/TST Gate Failed")
-- Options: "Retry failed groups" | "Skip and continue" | "Abort"
-
-On retry, re-invoke workflow with `fromPhase` arg to skip directly to the failed phase.
+**Có lỗi:** Xem `references/workflow-handoff.md`, section "Error Handling Patterns" cho 4 pattern:
+- Pattern 1: FR-Discovery partial failure → AskUserQuestion retry/skip/abort
+- Pattern 2: SRS/HLD blocking failure → AskUserQuestion retry/skip/abort
+- Pattern 3: LLD failure (blocking, chỉ 1 service) → AskUserQuestion retry/skip/abort
+- Pattern 4: IMP/TST group failure (partial) → AskUserQuestion retry failed groups/skip/abort
 
 ## Phase 5: Sprint Integration
 
 Use `Skill(sprint)` for all sprint operations. State routing:
 
-- **Case A — No sprint artifacts**: Create fresh from templates. Sync bottom-up after workflow results.
-- **Case B — Existing artifacts, same project**: Update with new exploration findings.
-- **Case C — Existing artifacts, different project**: AskUserQuestion whether to replace or create parallel artifacts.
+- **Case A — No sprint artifacts**: Create fresh from templates. Sync bottom-up.
+- **Case B — Existing artifacts, same project**: Update với findings mới từ service này.
+- **Case C — Existing artifacts, different project**: AskUserQuestion replace/create parallel.
 
-## Phase 6: Summary
+## Phase 6: Summary (per service)
 
-Spawn `Agent(general-purpose)` to write `.work/reports/explore-YYYYMMDD--{slug}.md`. 9-section format:
-1. Executive Summary
-2. Project Overview (sub-projects discovered)
+Spawn `Agent(general-purpose)` to write `.work/reports/explore-YYYYMMDD-{service}--{slug}.md`. 9-section format:
+1. Executive Summary (cho service này)
+2. Project Overview
 3. Architecture Summary
 4. Services Overview
 5. Functional Requirements (from workflow frDistribution)
@@ -258,31 +230,56 @@ Spawn `Agent(general-purpose)` to write `.work/reports/explore-YYYYMMDD--{slug}.
 8. Quality Gates (from workflow results)
 9. Recommendations
 
-Inputs: all scout reports, SRS, HLD, LLD, IMP, TST outputs.
+Inputs: scout reports của service + libs, SRS, HLD, LLD, IMP, TST outputs.
 
 ### Auto-Tag for Future Sync
 
-After Summary completes, create git tag for next Sync baseline.
-
-**Guard checks**: dirty working tree → warn, skip tag. No git → skip. **Sync partial run** → add `--sync` suffix. **All checks pass**:
 ```bash
-git tag "explore-$(date +%Y%m%d)--{slug}" -m "explore: {project_name} ({mode} mode, {N} sub-projects)"
-git -C <submodule_path> tag "explore-$(date +%Y%m%d)--{slug}"
-git -C <nested_repo_path> tag "explore-$(date +%Y%m%d)--{slug}"
+git tag "explore-$(date +%Y%m%d)-{service}--{slug}" -m "explore: {service} ({mode} mode)"
+git -C <submodule_path> tag "explore-$(date +%Y%m%d)-{service}--{slug}"
 ```
+
+## Phase 7: Ask Human — Next Service
+
+### Step 7.1: Update nextActions + Display + Ask
+
+Rebuild `state.nextActions` từ services còn `todo` (logic trong `references/state-management.md`, section "State Operations").
+Hiển thị state summary (cùng format như Phase 1.1).
+
+**Nếu còn service `todo`:**
+```
+AskUserQuestion:
+- Question: "Service tiếp theo để xử lý?" (header: "Next Service")
+- Options: danh sách service todo + "Dừng ở đây"
+```
+
+Nếu chọn service → vòng lại Phase 1 với service đó.
+Nếu "Dừng ở đây" → kết thúc, báo cáo tổng quan.
+
+**Nếu không còn service nào:**
+- "Tất cả service đã được explore. Hoàn tất!"
+
+## Sync Mode
+
+Sync mode xử lý từng service một: load state → pick service → git change detection → impact analysis (Tier 1 rule-based + Tier 2 AI) → human selects phases → execute → update state → next service.
+
+Toàn bộ flow (7 bước chi tiết, change detection patterns, impact mapping table, edge cases): `references/sync-mode.md`.
 
 ## Key Notes
 
-- **Workflow delegation.** Phase 4 is a single `Workflow()` call. The workflow script handles all agent orchestration, gate retry, and concurrency. Do NOT manually spawn SDLC agents.
-- **Idempotent retry.** On gate failure, re-invoke workflow with same args — completed phases auto-skipped (output detection). Use `fromPhase` arg to force-skip directly to a specific phase.
-- **Resumable.** If workflow is paused/killed, resume in-session — completed agents return cached results instantly.
-- **No sandbox.** Agents work directly on the project. Scout reports are the shared foundation.
-- **Delegation.** Phase 2 delegates to `workflow-sdlc-scout-pipeline` — never spawn Agent(Explore) directly for scouting. Sprint via Skill(sprint) — never modify sprint files directly.
-- **Tooling via Skill, not Bash.** Always invoke repomix via `Skill(repomix, ...)` — never Bash directly. The skill handles installation, absolute paths, token counting, and security checks that Bash bypasses silently.
-- **Explicit paths only.** After Phase 2, use exact file paths — never glob patterns.
-- **Language (`--lang`, `--en`).** `--lang vi|en` sets output language (default: `vi`). `--en` = `--lang en`. Only `vi`/`en` supported. Technical terms and code identifiers never translated. `--en --lang vi` → Vietnamese wins.
+- **One service at a time.** Không còn scout/explore tất cả services cùng lúc. Mỗi lần chạy chỉ xử lý 1 service.
+- **State persistence.** `.explore/state.json` là single source of truth. Mọi thay đổi trạng thái phải ghi vào file này ngay lập tức.
+- **Libs scouted once.** Libs được scout chung service đầu tiên. Các service sau hỏi human: dùng lại hay scout lại.
+- **Human decides order.** Thứ tự xử lý service do human chọn (qua AskUserQuestion), không tự động.
+- **Scout delegation.** Phase 2 delegates to `Skill(sdlc-scout, ...)` — skill xử lý repomix, strategy routing, caching, audit. Không tự gọi Workflow scout pipeline trực tiếp.
+- **Workflow delegation.** Phase 4 là single `Workflow()` call. Do NOT manually spawn SDLC agents.
+- **Idempotent.** Phases đã hoàn thành auto-skipped (output detection). Resume được giữa các phiên.
+- **Tooling via Skill, not Bash.** Always invoke repomix via `Skill(repomix, ...)` — never Bash directly. Hiện tại việc này do sdlc-scout xử lý nội bộ.
+- **Explicit paths only.** Sau Phase 2, use exact file paths từ scout reports — never glob patterns.
+- **Language (`--lang`, `--en`).** `--lang vi|en` sets output language (default: `vi`). `--en` = `--lang en`. `--en --lang vi` → Vietnamese wins.
 
 ## Reference Files
 
-- `references/sync-mode.md` — Complete Sync Mode workflow: Git change detection (3 baseline strategies), Tier 1 rule-based + Tier 2 AI impact analysis, smart suggestions with human approval, and selected phase execution. Use when `mode=sync` or updating existing exploration documentation.
-- `references/workflow-handoff.md` — Workflow args schema, result structures for full and architect modes, error handling patterns with AskUserQuestion options, manual override fallback, and comparison table (sdlc-explore vs explore-codebase).
+- `references/state-management.md` — State schema, classification logic (service vs libs với build detection), state machine, merge/update operations, libs reuse logic, edge cases.
+- `references/sync-mode.md` — Sync Mode: one service at a time, git change detection, impact analysis, human approval, selective phase execution.
+- `references/workflow-handoff.md` — Workflow args schema, result structures, error handling patterns, manual override fallback.
