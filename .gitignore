@@ -1,4 +1,6 @@
 *.backup
 /evals/
 .claude/worktrees/
+.agents/worktrees/
+__pycache__/
 *.zip
