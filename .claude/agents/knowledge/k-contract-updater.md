@@ -7,7 +7,7 @@ description: >-
   và flow contract (breaking contract change). Đây là bước sống còn trong
   microservices — sửa contract trước khi cascade xuống services.
 model: sonnet
-version: 1.0.0
+version: 1.1.0
 tools: Read, Write, Edit, Bash, Glob, Grep
 permissionMode: acceptEdits
 hooks:
@@ -69,125 +69,13 @@ Xác định chính xác:
 
 ### Bước 2: Cập Nhật Central Contracts
 
-#### 2a. API Spec (OpenAPI 3.0)
+**Cấu trúc output (xem template trong `.claude/templates/contracts/` để có cấu trúc đầy đủ):**
 
-```yaml
-openapi: "3.0.3"
-info:
-  title: "{Service Name} API"
-  version: "{version}"
-  description: >
-    Tập trung tại knowledge/02-central-contracts/apis/
-    Mọi service reference API này phải cập nhật khi có thay đổi.
-
-paths:
-  /{path}:
-    {method}:
-      summary: "{mô tả ngắn}"
-      operationId: "{operationId}"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/{RequestSchema}'
-      responses:
-        '200':
-          description: "{mô tả}"
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/{ResponseSchema}'
-        '400':
-          $ref: '#/components/responses/Error400'
-        '500':
-          $ref: '#/components/responses/Error500'
-
-components:
-  schemas:
-    {RequestSchema}:
-      type: object
-      required: [{fields}]
-      properties:
-        {field}:
-          type: {type}
-          description: "{mô tả}"
-          example: {example}
-
-  responses:
-    Error400:
-      description: Bad Request
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorResponse'
-    Error500:
-      description: Internal Server Error
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorResponse'
-
-    ErrorResponse:
-      type: object
-      properties:
-        errorCode:
-          type: string
-          description: "Tham chiếu global-error-codes.md"
-        message:
-          type: string
 ```
-
-#### 2b. Event Spec (AsyncAPI-style)
-
-```yaml
-event:
-  name: "{event-name}"
-  version: "{version}"
-  direction: "{publish | consume}"
-  owner: "{service-name}"
-  description: "{mô tả}"
-
-payload:
-  type: object
-  properties:
-    eventId:
-      type: string
-      format: uuid
-    eventType:
-      type: string
-      enum: [{enum-values}]
-    timestamp:
-      type: string
-      format: date-time
-    data:
-      type: object
-      properties:
-        {field}: {type}
-
-examples:
-  - name: "{tên example}"
-    value:
-      eventId: "uuid"
-      eventType: "{type}"
-      timestamp: "2026-06-19T00:00:00Z"
-      data: {}
+API Spec → .claude/templates/contracts/api-TEMPLATE.yaml (OpenAPI 3.1.0)
+Event Spec → .claude/templates/contracts/events-TEMPLATE.md (AsyncAPI-style)
+Error Codes → .claude/templates/contracts/error-codes-TEMPLATE.md
 ```
-
-#### 2c. Global Error Codes
-
-Thêm/sửa trong `global-error-codes.md`:
-
-```markdown
-| Mã lỗi | HTTP Status | Service | Mô tả | Hành động |
-|--------|-------------|---------|-------|----------|
-| ERR_{SVC}_{NNN} | 4xx/5xx | {service} | {mô tả} | {hành động} |
-```
-
-**Quy tắc đặt mã lỗi:**
-- Format: `ERR_{SVC}_{NNN}` — SVC là viết tắt service (PAY, WAL, REC), NNN là số
-- HTTP Status phải chính xác: 400 (bad request), 401 (auth), 403 (forbidden), 404 (not found), 409 (conflict), 422 (validation), 500 (internal), 503 (unavailable)
-- Không trùng mã — kiểm tra bảng hiện có
 
 ### Bước 3: Self-Check
 

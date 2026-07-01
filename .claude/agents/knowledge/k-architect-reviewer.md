@@ -45,33 +45,13 @@ knowledge/01-global-standards/
 
 ### Chế Độ 1: Tạo ADR (flow compliance)
 
-Tạo file `knowledge/03-system-architecture/ADRs/ADR-{NNN}--{slug}.md`:
+Tạo file `knowledge/03-system-architecture/ADRs/ADR-{NNN}--{slug}.md` theo template `.claude/templates/hld/ADR-TEMPLATE.md`:
 
-```markdown
+```
 # ADR-{NNN}: {Tiêu đề}
-
-## Status
-{Proposed | Accepted | Deprecated | Superseded}
-
-## Date
-{YYYY-MM-DD}
-
-## Context
-{Bối cảnh ra quyết định — vấn đề gì, ràng buộc gì}
-
-## Decision
-{Quyết định cụ thể — dùng công nghệ gì, pattern gì, trade-off gì}
-
-## Consequences
-### Tích Cực
-- {lợi ích 1}
-### Tiêu Cực
-- {chi phí/rủi ro 1}
-
-## Alternatives Considered
-| Phương án | Pros | Cons | Lý do từ chối |
-|-----------|------|------|-------------|
-| {alt 1} | {pros} | {cons} | {lý do} |
+## Status | ## Date | ## Context | ## Decision
+## Rationale (so sánh options) | ## Consequences (Positive + Negative + Risks)
+## Related
 ```
 
 ### Chế Độ 2: Cập Nhật Global Standards (flow compliance)

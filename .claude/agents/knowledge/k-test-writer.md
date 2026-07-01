@@ -60,85 +60,16 @@ Các template này là nguồn chính thức cho cấu trúc TST file. Cấu tr�
 
 ### Bước 2: Tạo Test Spec
 
-**Cấu trúc file:**
+**Cấu trúc file (xem template `.claude/templates/tst/test-spec-backend-TEMPLATE.md` để có cấu trúc đầy đủ):**
 
-```markdown
-# FR-{epic}-{NNN} Test Specification: {Tên tính năng}
-
-## Metadata
-- **Mã FR:** FR-{epic}-{NNN}
-- **Service:** {service}
-- **IMP Spec:** FR-{epic}-{NNN}--{slug}-impl.md
-- **Ngày tạo:** {YYYY-MM-DD}
-
-## 1. Unit Test Cases
-
-### TC-U-001: {Tên test case}
-- **Source:** FR Scenario: {tên scenario}
-- **Class/Method:** `{ClassName.methodName}`
-- **Input:** `{input values}`
-- **Expected Output:** `{expected}`
-- **Mock/Stub:** `{dependencies cần mock}`
-- **Assertions:**
-  1. `{assertion 1}`
-  2. `{assertion 2}`
-
-{Lặp cho mỗi unit test case}
-
-## 2. Integration Test Scenarios
-
-### TC-I-001: {Tên integration test}
-- **Source:** FR Scenario: {tên scenario}
-- **Components:** `{danh sách components tham gia}`
-- **External Dependencies:** `{DB, Cache, Kafka, External API}`
-- **Test Data Setup:**
-  ```sql
-  -- Dữ liệu cần insert trước test
-  ```
-- **Test Steps:**
-  1. `{step 1}`
-  2. `{step 2}`
-- **Assertions:**
-  1. `{assertion trên DB}`
-  2. `{assertion trên event}`
-  3. `{assertion trên response}`
-
-{Lặp cho mỗi integration test}
-
-## 3. E2E Test Flows
-
-### TC-E-001: {Tên E2E test}
-- **Source:** FR Scenario: {tên scenario}
-- **User Journey:** {mô tả hành trình người dùng}
-- **Services Involved:** `{svc1, svc2, ...}`
-- **Test Steps:**
-  1. `{step 1}`
-  2. `{step 2}`
-- **Expected Outcome:** `{kết quả cuối cùng}`
-
-## 4. Performance Test Plans
-
-| Test Case | Scenario | Target | SLA | Duration |
-|-----------|----------|--------|-----|----------|
-| TC-P-001  | {scenario} | {ví dụ: 1000 RPS} | P95 < 200ms | 5 min |
-
-## 5. Edge Cases & Boundary Testing
-
-| # | Edge Case | Input | Expected Behavior |
-|---|-----------|-------|-------------------|
-| 1 | {mô tả edge case} | {input} | {expected} |
-
-## 6. Error Scenario Testing
-
-| # | Error Code | Trigger Condition | Expected Response |
-|---|------------|-------------------|-------------------|
-| 1 | ERR_XXX_001 | {cách trigger} | {response mẫu} |
-
-## 7. Regression Risk (cho flow fixbug)
-
-| Bug ID | Scenario Added | Risk Area | Mitigation |
-|--------|---------------|-----------|------------|
-| {bug-ref} | {scenario mới} | {vùng ảnh hưởng} | {cách giảm thiểu} |
+```
+# FR-{epic}-{NNN} Test Specification
+## 1. Unit Test Cases (TC-U-XXX: source FR scenario, input, expected, assertions)
+## 2. Integration Test Scenarios (TC-I-XXX: components, test data, steps, assertions)
+## 3. E2E Test Flows (TC-E-XXX: user journey, services involved, expected outcome)
+## 4. Performance Test Plans (NFR mapping, target RPS, SLA)
+## 5. Edge Cases & Boundary Testing    | ## 6. Error Scenario Testing
+## 7. Regression Risk (flow fixbug/supplement only)
 ```
 
 ### Bước 3: Self-Check

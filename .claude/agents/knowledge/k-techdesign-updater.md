@@ -42,77 +42,14 @@ viết FR specs (→ k-spec-writer), cập nhật central contracts (→ k-contr
 
 ## Cấu Trúc tech-design.md
 
-```markdown
-# Tech Design: {Service Name}
+**Cấu trúc 10 section (xem template `.claude/templates/lld/tech-design-TEMPLATE.md` để có cấu trúc đầy đủ):**
 
-> **Service:** {service-name}
-> **Repository:** {repo-url}
-> **Last Updated:** {YYYY-MM-DD}
-> **Updated By:** k-techdesign-updater
-
-## 1. Tổng Quan Service
-- **Mục đích:** {1-2 câu mô tả trách nhiệm chính}
-- **Domain:** {business domain}
-- **Owner Team:** {team name}
-
-## 2. Technology Stack
-| Layer | Technology | Version | Notes |
-|-------|-----------|---------|-------|
-| Language | {lang} | {ver} | |
-| Framework | {fw} | {ver} | |
-| Database | {db} | {ver} | |
-| Cache | {cache} | {ver} | |
-| Message Queue | {mq} | {ver} | |
-
-## 3. API Contracts
-Tham chiếu: `knowledge/02-central-contracts/apis/api-{service}.yaml`
-
-| Endpoint | Method | Auth | Rate Limit | Circuit Breaker |
-|----------|--------|------|-----------|-----------------|
-| /{path} | {method} | {auth} | {limit} | {breaker config} |
-
-## 4. Domain Model
-```mermaid
-classDiagram
-  {class relationships}
 ```
-
-## 5. Database Schema
-### Bảng: {table_name}
-| Column | Type | Constraints | Index | Notes |
-|--------|------|------------|-------|-------|
-| {col} | {type} | {constraints} | {index} | {notes} |
-
-## 6. Transaction Boundaries
-- **Pattern:** {Saga | 2PC | Outbox | None}
-- **Idempotency Key:** {field/strategy}
-- **Compensation:** {rollback strategy}
-
-## 7. Caching Strategy
-| Cache Key Pattern | TTL | Eviction | Invalidation Trigger |
-|-------------------|-----|----------|---------------------|
-| {pattern} | {ttl} | {policy} | {trigger} |
-
-## 8. REST Client Specs
-| Dependency | Base URL | Timeout (ms) | Circuit Breaker | Retry | Fallback |
-|------------|----------|-------------|-----------------|-------|----------|
-| {service} | {url} | {ms} | {threshold} | {retries}×{backoff} | {fallback} |
-
-## 9. Error Flows & Degraded Mode
-### {Tên sự cố}
-- **Trigger:** {điều kiện kích hoạt}
-- **Detection:** {cách phát hiện — timeout, error code, health check}
-- **Impact:** {ảnh hưởng đến người dùng/dịch vụ}
-- **Degraded Behavior:** {hệ thống hoạt động thế nào ở chế độ suy giảm}
-- **Recovery:** {cách phục hồi khi dependency trở lại}
-- **Alert:** {cảnh báo cho ops team}
-
-## 10. Feature Work Packages
-Mỗi FR → một work package:
-
-| FR ID | Work Package | Priority | Dependencies | Estimated Effort |
-|-------|-------------|----------|-------------|-----------------|
-| FR-{epic}-{NNN} | {tên} | Must/Should/Could | {deps} | {S/M/L/XL} |
+# Tech Design: {Service Name}
+## 1. Tổng Quan Service    | ## 2. Technology Stack    | ## 3. API Contracts
+## 4. Domain Model (mermaid classDiagram) | ## 5. Database Schema
+## 6. Transaction Boundaries | ## 7. Caching Strategy | ## 8. REST Client Specs
+## 9. Error Flows & Degraded Mode | ## 10. Feature Work Packages
 ```
 
 ## Quy Trình

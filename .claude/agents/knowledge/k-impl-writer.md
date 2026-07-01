@@ -68,96 +68,14 @@ Cấu trúc inline bên dưới là **tóm tắt tham khảo** — template là 
 
 ### Bước 2: Tạo Implementation Spec
 
-**Cấu trúc file:**
+**Cấu trúc file (xem template `.claude/templates/impl/impl-spec-backend-TEMPLATE.md` để có cấu trúc đầy đủ):**
 
-```markdown
-# FR-{epic}-{NNN} Implementation Spec: {Tên tính năng}
-
-## Metadata
-- **Mã FR:** FR-{epic}-{NNN}
-- **Service:** {service}
-- **Tech Design:** tech-design.md
-- **Ngày tạo:** {YYYY-MM-DD}
-
-## 1. Execution Flows
-
-### 1.1 {Tên flow} (từ Scenario: {tên scenario})
-```mermaid
-sequenceDiagram
-  participant Client
-  participant API
-  participant Service
-  participant DB
-  participant External
-
-  Client->>API: {request}
-  API->>Service: {method call}
-  Service->>DB: {query}
-  DB-->>Service: {result}
-  Service-->>API: {response}
-  API-->>Client: {output}
 ```
-
-**Mô tả từng bước:**
-1. **{Bước 1}:** Validation input (schema, business rules)
-   - Rule: {business rule}
-   - Error: {ERR_CODE} nếu vi phạm
-2. **{Bước 2}:** {xử lý chính}
-   - Data impact: {bảng/cache nào bị ảnh hưởng}
-   - Idempotency: {có/không — key là gì}
-3. ...
-
-{Lặp lại cho mỗi execution flow}
-
-## 2. Business Rules Mapping
-
-| Rule ID | Mô tả | FR Reference | Implementation |
-|---------|-------|-------------|----------------|
-| BR-001  | {rule} | FR Scenario X | {cách implement} |
-
-## 3. Data Impact
-
-### 3.1 Database
-| Bảng | Operation | Fields | Điều kiện |
-|------|-----------|--------|-----------|
-| {table} | INSERT/UPDATE/SELECT/DELETE | {fields} | {condition} |
-
-### 3.2 Cache
-| Cache Key | TTL | Invalidation Trigger |
-|-----------|-----|---------------------|
-| {key pattern} | {ttl} | {khi nào xóa cache} |
-
-### 3.3 Events
-| Event | Direction | Payload | Condition |
-|-------|-----------|---------|-----------|
-| {event name} | PUBLISH/CONSUME | {schema ref} | {khi nào bắn} |
-
-## 4. Error Handling
-
-| Scenario | Mã lỗi | HTTP Status | Response Body | Retry? | Fallback |
-|----------|--------|-------------|---------------|--------|----------|
-| {tình huống} | ERR_XXX | 4xx/5xx | {example} | Yes/No | {fallback} |
-
-## 5. Security Considerations
-
-- **Authentication:** {method — JWT, API Key, etc.}
-- **Authorization:** {roles/permissions required}
-- **Input Validation:** {sanitization rules}
-- **Data Sensitivity:** {PII/Sensitive data handling}
-- **Rate Limiting:** {nếu có}
-
-## 6. Circuit Breaker & Resilience
-
-- **Circuit Breaker:** {có/không — threshold, timeout}
-- **Retry Policy:** {max retries, backoff strategy}
-- **Timeout:** {ms}
-- **Degraded Mode:** {hành vi khi dependency sập}
-
-## 7. Integration Points
-
-| Dependency | Type | Contract Ref | Timeout | Fallback |
-|------------|------|-------------|---------|----------|
-| {service/api} | REST/gRPC/Kafka | {file.yaml} | {ms} | {fallback} |
+# FR-{epic}-{NNN} Implementation Spec
+## 1. Execution Flows (mermaid sequence + mô tả từng bước)
+## 2. Business Rules Mapping    | ## 3. Data Impact (DB + Cache + Events)
+## 4. Error Handling           | ## 5. Security Considerations
+## 6. Circuit Breaker & Resilience | ## 7. Integration Points
 ```
 
 ### Bước 3: Self-Check

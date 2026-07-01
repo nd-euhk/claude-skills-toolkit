@@ -8,8 +8,8 @@ description: >-
   (Architecture/Compliance Update). Chỉ đọc specs hiện có và tạo báo cáo — không
   sửa FR/IMP/TST specs.
 model: sonnet
-version: 1.0.1
-tools: Read, Write, Glob, Grep, Bash, TaskCreate, TaskUpdate, TaskGet, TaskList
+version: 1.1.0
+tools: Read, Write, Glob, Grep, Bash
 permissionMode: acceptEdits
 hooks:
   PreToolUse:

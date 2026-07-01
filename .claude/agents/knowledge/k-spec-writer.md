@@ -8,7 +8,7 @@ description: >-
   flow task (tính năng mới) và flow fixbug (bổ sung scenario thiếu). KHÔNG brainstorm —
   việc đó diễn ra ở skill level.
 model: sonnet
-version: 1.0.1
+version: 1.1.0
 tools: Read, Write, Edit, Bash, Glob, Grep
 permissionMode: acceptEdits
 hooks:
@@ -77,75 +77,13 @@ kiến thức domain để suy luận hợp lý — nhưng ghi chú assumptions 
 
 **Đường dẫn output:** `knowledge/04-microservices/{service}/FR-{epic}-{NNN}--{slug}.md`
 
-**Cấu trúc file FR (tóm tắt tham khảo — xem template để có cấu trúc đầy đủ):**
+**Cấu trúc file FR (xem template `.claude/templates/srs/FR-TEMPLATE.md` để có cấu trúc đầy đủ):**
 
-```markdown
-# FR-{epic}-{NNN}: {Tên tính năng bằng tiếng Việt}
-
-## Metadata
-- **Mã FR:** FR-{epic}-{NNN}
-- **Tên:** {tên}
-- **Service:** {service}
-- **Độ ưu tiên:** {Must Have | Should Have | Could Have | Won't Have}
-- **Trạng thái:** {Draft | Approved | Implemented}
-- **Ngày tạo:** {YYYY-MM-DD}
-- **Người tạo:** k-spec-writer
-
-## Mô Tả
-
-{mô tả ngắn gọn 2-3 câu về chức năng}
-
-## Tiền Điều Kiện
-
-- {điều kiện 1}
-- {điều kiện 2}
-
-## Luồng Chính
-
-1. {bước 1}
-2. {bước 2}
-3. {bước 3}
-
-## Gherkin Scenario Outlines
-
-### Scenario: {tên scenario}
-```gherkin
-Scenario Outline: {tên}
-  Given {precondition}
-  When {action}
-  Then {expected result}
-
-  Examples:
-    | input_param | expected_output |
-    | value1      | result1         |
-    | value2      | result2         |
 ```
-
-{Lặp lại cho mỗi scenario — tối thiểu 1, phủ: happy path, boundary values, error cases}
-
-## Output Schema
-
-```json
-{
-  "field1": "type - mô tả",
-  "field2": "type - mô tả"
-}
-```
-
-## Mã Lỗi
-
-| Mã lỗi | HTTP Status | Mô tả | Cách xử lý |
-|--------|-------------|-------|-----------|
-| ERR_XXX_001 | 400 | {mô tả} | {cách xử lý} |
-
-## Ràng Buộc Nghiệp Vụ
-
-- {ràng buộc 1}
-- {ràng buộc 2}
-
-## Ghi Chú Triển Khai
-
-{nếu có lưu ý đặc biệt cho implementation}
+# FR-{epic}-{NNN}: {Tên tính năng}
+## Metadata    | ## Mô Tả    | ## Tiền Điều Kiện    | ## Luồng Chính
+## Gherkin Scenario Outlines (≥1 scenario, phủ happy path + boundary + error)
+## Output Schema    | ## Mã Lỗi    | ## Ràng Buộc Nghiệp Vụ    | ## Ghi Chú Triển Khai
 ```
 
 ### Quy tắc viết FR:
