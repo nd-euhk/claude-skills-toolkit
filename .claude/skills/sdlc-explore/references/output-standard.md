@@ -45,41 +45,6 @@ knowledge/
 **EPIC codes:** Lấy từ Phase 3 plan (human-confirmed). KHÔNG tự suy đoán từ tên domain kỹ thuật.
 Nếu không xác định được EPIC, dùng mã project/service viết tắt (vd: `AUTH`, `PAY`, `NTF`).
 
-## Files KHÔNG tạo (khác biệt với sdlc-explore cũ)
-
-Các file sau từ phiên bản cũ **không** được tạo trong skill v3:
-
-| File cũ | Lý do bỏ | Nội dung chuyển vào |
-|---------|---------|-------------------|
-| `nfr-thresholds.md` | Không có trong chuẩn sdlc | `hard-boundaries.md` |
-| `api-conventions.md` | Không có trong chuẩn sdlc | `global-error-codes.md` hoặc OpenAPI specs |
-| `api-{svc}.yaml` (per-service) | Không có trong chuẩn sdlc | OpenAPI specs tập trung trong `apis/` |
-| `events.md` (gộp chung) | Không có trong chuẩn sdlc | File riêng `evt-{name}.yaml` trong `events/` |
-| `system-architecture.md` | Không có trong chuẩn sdlc | `C4-context-diagram.md` |
-| `architecture.md` | Trùng lặp | Gộp vào `C4-context-diagram.md` |
-| `domain-service-mapping.yaml` | Không có trong chuẩn sdlc | Gộp vào C4 diagram |
-| `tech-design-index.md` | Không có trong chuẩn sdlc | Gộp vào từng `tech-design.md` |
-
-## So sánh với sdlc-explore cũ (v2)
-
-| File | v2 (cũ) | v3 (mới — khớp sdlc) | Ghi chú |
-|------|---------|----------------------|--------|
-| `hard-boundaries.md` | ✅ | ✅ | Thêm NFR thresholds |
-| `coding-conventions.md` | ❌ | ✅ | **Mới — chuẩn sdlc** |
-| `cross-cutting-patterns.md` | ✅ | ✅ | Giữ nguyên |
-| `nfr-thresholds.md` | ✅ | ❌ | **Gộp vào hard-boundaries.md** |
-| `api-conventions.md` | ✅ | ❌ | **Gộp vào global-error-codes.md** |
-| `api-{svc}.yaml` (per-service) | ✅ | ❌ | **Dùng OpenAPI specs tập trung** |
-| `events.md` (gộp) | ✅ | ❌ | **Dùng file evt-{name}.yaml riêng** |
-| `global-error-codes.md` | ❌ | ✅ | **Mới — chuẩn sdlc** |
-| `system-architecture.md` | ✅ | ❌ | **Đổi thành C4-context-diagram.md** |
-| `C4-context-diagram.md` | ❌ | ✅ | **Mới — chuẩn sdlc** |
-| `architecture.md` | ✅ | ❌ | **Gộp vào C4-context-diagram.md** |
-| `domain-service-mapping.yaml` | ✅ | ❌ | **Gộp vào C4-context-diagram.md** |
-| `tech-design-index.md` | ✅ | ❌ | **Gộp vào từng tech-design.md** |
-| `FR-{DOMAIN}-{NNN}--{slug}.md` | ✅ | ❌ | **Đổi thành FR-{EPIC}-{NNN}** |
-| `FR-{EPIC}-{NNN}--{slug}.md` | ❌ | ✅ | **Mới — chuẩn sdlc** |
-
 ## Phase Artifacts Mapping
 
 Mỗi SDLC phase tạo ra những file nào:

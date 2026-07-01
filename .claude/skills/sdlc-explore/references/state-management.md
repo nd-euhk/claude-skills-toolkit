@@ -82,152 +82,25 @@ Trạng thái exploration được lưu trong `knowledge/explore.json` ở gốc
 **service** = build ra artifact có thể chạy độc lập (server, worker, cron job).
 **libs** = chỉ export functions/types/classes, được services khác import.
 
-### Build Detection Logic
+### Detection Rules (Priority Order)
 
-Thực hiện detection ở skill level (Bash only, không tốn agent context):
+Thực hiện detection ở skill level (Bash only):
 
-#### Step 1: Check Build Files
+| Priority | Signal | Classification |
+|----------|--------|---------------|
+| **1 (strongest)** | `{path}/Dockerfile` tồn tại | → **service** |
+| **1** | Tên project xuất hiện trong `docker-compose*.yml` | → **service** |
+| **1** | Có `deployment*.yaml` hoặc `service*.yaml` | → **service** |
+| **2** | `pom.xml` chứa `spring-boot-maven-plugin` hoặc `quarkus-maven-plugin` | → **service** |
+| **2** | `build.gradle*` chứa `org.springframework.boot` hoặc `id 'application'` | → **service** |
+| **2** | `package.json` chứa `"start"`, `express`, `fastify`, `koa`, `@nestjs/core`, `next` | → **service** |
+| **2** | `go.mod` + `main.go` chứa `func main()` | → **service** |
+| **2** | `Cargo.toml` chứa `actix`/`axum`/`rocket`/`warp`/`tide` hoặc có `src/main.rs` | → **service** |
+| **2** | `pyproject.toml` chứa `fastapi`/`flask`/`django`/`aiohttp`/`uvicorn`/`gunicorn` | → **service** |
+| **3 (fallback)** | Có file entry point (`main.*`, `index.*`, `server.*`) với `func main`/`def main`/`if __name__` | → **service** |
+| **default** | Không khớp rule nào | → **libs** |
 
-```bash
-# Tìm build file trong thư mục project
-ls {path}/pom.xml {path}/build.gradle* {path}/package.json {path}/go.mod {path}/Cargo.toml {path}/pyproject.toml {path}/Makefile 2>/dev/null
-```
-
-#### Step 2: Classify by Build System
-
-**Spring Boot Maven (pom.xml):**
-```bash
-grep -q 'spring-boot-maven-plugin' {path}/pom.xml && echo "service" || echo "libs"
-```
-
-**Spring Boot Gradle (build.gradle):**
-```bash
-grep -qE "org\.springframework\.boot|id\s*'application'" {path}/build.gradle* && echo "service" || echo "libs"
-```
-
-**Quarkus Maven (pom.xml):**
-```bash
-grep -q 'quarkus-maven-plugin' {path}/pom.xml && echo "service" || echo "libs"
-```
-
-**Micronaut (build.gradle / pom.xml):**
-```bash
-grep -qE 'io\.micronaut|micronaut' {path}/build.gradle* {path}/pom.xml 2>/dev/null && echo "service" || echo "libs"
-```
-
-**Node.js (package.json):**
-```bash
-grep -qE '"start"' {path}/package.json && echo "service"
-grep -qE '"express"|"fastify"|"koa"|"hapi"|"@nestjs/core"|"next"' {path}/package.json && echo "service"
-echo "libs"
-```
-
-**Go (go.mod):**
-```bash
-grep -qE 'func main\(\)' {path}/main.go 2>/dev/null && echo "service" || echo "libs"
-```
-
-**Rust (Cargo.toml):**
-```bash
-grep -qE 'actix|axum|rocket|warp|tide' {path}/Cargo.toml 2>/dev/null && echo "service"
-[ -f "{path}/src/main.rs" ] && echo "service" || echo "libs"
-```
-
-**Python (pyproject.toml):**
-```bash
-grep -qE 'fastapi|flask|django|aiohttp|litestar|sanic' {path}/pyproject.toml 2>/dev/null && echo "service"
-grep -qE 'uvicorn|gunicorn|flask run|django manage' {path}/pyproject.toml {path}/Dockerfile 2>/dev/null && echo "service"
-echo "libs"
-```
-
-#### Step 3: Secondary Signals (Regardless of Build System)
-
-```bash
-[ -f "{path}/Dockerfile" ] && echo "service"
-grep -q "{project_name}" docker-compose*.yml 2>/dev/null && echo "service"
-find {path} -name 'deployment*.yaml' -o -name 'service*.yaml' 2>/dev/null | head -1 && echo "service"
-```
-
-#### Step 4: Priority Rules
-
-1. Bất kỳ secondary signal nào match → **service**
-2. Build system detection trả về "service" → **service**
-3. Mặc định (fallback) → **libs**
-
-### Implementation (Bash script at skill level)
-
-```bash
-classify_project() {
-  local path="$1"
-  local name="$2"
-
-  # Secondary signals first (strongest)
-  if [ -f "$path/Dockerfile" ]; then echo "service"; return; fi
-  if grep -q "$name" docker-compose*.yml 2>/dev/null; then echo "service"; return; fi
-
-  # Maven
-  if [ -f "$path/pom.xml" ]; then
-    if grep -qE 'spring-boot-maven-plugin|quarkus-maven-plugin' "$path/pom.xml"; then
-      echo "service"; return
-    else
-      echo "libs"; return
-    fi
-  fi
-
-  # Gradle
-  if [ -f "$path/build.gradle" ] || [ -f "$path/build.gradle.kts" ]; then
-    if grep -qE "org\.springframework\.boot|id\s*'application'|io\.micronaut" "$path"/build.gradle* 2>/dev/null; then
-      echo "service"; return
-    else
-      echo "libs"; return
-    fi
-  fi
-
-  # Node.js
-  if [ -f "$path/package.json" ]; then
-    if grep -qE '"start"|"express"|"fastify"|"koa"|"@nestjs/core"|"next"' "$path/package.json"; then
-      echo "service"; return
-    else
-      echo "libs"; return
-    fi
-  fi
-
-  # Go
-  if [ -f "$path/go.mod" ]; then
-    if [ -f "$path/main.go" ] && grep -q 'func main()' "$path/main.go"; then
-      echo "service"; return
-    else
-      echo "libs"; return
-    fi
-  fi
-
-  # Rust
-  if [ -f "$path/Cargo.toml" ]; then
-    if grep -qE 'actix|axum|rocket|warp|tide' "$path/Cargo.toml" || [ -f "$path/src/main.rs" ]; then
-      echo "service"; return
-    else
-      echo "libs"; return
-    fi
-  fi
-
-  # Python
-  if [ -f "$path/pyproject.toml" ]; then
-    if grep -qE 'fastapi|flask|django|aiohttp|litestar|uvicorn|gunicorn' "$path/pyproject.toml"; then
-      echo "service"; return
-    else
-      echo "libs"; return
-    fi
-  fi
-
-  # Fallback: check for entry point patterns
-  if grep -qE 'func main|def main|if __name__' "$path"/main.* "$path"/index.* "$path"/server.* 2>/dev/null; then
-    echo "service"; return
-  fi
-
-  # Default
-  echo "libs"
-}
-```
+**Implementation note:** Dùng `grep -q` + `test -f` ở Bash skill level. KHÔNG spawn agent cho việc này.
 
 ## State Machine
 
@@ -242,14 +115,6 @@ classify_project() {
 │syncing│──────────▶│sync-done │              │ sync-done │
 └──────┘            └──────────┘              └───────────┘
 ```
-
-- **todo**: Chưa xử lý
-- **scouting**: Đang scout (transient)
-- **scout-done**: Scout hoàn tất, có thể explore hoặc sync
-- **exploring**: Đang explore (transient)
-- **explore-done**: Explore hoàn tất
-- **syncing**: Đang sync (transient)
-- **sync-done**: Sync hoàn tất, có thể sync tiếp nếu có thay đổi mới
 
 ## State Operations
 
@@ -280,12 +145,14 @@ const existing = JSON.parse(readFile('knowledge/explore.json'))
 for (const proj of discoveredProjects) {
   if (existing.projects[proj.name]) {
     const prev = existing.projects[proj.name]
+    // Commit hash thay đổi → reset về todo
     if (proj.commitHash && prev.scout.commitHash !== proj.commitHash) {
       prev.status = 'todo'
       prev.scout.done = false
       prev.scout.commitHash = proj.commitHash
       prev.explore.done = false
     }
+    // Type thay đổi → cập nhật
     if (proj.type !== prev.type) {
       prev.type = proj.type
     }
@@ -468,10 +335,8 @@ function getLibsForService(state, serviceName) {
 Nếu có `reusedLibs.length > 0`:
 
 ```
-AskUserQuestion:
-- Question: "{N} thư viện đã được scout trước đó với {scoutedWith}. Dùng lại scout có sẵn hay scout lại?"
-  (header: "Libs Scout")
-- Options:
+AskUserQuestion: (header: "Libs Scout")
+  "{N} thư viện đã được scout trước đó với {scoutedWith}. Dùng lại scout có sẵn hay scout lại?"
   - "Dùng lại scout có sẵn (Recommended)"
   - "Scout lại tất cả"
   - "Scout lại các libs đã thay đổi" (chỉ khi có commit hash thay đổi)
@@ -502,9 +367,10 @@ Nếu `knowledge/explore.json` không tồn tại → tạo mới từ Phase 0.
 try {
   JSON.parse(readFile('knowledge/explore.json'))
 } catch {
-  AskUserQuestion: "knowledge/explore.json bị hỏng. Xóa và tạo mới?" (header: "State Corrupt")
-  - "Tạo mới" → xóa file, tạo từ scratch
-  - "Abort" → dừng
+  AskUserQuestion: (header: "State Corrupt")
+    "knowledge/explore.json bị hỏng. Xóa và tạo mới?"
+    - "Tạo mới" → xóa file, tạo từ scratch
+    - "Abort" → dừng
 }
 ```
 
@@ -521,8 +387,9 @@ Nếu từ `service` → `libs`: cập nhật type. Nếu đã explore-done, h�
 
 Nếu tất cả projects đều là `libs`:
 ```
-AskUserQuestion: "Không phát hiện service nào (chỉ có libs). Xử lý toàn bộ như một project?" (header: "No Service")
-- "Gộp tất cả thành 1 project"
-- "Chọn project để xử lý"
-- "Abort"
+AskUserQuestion: (header: "No Service")
+  "Không phát hiện service nào (chỉ có libs). Xử lý toàn bộ như một project?"
+  - "Gộp tất cả thành 1 project"
+  - "Chọn project để xử lý"
+  - "Abort"
 ```
