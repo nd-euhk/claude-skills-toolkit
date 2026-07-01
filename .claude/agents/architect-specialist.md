@@ -275,11 +275,9 @@ Default templates for output format. Use these unless the spawning skill specifi
 
 | Output | Template |
 |--------|----------|
-| System Architecture | `.claude/templates/hld/HLD-TEMPLATE.md` |
 | Architecture Decision Record | `.claude/templates/hld/ADR-TEMPLATE.md` |
 | Architecture Summary (agent_docs) | `.claude/templates/hld/architecture-TEMPLATE.md` |
 | Hard Boundaries | `.claude/templates/hld/hard-boundaries-TEMPLATE.md` |
-| Domain-Service Mapping | `.claude/templates/agt/agent-routing-TEMPLATE.md` |
 | Event Schema | `.claude/templates/contracts/events-TEMPLATE.md` |
 | API Conventions (OpenAPI) | `.claude/templates/contracts/api-TEMPLATE.yaml` |
 
