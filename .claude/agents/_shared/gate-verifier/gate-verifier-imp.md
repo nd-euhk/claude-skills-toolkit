@@ -2,24 +2,27 @@
 
 Load this file when verifying the **imp** phase. Run every criterion below. For each: report PASS, FAIL (with specific evidence), or SKIP (if artifact not found).
 
+**Artifact path:** `knowledge/04-microservices/{svc}/FR-{EPIC}-{NNN}--{slug}-impl.md`
+In forward-engineering mode: `agent_docs/backend/*/implementation/FR-*-impl.md` or `agent_docs/frontend/*/implementation/FR-*-impl.md`
+
 ## 1. Implementation Spec Coverage
 
-Glob `agent_docs/backend/*/implementation/FR-*-impl.md` and `agent_docs/frontend/*/implementation/FR-*-impl.md`. Cross-reference with `agent_docs/features/FR-*.md`:
+Glob `knowledge/04-microservices/{svc}/FR-*-impl.md`. Cross-reference with FR files (`FR-*.md`, excluding -impl and -test):
 - Every FR must have an implementation spec (backend, frontend, or both)
 - Flag any FR without an impl spec
 
 ## 2. Section Completeness
 
-For each impl spec, verify all 10 sections are present and filled:
+For each impl spec, verify all required sections are present and filled:
 1. Purpose
-2. References
-3. Affected Areas
-4. Execution Flow
-5. Business Rules Realized
-6. Data & State Impact
-7. Error Mapping
-8. Security & Authorization
-9. Implementation Notes
+2. References (FR links, tech-design sections)
+3. Affected Areas (files, modules, layers)
+4. Execution Flow (numbered steps, specific layers/modules)
+5. Business Rules Realized (WHEN/THEN format)
+6. Data & State Impact (tables, state transitions)
+7. Error Mapping (exception → HTTP status → error code → user message)
+8. Security & Authorization (auth checks, token scopes)
+9. Implementation Notes (constraints, dependencies)
 10. Acceptance Checklist
 
 No section should contain "TBD" or be empty.
@@ -40,7 +43,7 @@ Read the Error Mapping section of each impl spec:
 
 Read the Business Rules Realized section of each impl spec:
 - Each rule must use WHEN/THEN format
-- Each rule must trace to a Gherkin scenario from the FR
+- Each rule must trace to a Gherkin scenario from the corresponding FR
 
 ## 6. No Code Snippets
 
