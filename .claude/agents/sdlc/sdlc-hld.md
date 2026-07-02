@@ -61,7 +61,7 @@ Create `agent_docs/architecture.md`:
 
 ### Step 3: Architecture Decision Records
 
-Create `agent_docs/adr/ADR-{NNN}--{slug}.md` — minimum 3 ADRs:
+Create `agent_docs/adrs/ADR-{NNN}--{slug}.md` — minimum 3 ADRs:
 1. **Architecture style choice** (why monolith/microservices/event-driven)
 2. **Communication pattern** (why sync/async for which interactions)
 3. **Data strategy** (why DB-per-service or shared-DB or CQRS)
