@@ -7,10 +7,10 @@ Extract documentation from an existing codebase. Generates HLD, LLD, SRS, IMP, a
 ## Phase Overview
 
 ```
-Discover → Deep Scout → Merge → Scope → HLD Per Proj → LLD Per Proj → SRS Per Proj → IMP Per Proj → TST Per Proj → Assess Per Proj → Merge
-   ↓          ↓ Gate       ↓       ↓       ↓ Gate          ↓ Gate         ↓ Gate         ↓ Gate         ↓ Gate          ↓ Gate            ↓
+Discover → Deep Scout → Merge → Scope → HLD Per Proj → LLD Per Proj → SRS Per Proj → IMP Per Proj → TST Per Proj → Assess Per Proj → Merge → Canonical
+   ↓          ↓ Gate       ↓       ↓       ↓ Gate          ↓ Gate         ↓ Gate         ↓ Gate         ↓ Gate          ↓ Gate            ↓            ↓
 (1a→1b→1c→1d)
-                                          [Cross-project merge after HLD and Assessment]
+                                          [Cross-project merge after HLD and Assessment]     [Final merge to agent_docs/ + docs/]
 ```
 
 ---
@@ -45,8 +45,8 @@ Plan should include:
 4. Phase-by-phase plan: HLD→LLD→SRS→IMP→TST→Assessment per project
 5. Subagent assignments: 1 per project per phase (parallel execution)
 6. Gate review assignments: 1 per project per phase
-7. Output paths: project-scoped directory structure
-8. Merge strategy: when/how to synthesize cross-project docs
+7. Output paths: timestamped sandbox .work/reports/<YYYYMMDD>/explore-<slug>/{project-name}/
+8. Merge strategy: when/how to synthesize cross-project docs + final canonical merge
 
 Report the plan in structured format ready for documentation."
 ```
@@ -77,7 +77,10 @@ Explore Plan: .work/plans/<YYYYMMDD>/plan-explore-<slug>.md
 Scope: <Full/Architecture/Fill gaps>
 Estimated projects: <N>
 Phases per project: <HLD, LLD, SRS, IMP, TST, Assess>
-Output: agent_docs/projects/{project-name}/, docs/, .work/reports/
+Output sandbox: .work/reports/<YYYYMMDD>/explore-<slug>/
+  Per-project: .work/reports/<YYYYMMDD>/explore-<slug>/{project-name}/
+  Merged:      .work/reports/<YYYYMMDD>/explore-<slug>/merged/
+  Canonical:   agent_docs/ + docs/ (final merge step)
 
 Confirm to proceed with execution.
 ```
@@ -261,7 +264,7 @@ The complete scouting pipeline has 4 sub-steps:
 1. **Step 1a (Discover):** Single Explore agent with glob+bash discovers all projects, submodules, subprojects + domain candidates
 2. **Step 1b (Deep Scout):** Spawn N Explore subagents in parallel — one per project discovered in 1a
 3. **Step 1c (Root-Level):** One additional Explore for cross-cutting concerns (root docs, shared config, CI/CD)
-4. **Step 1d (Merge):** General-purpose agent synthesizes all reports into `.work/reports/scouting-report.md` AND `.work/reports/project_registry.yaml` (SSOT for all subsequent phases)
+4. **Step 1d (Merge):** General-purpose agent synthesizes all reports into `.work/reports/<YYYYMMDD>/explore-<slug>/scouting-report.md` AND `.work/reports/<YYYYMMDD>/explore-<slug>/project_registry.yaml` (SSOT for all subsequent phases)
 
 The per-project deep scout prompt in Step 1b above serves as the template for each parallel Explore agent.
 
@@ -303,19 +306,23 @@ After all Explore subagents (1a + N×1b + 1c) complete, merge their findings int
 
 ```
 Agent type: general-purpose
-Prompt: "Merge the scouting reports from all Explore subagents into TWO outputs:
+Prompt: "Merge the scouting reports from all Explore subagents into TWO outputs.
+
+IMPORTANT: Output to timestamped sandbox to prevent overwrites between explore runs.
 
 INPUTS:
 - Step 1a: Project list with domain candidates (<N> projects discovered)
 - Step 1b: <N> per-project scouting reports (each has #META, #DOMAIN, #SERVICE blocks)
 - Step 1c: 1 root-level cross-cutting report
 
-OUTPUT 1 — HUMAN-READABLE: .work/reports/scouting-report.md
+OUTPUT BASE: .work/reports/<YYYYMMDD>/explore-<slug>/
+
+OUTPUT 1 — HUMAN-READABLE: .work/reports/<YYYYMMDD>/explore-<slug>/scouting-report.md
 - Consolidated scouting report organized by project
 - Cross-cutting section at the top
 - Flag discrepancies between project-level and root-level findings
 
-OUTPUT 2 — MACHINE-READABLE: .work/reports/project_registry.yaml
+OUTPUT 2 — MACHINE-READABLE: .work/reports/<YYYYMMDD>/explore-<slug>/project_registry.yaml
 Parse the #META, #DOMAIN, #SERVICE comment blocks from each per-project report.
 Produce a structured YAML registry following this exact schema:
 
@@ -363,7 +370,7 @@ CRITICAL RULES:
 - If a per-project report is missing #META/#DOMAIN/#SERVICE blocks, infer from the free-text report content
 - cross_cutting section captures root-level artifacts from Step 1c
 
-Output to: .work/reports/scouting-report.md AND .work/reports/project_registry.yaml"
+Output to: .work/reports/<YYYYMMDD>/explore-<slug>/scouting-report.md AND .work/reports/<YYYYMMDD>/explore-<slug>/project_registry.yaml"
 ```
 
 ---
@@ -372,7 +379,7 @@ Output to: .work/reports/scouting-report.md AND .work/reports/project_registry.y
 
 ### Step 2a: Present Discovery Summary
 
-Read `.work/reports/project_registry.yaml` and present findings to the user:
+Read `.work/reports/<YYYYMMDD>/explore-<slug>/project_registry.yaml` and present findings to the user:
 
 ```
 Scouting complete. Found <N> projects:
@@ -381,7 +388,12 @@ Scouting complete. Found <N> projects:
   {project-name-2}: {services count} service(s), domains=[{domain codes}], existing docs: {summary}
   ...
 
-Each project will get dedicated subagents per phase:
+Output sandbox: .work/reports/<YYYYMMDD>/explore-<slug>/
+  Per-project: .work/reports/<YYYYMMDD>/explore-<slug>/{project-name}/
+  Merged:      .work/reports/<YYYYMMDD>/explore-<slug>/merged/
+  Canonical:   agent_docs/ + docs/ (final merge step)
+
+Each project gets dedicated subagents per phase:
   - HLD: <N> hld-architect subagent(s) (1 per project, parallel)
   - LLD: <N> lld-designer subagent(s) (1 per project, parallel)
   - SRS: <N> srs-specifier subagent(s) (1 per project, parallel)
@@ -411,14 +423,14 @@ If existing spec-test docs exist but are outdated/incomplete, prioritize updatin
 
 ### Step 3a: Per-Project HLD Extraction
 
-Read `.work/reports/project_registry.yaml`. For EACH project, spawn in parallel:
+Read `.work/reports/<YYYYMMDD>/explore-<slug>/project_registry.yaml`. For EACH project, spawn in parallel:
 
 ```
 Agent type: hld-architect
 Prompt: "REVERSE-ENGINEER the High-Level Design from code for project: {project-name}.
 
 INPUTS:
-- .work/reports/project_registry.yaml (read the entry for {project-name})
+- .work/reports/<YYYYMMDD>/explore-<slug>/project_registry.yaml (read the entry for {project-name})
 - Source code at: {root_path} (from registry)
 - Step 1b scouting report for this project (if available)
 
@@ -455,14 +467,14 @@ CRITICAL RULES:
 
 Templates available at skills/orchestrate/templates/hld/
 
-Output to PROJECT-SCOPED paths:
-- agent_docs/projects/{project-name}/architecture.md — per-project architecture summary
-- agent_docs/projects/{project-name}/hard-boundaries.md — per-project ownership rules
-- agent_docs/projects/{project-name}/contracts/api-conventions.md — detected API conventions
-- agent_docs/projects/{project-name}/contracts/events.md — detected events (if any)
-- agent_docs/projects/{project-name}/domain-service-mapping.yaml — domain→service mapping for THIS project
-- docs/architecture/ADRs/{project-name}-ADR-{NNN}-{decision}.md — per-project ADRs (prefixed with project name)
-- docs/architecture/diagrams/{project-name}-{name}.mermaid — per-project diagram sources"
+Output ALL files to: .work/reports/<YYYYMMDD>/explore-<slug>/{project-name}/
+- {project-name}/agent_docs/architecture.md — per-project architecture summary
+- {project-name}/agent_docs/hard-boundaries.md — per-project ownership rules
+- {project-name}/agent_docs/contracts/api-conventions.md — detected API conventions
+- {project-name}/agent_docs/contracts/events.md — detected events (if any)
+- {project-name}/agent_docs/domain-service-mapping.yaml — domain→service mapping for THIS project
+- {project-name}/docs/architecture/ADRs/ADR-{NNN}-{decision}.md — per-project ADRs (prefixed with project name)
+- {project-name}/docs/architecture/diagrams/{name}.mermaid — per-project diagram sources"
 ```
 
 ### Step 3b: Gate Review — Per Project
@@ -473,11 +485,11 @@ For EACH project's HLD output, run gate review in parallel:
 Agent type: component-validator (or general-purpose)
 Prompt: "Review the reverse-engineered HLD for project {project-name}:
 
-Read from:
-- agent_docs/projects/{project-name}/architecture.md
-- agent_docs/projects/{project-name}/hard-boundaries.md
-- agent_docs/projects/{project-name}/contracts/
-- docs/architecture/ADRs/{project-name}-ADR-*.md
+Read from (.work/reports/<YYYYMMDD>/explore-<slug>/{project-name}/):
+- {project-name}/agent_docs/architecture.md
+- {project-name}/agent_docs/hard-boundaries.md
+- {project-name}/agent_docs/contracts/
+- {project-name}/docs/architecture/ADRs/ADR-*.md
 
 Gate checklist:
 1. [ ] Every claim has a code reference (file path in {root_path})
@@ -500,16 +512,16 @@ Agent type: general-purpose
 Prompt: "Merge per-project HLD outputs into cross-project system architecture.
 
 Read from:
-- .work/reports/project_registry.yaml (all projects)
-- agent_docs/projects/{project-name}/architecture.md (for each project)
-- agent_docs/projects/{project-name}/hard-boundaries.md (for each project)
+- .work/reports/<YYYYMMDD>/explore-<slug>/project_registry.yaml (all projects)
+- For EACH project: .work/reports/<YYYYMMDD>/explore-<slug>/{project-name}/agent_docs/architecture.md
+- For EACH project: .work/reports/<YYYYMMDD>/explore-<slug>/{project-name}/agent_docs/hard-boundaries.md
 
-Produce:
-- docs/architecture/system-architecture.md — merged C4 Level 1/2 diagrams showing all projects
-- agent_docs/cross-project/architecture.md — cross-project agent summary
-- agent_docs/cross-project/domain-service-mapping.yaml — merged domain→service mapping
+Produce (under .work/reports/<YYYYMMDD>/explore-<slug>/merged/):
+- merged/docs/architecture/system-architecture.md — merged C4 Level 1/2 diagrams showing all projects
+- merged/agent_docs/architecture.md — cross-project agent summary
+- merged/agent_docs/domain-service-mapping.yaml — merged domain→service mapping
 
-The per-project docs remain the authoritative per-project source. Cross-project docs are synthesis only."
+The per-project sandboxes remain the authoritative per-project source. Cross-project docs are synthesis only."
 ```
 
 ---
@@ -520,17 +532,17 @@ The per-project docs remain the authoritative per-project source. Cross-project 
 
 ### Step 4a: Per-Project LLD Extraction
 
-Read `.work/reports/project_registry.yaml`. For EACH project, spawn in parallel:
+Read `.work/reports/<YYYYMMDD>/explore-<slug>/project_registry.yaml`. For EACH project, spawn in parallel:
 
 ```
 Agent type: lld-designer
 Prompt: "REVERSE-ENGINEER the Low-Level Design from code for ALL services in project: {project-name}.
 
 INPUTS:
-- .work/reports/project_registry.yaml (read the entry for {project-name})
+- .work/reports/<YYYYMMDD>/explore-<slug>/project_registry.yaml (read the entry for {project-name})
   Contains: services[] list with names, types, languages, and controllers found
-- Per-project HLD: agent_docs/projects/{project-name}/architecture.md
-- Per-project hard boundaries: agent_docs/projects/{project-name}/hard-boundaries.md
+- Per-project HLD: .work/reports/<YYYYMMDD>/explore-<slug>/{project-name}/agent_docs/architecture.md
+- Per-project hard boundaries: .work/reports/<YYYYMMDD>/explore-<slug>/{project-name}/agent_docs/hard-boundaries.md
 - Source code at: {root_path} (from registry)
 
 You are operating in REVERSE-ENGINEERING MODE. Instead of designing service internals from requirements, you are EXTRACTING internals from existing source code.
@@ -548,6 +560,7 @@ READ THE CODE FIRST:
 8. Read config files for timeouts, connection pools, circuit breakers
 
 Produce per-service LLD with 10 sections (DETECTED FROM CODE):
+(10 sections for reverse-engineering: includes "API Surface" as section #4 because endpoints are directly detected from controller source code. Forward-engineering LLD uses 9 sections.)
 1. Service Boundary — what this service owns (from package structure)
 2. Internal Architecture — controllers → services → repositories (from code)
 3. Domain Model — entities, value objects, aggregates (from entity classes)
@@ -567,11 +580,11 @@ CRITICAL RULES:
 
 Templates available at skills/orchestrate/templates/lld/
 
-Output to PROJECT-SCOPED paths:
-- agent_docs/projects/{project-name}/tech-design/{service-name}.md — per service LLD
-- agent_docs/projects/{project-name}/contracts/api-{domain}.yaml — OpenAPI (if reconstructable from code)
-- agent_docs/projects/{project-name}/contracts/error-codes.md — detected error codes
-- agent_docs/projects/{project-name}/conventions.md — detected coding conventions"
+Output ALL files to sandbox: .work/reports/<YYYYMMDD>/explore-<slug>/{project-name}/
+- {project-name}/agent_docs/tech-design/{service-name}.md — per service LLD
+- {project-name}/agent_docs/contracts/api-{domain}.yaml — OpenAPI (if reconstructable from code)
+- {project-name}/agent_docs/contracts/error-codes.md — detected error codes
+- {project-name}/agent_docs/conventions.md — detected coding conventions"
 ```
 
 ### Step 4b: Gate Review — Per Project
@@ -582,8 +595,8 @@ For EACH project's LLD output, run gate review in parallel:
 Agent type: component-validator (or general-purpose)
 Prompt: "Review the reverse-engineered LLD for project {project-name}:
 
-Read from:
-- agent_docs/projects/{project-name}/tech-design/*.md
+Read from (.work/reports/<YYYYMMDD>/explore-<slug>/{project-name}/):
+- {project-name}/agent_docs/tech-design/*.md
 
 Gate checklist per service:
 1. [ ] All 10 sections present (even if some are TODO)
@@ -604,18 +617,18 @@ Report: PASS / FAIL with specific issues for project {project-name}."
 
 ### Step 5a: Per-Project SRS Extraction
 
-Read `.work/reports/project_registry.yaml`. For EACH project, spawn in parallel:
+Read `.work/reports/<YYYYMMDD>/explore-<slug>/project_registry.yaml`. For EACH project, spawn in parallel:
 
 ```
 Agent type: srs-specifier
 Prompt: "REVERSE-ENGINEER Software Requirements from code for project: {project-name}.
 
 INPUTS:
-- .work/reports/project_registry.yaml (read the entry for {project-name})
+- .work/reports/<YYYYMMDD>/explore-<slug>/project_registry.yaml (read the entry for {project-name})
   This contains the detected DOMAINS for this project — use domains[].code and domains[].slug
-- Per-project HLD: agent_docs/projects/{project-name}/architecture.md
-- Per-project LLD: agent_docs/projects/{project-name}/tech-design/*.md
-- Per-project contracts: agent_docs/projects/{project-name}/contracts/
+- Per-project HLD: .work/reports/<YYYYMMDD>/explore-<slug>/{project-name}/agent_docs/architecture.md
+- Per-project LLD: .work/reports/<YYYYMMDD>/explore-<slug>/{project-name}/agent_docs/tech-design/*.md
+- Per-project contracts: .work/reports/<YYYYMMDD>/explore-<slug>/{project-name}/agent_docs/contracts/
 - Source code at: {root_path} (from registry)
 
 You are operating in REVERSE-ENGINEERING MODE. Instead of writing requirements from PRD/BRD inputs, you are EXTRACTING requirements from existing code behavior.
@@ -623,8 +636,8 @@ You are operating in REVERSE-ENGINEERING MODE. Instead of writing requirements f
 CRITICAL — EPIC NAME DERIVATION (auto-detect, don't guess):
 - The epic name comes from project_registry.yaml → projects[].domains[] entries
 - For project '{project-name}' with domain code={CODE} and slug={domain-slug}:
-  - Epic directory: docs/product/features/{project-name}-epic-{domain-slug}/
-  - Example: docs/product/features/user-service-epic-user-management/
+  - Epic directory: {project-name}/docs/product/features/epic-{domain-slug}/
+  - Example: user-service/docs/product/features/epic-user-management/
 - If a project has multiple domains, create separate epic directories per domain
 - The {project-name} prefix in the epic path prevents name collisions across projects
 
@@ -652,10 +665,10 @@ CRITICAL RULES:
 
 Templates available at skills/orchestrate/templates/srs/
 
-Output to PROJECT-QUALIFIED paths:
-- docs/product/SRS-{project-name}.md — master SRS for this project
-- docs/product/features/{project-name}-epic-{domain-slug}/FR-{DOMAIN}-{NNN}--{slug}.md — per feature
-- agent_docs/projects/{project-name}/traceability/requirements-matrix.md — traceability for this project"
+Output ALL files to sandbox: .work/reports/<YYYYMMDD>/explore-<slug>/{project-name}/
+- {project-name}/docs/product/SRS.md — master SRS for this project
+- {project-name}/docs/product/features/epic-{domain-slug}/FR-{DOMAIN}-{NNN}--{slug}.md — per feature
+- {project-name}/agent_docs/traceability/requirements-matrix.md — traceability for this project"
 ```
 
 ### Step 5b: Gate Review — Per Project
@@ -666,10 +679,10 @@ For EACH project's SRS output, run gate review in parallel:
 Agent type: component-validator (or general-purpose)
 Prompt: "Review the reverse-engineered SRS for project {project-name}:
 
-Read from:
-- docs/product/SRS-{project-name}.md
-- docs/product/features/{project-name}-epic-{slug}/FR-*.md
-- agent_docs/projects/{project-name}/traceability/requirements-matrix.md
+Read from (.work/reports/<YYYYMMDD>/explore-<slug>/{project-name}/):
+- {project-name}/docs/product/SRS.md
+- {project-name}/docs/product/features/epic-{slug}/FR-*.md
+- {project-name}/agent_docs/traceability/requirements-matrix.md
 
 Gate checklist:
 1. [ ] Every FR has Gherkin Scenario Outline + data-driven Examples
@@ -682,7 +695,7 @@ Gate checklist:
 Plus reverse-engineering specific:
 8. [ ] Every FR cites the code files it was extracted from
 9. [ ] All FRs marked 'NEEDS VALIDATION'
-10. [ ] Epic directory name uses project prefix: {project-name}-epic-{domain-slug}
+10. [ ] Epic directory name uses project prefix: epic-{domain-slug}
 
 Report: PASS / FAIL with specific issues for project {project-name}."
 ```
@@ -695,19 +708,19 @@ Report: PASS / FAIL with specific issues for project {project-name}."
 
 ### Step 6a: Per-Project IMP Extraction
 
-Read `.work/reports/project_registry.yaml`. For EACH project, spawn in parallel:
+Read `.work/reports/<YYYYMMDD>/explore-<slug>/project_registry.yaml`. For EACH project, spawn in parallel:
 
 ```
 Agent type: imp-specifier
 Prompt: "REVERSE-ENGINEER Implementation Specifications from code for project: {project-name}.
 
 INPUTS:
-- .work/reports/project_registry.yaml (read {project-name} entry)
+- .work/reports/<YYYYMMDD>/explore-<slug>/project_registry.yaml (read {project-name} entry)
   Contains: services[] list with controllers_found, which maps to FRs
-- FR specs for this project: docs/product/features/{project-name}-epic-*/FR-*.md
-- Per-project HLD: agent_docs/projects/{project-name}/architecture.md
-- Per-project LLD: agent_docs/projects/{project-name}/tech-design/{service-name}.md
-- Per-project contracts: agent_docs/projects/{project-name}/contracts/
+- FR specs for this project: .work/reports/<YYYYMMDD>/explore-<slug>/{project-name}/docs/product/features/epic-*/FR-*.md
+- Per-project HLD: .work/reports/<YYYYMMDD>/explore-<slug>/{project-name}/agent_docs/architecture.md
+- Per-project LLD: .work/reports/<YYYYMMDD>/explore-<slug>/{project-name}/agent_docs/tech-design/{service-name}.md
+- Per-project contracts: .work/reports/<YYYYMMDD>/explore-<slug>/{project-name}/agent_docs/contracts/
 - Source code at: {root_path} (from registry)
 
 You are operating in REVERSE-ENGINEERING MODE. Instead of writing implementation specs from work packages, you are EXTRACTING implementation details from existing code.
@@ -745,11 +758,11 @@ CRITICAL RULES:
 
 Templates available at skills/orchestrate/templates/impl/
 
-Output to PROJECT-QUALIFIED paths:
-- agent_docs/projects/{project-name}/backend/{service-name}/implementation/FR-{DOMAIN}-{NNN}--{slug}-impl.md
-- agent_docs/projects/{project-name}/backend/{service-name}/implementation/FR-{DOMAIN}-{NNN}--{slug}-migration.md (if DB changes detected)
-- agent_docs/projects/{project-name}/frontend/{app-name}/implementation/FR-{DOMAIN}-{NNN}--{slug}-impl.md (if frontend)
-- agent_docs/projects/{project-name}/conventions.md (if not already created in LLD step)"
+Output ALL files to sandbox: .work/reports/<YYYYMMDD>/explore-<slug>/{project-name}/
+- {project-name}/agent_docs/backend/{service-name}/implementation/FR-{DOMAIN}-{NNN}--{slug}-impl.md
+- {project-name}/agent_docs/backend/{service-name}/implementation/FR-{DOMAIN}-{NNN}--{slug}-migration.md (if DB changes detected)
+- {project-name}/agent_docs/frontend/{app-name}/implementation/FR-{DOMAIN}-{NNN}--{slug}-impl.md (if frontend)
+- {project-name}/agent_docs/conventions.md (if not already created in LLD step)"
 ```
 
 BATCHING: If a project has >30 FRs, split into batches of ~15 FRs per subagent. Spawn multiple imp-specifier subagents per project, one per batch.
@@ -762,9 +775,9 @@ For EACH project's IMP output, run gate review in parallel:
 Agent type: component-validator (or general-purpose)
 Prompt: "Review the reverse-engineered IMP specs for project {project-name}:
 
-Read from:
-- agent_docs/projects/{project-name}/backend/*/implementation/FR-*-impl.md
-- agent_docs/projects/{project-name}/frontend/*/implementation/FR-*-impl.md
+Read from (.work/reports/<YYYYMMDD>/explore-<slug>/{project-name}/):
+- {project-name}/agent_docs/backend/*/implementation/FR-*-impl.md
+- {project-name}/agent_docs/frontend/*/implementation/FR-*-impl.md
 
 Gate checklist:
 1. [ ] All 10 sections present per feature
@@ -787,20 +800,20 @@ Report: PASS / FAIL with specific issues for project {project-name}."
 
 ### Step 7a: Per-Project TST Extraction
 
-Read `.work/reports/project_registry.yaml`. For EACH project, spawn in parallel:
+Read `.work/reports/<YYYYMMDD>/explore-<slug>/project_registry.yaml`. For EACH project, spawn in parallel:
 
 ```
 Agent type: tst-specifier
 Prompt: "REVERSE-ENGINEER Test Specifications from existing test code for project: {project-name}.
 
 INPUTS:
-- .work/reports/project_registry.yaml (read {project-name} entry)
-- FR specs: docs/product/features/{project-name}-epic-*/FR-*.md (Gherkin scenarios from Step 5)
-- Per-project contracts: agent_docs/projects/{project-name}/contracts/
+- .work/reports/<YYYYMMDD>/explore-<slug>/project_registry.yaml (read {project-name} entry)
+- FR specs: .work/reports/<YYYYMMDD>/explore-<slug>/{project-name}/docs/product/features/epic-*/FR-*.md (Gherkin scenarios from Step 5)
+- Per-project contracts: .work/reports/<YYYYMMDD>/explore-<slug>/{project-name}/agent_docs/contracts/
 - Existing test code in: {root_path}/src/test/ (or equivalent test directories from registry)
 
 CRITICAL — CONTEXT ISOLATION:
-NEVER read agent_docs/projects/{project-name}/backend/*/implementation/ (IMP specs)
+NEVER read {project-name}/agent_docs/backend/*/implementation/ (IMP specs)
 Test specs derive from FR scenarios + existing test code ONLY.
 
 You are operating in REVERSE-ENGINEERING MODE. Instead of writing test specs from requirements+contracts, you are EXTRACTING test coverage from existing test code and supplementing gaps.
@@ -844,12 +857,12 @@ After gap analysis, for EVERY scenario where existing tests are MISSING or INSUF
 
 Templates available at skills/orchestrate/templates/tst/
 
-Output to PROJECT-QUALIFIED paths:
-- agent_docs/projects/{project-name}/backend/{service-name}/test-specs/FR-{DOMAIN}-{NNN}--{slug}-test.md
-- agent_docs/projects/{project-name}/frontend/{app-name}/test-specs/FR-{DOMAIN}-{NNN}--{slug}-test.md
-- agent_docs/projects/{project-name}/performance/README.md
-- agent_docs/projects/{project-name}/performance/nfr-mapping.md
-- agent_docs/projects/{project-name}/performance/baseline.md"
+Output ALL files to sandbox: .work/reports/<YYYYMMDD>/explore-<slug>/{project-name}/
+- {project-name}/agent_docs/backend/{service-name}/test-specs/FR-{DOMAIN}-{NNN}--{slug}-test.md
+- {project-name}/agent_docs/frontend/{app-name}/test-specs/FR-{DOMAIN}-{NNN}--{slug}-test.md
+- {project-name}/agent_docs/performance/README.md
+- {project-name}/agent_docs/performance/nfr-mapping.md
+- {project-name}/agent_docs/performance/baseline.md"
 ```
 
 BATCHING: If a project has >30 FRs, split into batches of ~15 FRs per subagent. Spawn multiple tst-specifier subagents per project, one per batch.
@@ -862,10 +875,10 @@ For EACH project's TST output, run gate review in parallel:
 Agent type: component-validator (or general-purpose)
 Prompt: "Review the reverse-engineered TST specs for project {project-name}:
 
-Read from:
-- agent_docs/projects/{project-name}/backend/*/test-specs/FR-*-test.md
-- agent_docs/projects/{project-name}/frontend/*/test-specs/FR-*-test.md
-- agent_docs/projects/{project-name}/performance/
+Read from (.work/reports/<YYYYMMDD>/explore-<slug>/{project-name}/):
+- {project-name}/agent_docs/backend/*/test-specs/FR-*-test.md
+- {project-name}/agent_docs/frontend/*/test-specs/FR-*-test.md
+- {project-name}/agent_docs/performance/
 
 Gate checklist:
 1. [ ] All 7 test layers addressed where existing tests found
@@ -889,18 +902,18 @@ Report: PASS / FAIL with specific issues for project {project-name}."
 
 ### Step 8a: Per-Project Assessment
 
-Read `.work/reports/project_registry.yaml`. For EACH project, spawn in parallel:
+Read `.work/reports/<YYYYMMDD>/explore-<slug>/project_registry.yaml`. For EACH project, spawn in parallel:
 
 ```
 Agent type: component-validator (or general-purpose)
 Prompt: "Assess the documentation health for project: {project-name} after reverse engineering.
 
-Read from (PROJECT-SCOPED ONLY):
-- agent_docs/projects/{project-name}/architecture.md
-- agent_docs/projects/{project-name}/tech-design/*.md
-- agent_docs/projects/{project-name}/backend/*/implementation/*.md
-- agent_docs/projects/{project-name}/backend/*/test-specs/*.md
-- agent_docs/projects/{project-name}/performance/
+Read from (.work/reports/<YYYYMMDD>/explore-<slug>/{project-name}/ ONLY):
+- {project-name}/agent_docs/architecture.md
+- {project-name}/agent_docs/tech-design/*.md
+- {project-name}/agent_docs/backend/*/implementation/*.md
+- {project-name}/agent_docs/backend/*/test-specs/*.md
+- {project-name}/agent_docs/performance/
 
 Check for THIS PROJECT ONLY:
 1. Coverage: what % of services have LLD? What % of FRs are documented?
@@ -910,7 +923,7 @@ Check for THIS PROJECT ONLY:
 5. Gaps: what's still missing for this project?
 
 Generate per-project doc health report:
-Output to: .work/reports/doc-health-{project-name}.md"
+Output to: .work/reports/<YYYYMMDD>/explore-<slug>/doc-health-{project-name}.md"
 ```
 
 ### Step 8b: Merge Assessment Reports
@@ -922,16 +935,76 @@ Agent type: general-purpose
 Prompt: "Merge per-project doc health reports into a unified assessment.
 
 Read from:
-- .work/reports/doc-health-{project-name}.md (for each project)
-- .work/reports/project_registry.yaml
+- .work/reports/<YYYYMMDD>/explore-<slug>/doc-health-{project-name}.md (for each project)
+- .work/reports/<YYYYMMDD>/explore-<slug>/project_registry.yaml
 
 Produce:
-- .work/reports/doc-health.md — combined health report with per-project breakdowns
+- .work/reports/<YYYYMMDD>/explore-<slug>/merged/doc-health.md — combined health report with per-project breakdowns
   - Overall coverage score
   - Per-project coverage table
   - Consolidated TODO and ALERT counts
   - Per-project gap list
   - Recommendation: what to tackle next per project"
+```
+
+---
+
+## Step 9: Merge to Canonical Directories
+
+After ALL per-project phases pass gate review AND cross-project merges complete, spawn 1 merge agent to synthesize from the timestamped sandbox into the canonical `agent_docs/` and `docs/` directories following the standard SDLC structure:
+
+```
+Agent type: general-purpose
+Prompt: "Merge all reverse-engineered documentation from the explore sandbox into the canonical agent_docs/ and docs/ directories. Follow the STANDARD SDLC structure — no custom project subdirectories.
+
+INPUT SANDBOX: .work/reports/<YYYYMMDD>/explore-<slug>/
+- project_registry.yaml (SSOT with all project names + services + domains)
+- merged/ (cross-project merged docs)
+- {project-name}/ (per-project sandboxes — one per project)
+
+MAPPING RULES — THREE CATEGORIES:
+
+CATEGORY A — SERVICE-SCOPED FILES (unique by service name, no conflict across projects):
+  For EACH service in EACH project (from project_registry.yaml services[]):
+  - {project}/agent_docs/tech-design/{service-name}.md → agent_docs/tech-design/{service-name}.md
+  - {project}/agent_docs/backend/{service-name}/implementation/ → agent_docs/backend/{service-name}/implementation/
+  - {project}/agent_docs/backend/{service-name}/test-specs/ → agent_docs/backend/{service-name}/test-specs/
+  - {project}/agent_docs/frontend/{app-name}/implementation/ → agent_docs/frontend/{app-name}/implementation/
+  - {project}/agent_docs/frontend/{app-name}/test-specs/ → agent_docs/frontend/{app-name}/test-specs/
+
+CATEGORY B — DOMAIN-SCOPED FILES (unique by domain slug/code, no conflict):
+  For EACH domain in EACH project (from project_registry.yaml domains[]):
+  - {project}/docs/product/features/epic-{domain-slug}/ → docs/product/features/epic-{domain-slug}/
+  - {project}/agent_docs/contracts/api-{domain}.yaml → agent_docs/contracts/api-{domain}.yaml
+  - {project}/agent_docs/traceability/requirements-matrix.md → agent_docs/traceability/requirements-matrix-{domain-code}.md
+
+CATEGORY C — CROSS-PROJECT FILES (merge/synthesize, not replace):
+  From merged/:
+  - merged/docs/architecture/system-architecture.md → docs/architecture/system-architecture.md
+  - merged/agent_docs/architecture.md → agent_docs/architecture.md
+  - merged/agent_docs/domain-service-mapping.yaml → agent_docs/domain-service-mapping.yaml
+  - merged/doc-health.md → .work/reports/doc-health.md
+
+  From EACH project (accumulate into shared files):
+  - {project}/agent_docs/contracts/api-conventions.md → SYNTHESIZE into agent_docs/contracts/api-conventions.md (merge all projects' conventions, deduplicate)
+  - {project}/agent_docs/contracts/events.md → SYNTHESIZE into agent_docs/contracts/events.md (merge all projects' events, deduplicate)
+  - {project}/agent_docs/contracts/error-codes.md → SYNTHESIZE into agent_docs/contracts/error-codes.md (merge all projects' error codes, prefix by service)
+  - {project}/agent_docs/conventions.md → SPLIT: backend patterns → agent_docs/backend/conventions.md, frontend patterns → agent_docs/frontend/conventions.md (SDLC conventions are per-layer, not root-level)
+  - {project}/agent_docs/hard-boundaries.md → SYNTHESIZE into agent_docs/hard-boundaries.md (per-project sections, cross-project ownership matrix)
+  - {project}/agent_docs/performance/ → SYNTHESIZE into agent_docs/performance/ (per-service baselines, merged NFR mapping)
+  - {project}/docs/product/SRS.md → SYNTHESIZE into docs/product/SRS.md (per-project sections, merged FR index)
+  - {project}/docs/architecture/ADRs/ → SYNTHESIZE into docs/architecture/ADRs/ (accumulate, prefix by project name)
+  - {project}/docs/architecture/diagrams/ → SYNTHESIZE into docs/architecture/diagrams/ (accumulate, prefix by project name)
+
+CRITICAL RULES:
+- Use the STANDARD SDLC directory structure: agent_docs/ and docs/ flat — NO agent_docs/projects/ subdirectory
+- Services are naturally unique across projects (service names must differ) → direct copy safe
+- Domains are naturally unique (domain codes differ) → direct copy safe
+- Cross-project files (architecture, conventions, SRS, ADRs) MUST be synthesized — merge content, don't overwrite
+- When synthesizing, add per-project section headers: '## {project-name}' within merged files
+- The timestamped sandbox .work/reports/<YYYYMMDD>/explore-<slug>/ is preserved as an immutable record
+- agent_docs/README.md should be updated to include routing table entries for all services discovered
+- Add header to each canonical file noting: 'Reverse-engineered on <date>. Source: .work/reports/<YYYYMMDD>/explore-<slug>/'"
 ```
 
 ---
@@ -943,28 +1016,35 @@ Report:
 ```
 Explore/Reverse Engineer workflow complete.
 
-Generated:
-  .work/reports/project_registry.yaml              - Project registry (SSOT for all phases)
+Sandbox (immutable record):
+  .work/reports/<YYYYMMDD>/explore-<slug>/
+    project_registry.yaml                           - Project registry (SSOT)
+    scouting-report.md                              - Consolidated scouting
+    merged/doc-health.md                            - Documentation health report
 
-  CROSS-PROJECT:
-    docs/architecture/system-architecture.md       - Merged C4 diagrams
-    docs/architecture/ADRs/                        - Architecture Decision Records
-    agent_docs/cross-project/architecture.md       - Cross-project agent summary
-    agent_docs/cross-project/domain-service-mapping.yaml
+Canonical output (standard SDLC structure):
+  CROSS-PROJECT (synthesized from all projects):
+    docs/architecture/system-architecture.md        - Merged C4 diagrams
+    docs/architecture/ADRs/                         - Architecture Decision Records (accumulated)
+    agent_docs/architecture.md                      - Cross-project agent summary
+    agent_docs/domain-service-mapping.yaml          - Domain→service mapping (merged)
+    agent_docs/hard-boundaries.md                   - Ownership rules (per-project sections)
+    agent_docs/contracts/api-conventions.md         - API conventions (merged, deduplicated)
+    agent_docs/contracts/events.md                  - Events (merged, deduplicated)
+    agent_docs/contracts/error-codes.md             - Error codes (merged, prefixed by service)
+    agent_docs/conventions.md                       - Coding conventions (merged, deduplicated)
+    agent_docs/performance/                         - Perf baselines + NFR mapping (merged)
+    docs/product/SRS.md                             - Master SRS (per-project sections)
 
-  PROJECT: {project-name-1}/
-    agent_docs/projects/{name}/architecture.md              - Per-project HLD
-    agent_docs/projects/{name}/hard-boundaries.md           - Ownership rules
-    agent_docs/projects/{name}/contracts/                   - API conventions, events
-    agent_docs/projects/{name}/tech-design/{svc}.md         - Per-service LLD
-    docs/product/SRS-{name}.md                              - Master SRS
-    docs/product/features/{name}-epic-{domain-slug}/        - FR specs (one per feature)
-    agent_docs/projects/{name}/backend/{svc}/implementation/  - IMP specs
-    agent_docs/projects/{name}/backend/{svc}/test-specs/      - TST specs
-    agent_docs/projects/{name}/performance/                   - Perf baselines
+  PER-SERVICE (copied from sandbox, unique names = no conflict):
+    agent_docs/tech-design/{service-name}.md        - Per-service LLD
+    agent_docs/backend/{service}/implementation/    - IMP specs
+    agent_docs/backend/{service}/test-specs/        - TST specs
 
-  PROJECT: {project-name-2}/
-    ...
+  PER-DOMAIN (copied from sandbox, unique slugs = no conflict):
+    docs/product/features/epic-{domain-slug}/       - FR specs (one per feature)
+    agent_docs/contracts/api-{domain}.yaml          - OpenAPI contracts
+    agent_docs/traceability/requirements-matrix-{CODE}.md
 
 Documentation Health: .work/reports/doc-health.md
   Coverage: <overall %> (per-project breakdowns inside)
@@ -989,5 +1069,6 @@ Next Steps:
 5. **Don't impose** — Reverse engineering describes what IS, not what SHOULD BE
 6. **One FR per feature** — Each detected feature (login, register, reset) gets its own FR file. Never group unrelated functionality into one file.
 7. **Specs from code** — IMP and TST are reverse-engineered from actual source and test code, not generated from requirements. Every claim must cite a source file and line number.
-8. **Per-project isolation** — Each project gets dedicated subagents. 1 subagent per project per phase, running in parallel. Never let 1 subagent handle multiple projects.
+8. **Per-project isolation** — Each project gets dedicated subagents and its own sandbox under `.work/reports/<YYYYMMDD>/explore-<slug>/{project-name}/`. 1 subagent per project per phase, running in parallel. Never let 1 subagent handle multiple projects.
 9. **Structured registry** — `project_registry.yaml` is the SSOT for all phases. Every step reads from it; no step re-parses free-text scouting reports.
+10. **Sandbox then canonical** — All per-project output goes to timestamped sandbox first (no overwrites). Final Step 9 merges to canonical `agent_docs/projects/{project-name}/` and `docs/` directories.

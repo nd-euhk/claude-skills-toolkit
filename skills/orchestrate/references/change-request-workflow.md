@@ -265,30 +265,35 @@ Gate checklist:
 Report: PASS / FAIL with specific gaps."
 ```
 
-### Phase 10: Update Board & Backlog
+### Phase 10: Update Agent Configuration
 
 ```
 Agent type: agt-configurator
 Prompt: "Update the agent configuration for the change request to feature <FR-ID>.
 
 Actions:
-1. If feature was marked 'done' on the board → REOPEN it
-2. Update board/backlog: move feature to 'in-progress' or 'pending'
-3. Update AGENTS.md if routing changed
-4. Update agent_docs/roadmap.md if timeline affected
-5. Update agent_docs/README.md routing table if needed
-6. Run scripts/check-docs-sync.sh and report results
+1. Update AGENTS.md if routing changed
+2. Update agent_docs/roadmap.md if timeline affected
+3. Update agent_docs/README.md routing table if needed
+4. Run scripts/check-docs-sync.sh and report results
 
 Context:
-- Board: .work/board.md
-- Backlog: .work/backlog.md
 - Updated impl specs: agent_docs/backend/{service}/implementation/FR-*-impl.md
 - Updated test specs: agent_docs/backend/{service}/test-specs/FR-*-test.md
 - AGENTS.md (project root)
 - agent_docs/README.md
 - agent_docs/roadmap.md
 
-Report: Board state before → after, reopened items, validation script results."
+Report: validation script results."
+```
+
+### Board Update via Sprint Skill
+
+After agt-configurator completes, delegate board/backlog updates:
+
+```
+Skill: sprint
+Description: "Update board for change request to <FR-ID>. If the feature was marked done, reopen it and set to ✅ Ready. If creating a new task: task='<description>', feature=<FR-ID>, service=<affected service>, status=✅ Ready."
 ```
 
 ### Gate Review (Phase 10)
@@ -301,15 +306,11 @@ Read from:
 - AGENTS.md (project root)
 - agent_docs/README.md
 - agent_docs/roadmap.md
-- .work/board.md
-- .work/backlog.md
 
 Gate checklist:
-1. [ ] Board correctly reflects feature state (reopened if was done)
-2. [ ] Backlog updated with change request tasks
-3. [ ] scripts/check-docs-sync.sh passes
-4. [ ] scripts/check-traceability.sh passes (FR → impl → test chain intact)
-5. [ ] No orphaned references in routing table
+1. [ ] scripts/check-docs-sync.sh passes
+2. [ ] scripts/check-traceability.sh passes (FR → impl → test chain intact)
+3. [ ] No orphaned references in routing table
 
 Report: PASS / FAIL with specific gaps."
 ```
@@ -445,8 +446,8 @@ Next: Ready for Cook (TDD execution) to implement the changes.
 ### Feature Was Marked "Done"
 
 If the feature was completed and marked "done" on the board:
-1. Reopen the feature on .work/board.md
-2. Create a new change request task linked to the original feature
+1. Use sprint skill to reopen the feature on .work/board.md
+2. Use sprint skill to create a new change request task linked to the original feature
 3. All updated specs should reference the original FR-ID with a change revision number
 
 ### Change Affects Multiple Features

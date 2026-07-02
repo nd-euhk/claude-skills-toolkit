@@ -160,6 +160,10 @@ Output:
 - docs/product/features/epic-{name}/FR-{DOMAIN}-{NNN}--{slug}.md — one file per FR
 - agent_docs/traceability/requirements-matrix.md — traceability matrix
 
+If context from Phases 0-4 exists, also produce (large teams):
+- docs/product/SRS-BACKEND.md — backend SRS with bounded context registry
+- docs/product/SRS-FRONTEND.md — frontend SRS with app architecture + CWV\n
+
 If context from Phases 0-4 exists (docs/business/, docs/product/, docs/user/, docs/ux/),
 read those first for business objectives, user profiles, and UX specs."
 ```
@@ -370,6 +374,7 @@ Output:
 - agent_docs/backend/{service-name}/implementation/FR-{DOMAIN}-{NNN}--{slug}-impl.md
 - agent_docs/frontend/{app-name}/implementation/FR-{DOMAIN}-{NNN}--{slug}-impl.md
 - agent_docs/backend/conventions.md (if new service, or update if existing)
+- agent_docs/backend/{service-name}/README.md — service overview
 - agent_docs/frontend/conventions.md (if new app, or update if existing)"
 ```
 
@@ -490,19 +495,15 @@ Produce:
 1. AGENTS.md — vendor-neutral agent instructions (project root)
 2. agent_docs/README.md — routing table (FR → service → specs)
 3. agent_docs/roadmap.md — Sprint 1 with concrete, ordered tasks
-4. .work/board.md — current sprint task board
-5. .work/backlog.md — prioritized backlog
-6. Tool-specific configs (.claude/ settings if missing)
-7. scripts/check-traceability.sh — traceability validation
-8. scripts/check-docs-sync.sh — docs sync validation
-9. Health check: verify all FRs have complete traceability chain
+4. Tool-specific configs (.claude/ settings if missing)
+5. scripts/check-traceability.sh — traceability validation
+6. scripts/check-docs-sync.sh — docs sync validation
+7. Health check: verify all FRs have complete traceability chain
 
 Output:
 - AGENTS.md (project root)
 - agent_docs/README.md — routing table
 - agent_docs/roadmap.md — sprint roadmap
-- .work/board.md — current sprint board
-- .work/backlog.md — prioritized backlog
 - scripts/check-traceability.sh
 - scripts/check-docs-sync.sh
 - .claude/ (tool-specific settings)"
@@ -518,18 +519,16 @@ Read from:
 - AGENTS.md (project root)
 - agent_docs/README.md
 - agent_docs/roadmap.md
-- .work/board.md
-- .work/backlog.md
 - scripts/
 
 Gate checklist:
 1. [ ] AGENTS.md covers all services and workflows
 2. [ ] Routing table maps every FR → service → impl spec → test spec
 3. [ ] Roadmap Sprint 1 has concrete, ordered, dependency-aware tasks
-4. [ ] Board/backlog reflects current state
-5. [ ] scripts/check-traceability.sh runs without errors
-6. [ ] scripts/check-docs-sync.sh runs without errors
-7. [ ] Agent Validation Protocol ready: smoke test plan defined
+
+4. [ ] scripts/check-traceability.sh runs without errors
+5. [ ] scripts/check-docs-sync.sh runs without errors
+6. [ ] Agent Validation Protocol ready: smoke test plan defined
 
 Report: PASS / FAIL with specific gaps."
 ```
@@ -540,7 +539,17 @@ Report: PASS / FAIL with specific gaps."
 
 After all phases pass gate review:
 
-1. **Update board via sprint skill:** Mark the corresponding task on `.work/board.md` as ✅ Ready (from 🔲 Todo):
+1. **Create board & backlog via sprint skill:** 
+
+```
+Skill: sprint
+Description: "Create initial board and backlog from agent_docs/roadmap.md. 
+The roadmap defines Sprint 1 with concrete, ordered tasks. 
+Create .work/board.md with those tasks as 🔲 Todo and 
+.work/backlog.md as a pointer to roadmap.md for full context."
+```
+
+2. **Update board via sprint skill:** Mark the corresponding task on `.work/board.md` as ✅ Ready (from 🔲 Todo):
 
 ```
 Skill: sprint
@@ -548,7 +557,7 @@ Description: "Update board task for feature <FR-ID> from 🔲 Todo to ✅ Ready.
 The specs (SRS, HLD, LLD, IMP, TST) are all complete and the feature is ready for Cook implementation."
 ```
 
-2. **Report to user:**
+3. **Report to user:**
 
 ```
 New Feature workflow complete. All phases 05-10 passed gate review.
@@ -568,8 +577,6 @@ Output:
   agent_docs/README.md               - Routing table
   agent_docs/roadmap.md              - Sprint roadmap
   AGENTS.md                          - Agent instructions (root)
-  .work/board.md                     - Sprint board (task updated to ✅ Ready)
-  .work/backlog.md                   - Prioritized backlog
   scripts/                           - Validation scripts
 
 Next: Ready for Phase 11 (Cook/TDD execution).

@@ -2,6 +2,22 @@
 
 All notable changes to the skills-toolkit plugin are documented here.
 
+## [2.20.0] - 2026-06-01
+
+### Added
+- **test-writer:** New subagent for writing failing TDD tests with context isolation. Model: sonnet, permission: acceptEdits.
+- **implementer:** New subagent for writing minimum TDD implementation code. Model: opus, permission: acceptEdits.
+- **reviewer:** New read-only subagent for code quality and architecture compliance reviews. Model: sonnet, permission: plan.
+
+### Changed
+- **orchestrate 2.4.0:** Added dedicated execution agents (test-writer, implementer, reviewer) replacing starter-kit references.
+- **orchestrate 2.4.0:** Fixed board/backlog ownership — agt-configurator no longer creates board/backlog directly; sprint skill handles all board/backlog operations.
+- **orchestrate 2.4.0:** Clarified LLD section count — forward engineering uses 9 sections, reverse engineering uses 10 (adds API Surface detected from controller code).
+- **agt-configurator:** Removed Core Workflow 4 (Board & Backlog). Board/backlog are now exclusively managed by sprint skill.
+- **agt-configurator:** Fixed conventions.md path to use per-layer paths (backend/conventions.md + frontend/conventions.md) per SDLC standard.
+- **lld-designer:** Documented 9 vs 10 section distinction between forward and reverse engineering modes. Removed tech-design/README.md from output.
+- **new-feature-workflow.md:** Added SRS-BACKEND.md / SRS-FRONTEND.md as optional large-team outputs. Added service README.md to Phase 08 output list.
+
 ## [2.19.0] - 2026-05-29
 
 ### Changed

@@ -38,16 +38,18 @@ ALLOWED:
 FORBIDDEN:
   ❌ Writing implementation specs (Phase 8)
   ❌ Writing test specs (Phase 9)
+  ❌ Writing agent config (Phase 10)
+  ❌ Generating work packages before ADR-001 + contracts exist
+  ❌ Duplicating business logic from Phase 5 FRs into work packages
 
 ## Reverse-Engineering Mode
 
-When operating in reverse-engineering mode (explore workflow), you EXTRACT service internals from existing source code rather than designing from architecture.
+When operating in reverse-engineering mode (explore workflow), you EXTRACT service internals from existing source code rather than designing from architecture. Reverse-engineering LLD has 10 sections — adds "API Surface" as a separate section because endpoints are directly detected from controller source code. Forward-engineering LLD uses 9 sections (API endpoints are derived from the OpenAPI contract which is created separately).
 
 ### What You Read (Reverse-Engineering)
 ```
 ALLOWED:
-  ✅ .work/reports/project_registry.yaml          → Project registry with services[] list
-  ✅ agent_docs/projects/{project}/architecture.md → Per-project HLD
+  ✅ agent_docs/architecture.md                   → HLD
   ✅ {project}/src/main/**/controller/**          → Controller files (API endpoints)
   ✅ {project}/src/main/**/service/**             → Service/business logic files
   ✅ {project}/src/main/**/repository/**          → Repository/DAO files
@@ -60,9 +62,6 @@ FORBIDDEN:
   ❌ Creating work packages (forward-engineering output; not applicable in reverse mode)
   ❌ Writing OpenAPI contracts for endpoints not found in code
 ```
-  ❌ Writing agent config (Phase 10)
-  ❌ Generating work packages before ADR-001 + contracts exist
-  ❌ Duplicating business logic from Phase 5 FRs into work packages
 ```
 
 ## Core Workflows
@@ -192,7 +191,6 @@ Work package frontmatter template:
 
 ```
 agent_docs/tech-design/
-├── README.md                           ← Naming convention + 9-section methodology
 ├── cross-cutting.md                    ← Shared patterns + admin + testing strategy
 ├── {service-name}.md                   ← Per service, 9 sections each
 └── ...

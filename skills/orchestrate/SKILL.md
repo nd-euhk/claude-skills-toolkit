@@ -5,8 +5,11 @@ description: >-
   Use when implementing new features, handling change requests, running TDD/cook loops,
   debugging, fixing bugs, or reverse-engineering documentation from codebase.
   Pure orchestration - never explores, writes, or updates directly.
-version: 2.1.0
+version: 2.4.0
 allowed-tools: Read, AskUserQuestion, Agent, TaskCreate, TaskUpdate, TaskList, EnterPlanMode, ExitPlanMode
+argument-hint: >-
+  [--auto] [task description]
+  --auto  Bypass plan mode and execute directly (New Feature, Change Request, Explore workflows only)
 ---
 
 # Orchestrate
@@ -77,6 +80,29 @@ CRITICAL: Never skip gate review. Never use the same subagent type for both prod
 **Applies to these workflows:** New Feature, Change Request, Explore/Reverse Engineer
 
 Before executing any phase, the orchestrator MUST enter plan mode to produce an orchestration plan and get human sign-off. This prevents wasted work on incorrect assumptions.
+
+### --auto Flag: Bypass Plan Mode
+
+When the user passes `--auto` (e.g., `/skills-toolkit:orchestrate --auto implement login feature`), **skip the entire Plan Mode Protocol** and proceed directly to execution (Step 6). The orchestrator still follows the workflow phases with mandatory gate reviews — only the upfront planning step is skipped.
+
+**Check pattern:**
+```
+IF user input contains "--auto" →
+  1. Strip "--auto" from the task description
+  2. SKIP Steps 1-5 (no EnterPlanMode, no Plan subagent, no plan file)
+  3. PROCEED directly to Step 6 (Execute phases per workflow)
+  4. Use AskUserQuestion routing (Step 2) to confirm task type before executing
+```
+
+**When to use --auto:**
+- Well-understood features where the SDLC phases are clear
+- Iterative work where the user wants to move fast
+- The user already knows the scope and doesn't need a written plan
+
+**When NOT to use --auto:**
+- Complex, multi-service features with unclear boundaries
+- First-time implementation in an unfamiliar codebase
+- The user explicitly asks for a plan or review before execution
 
 ### Plan Mode Flow
 
@@ -172,11 +198,12 @@ Plan mode is NOT required for these workflows (they are direct-execution by natu
 
 ### Common Rules
 
-- **Never skip plan mode** for New Feature, Change Request, or Explore workflows
+- **Never skip plan mode** for New Feature, Change Request, or Explore workflows (unless `--auto` flag is set)
 - **Never self-plan** — always delegate to Plan subagent (pure orchestration)
 - **Never execute before confirmation** — no ExitPlanMode until human approves
 - **Plan is SSOT** — all subsequent phases reference the plan file for phase ordering and subagent assignments
 - **Plan mode is read-only** — the orchestrator cannot modify files during plan mode; use subagents for file writes
+- **--auto bypass** — when `--auto` is passed, skip Steps 1-5 entirely; still run mandatory gate reviews during execution
 
 ## Task Selection Details
 
@@ -223,7 +250,7 @@ Extract documentation (HLD, LLD, SRS) from existing code. Assess existing spec-t
 
 ## Subagent Catalog
 
-These subagents are available for delegation. Scout the `../ai-agentic-starter-kit/.claude/agents/` and `.claude/agents/` directories for the full catalog.
+These subagents are available for delegation. All listed agents are defined in `.claude/agents/`.
 
 ### Spec & Design Agents
 | Subagent | Phase | Produces |
@@ -237,9 +264,9 @@ These subagents are available for delegation. Scout the `../ai-agentic-starter-k
 |----------|-------|----------|
 | imp-specifier | 08 (IMP) | Decision-rich impl specs, migration specs |
 | tst-specifier | 09 (TST) | Test specs at 7 layers |
-| agt-configurator | 10 (AGT) | AGENTS.md, routing tables, board/backlog, health checks |
+| agt-configurator | 10 (AGT) | AGENTS.md, routing tables, roadmap, health checks |
 
-### Execution Agents (from ai-agentic-starter-kit)
+### Execution Agents
 | Subagent | Role | Produces |
 |----------|------|----------|
 | implementer | Write code | Implementation following impl spec |

@@ -46,12 +46,11 @@ When operating in reverse-engineering mode (explore workflow), you EXTRACT archi
 ### What You Read (Reverse-Engineering)
 ```
 ALLOWED:
-  ✅ .work/reports/project_registry.yaml          → Project registry (SSOT for project structure)
   ✅ {project}/pom.xml, build.gradle, etc.         → Build system, module structure
   ✅ {project}/src/main/**                         → Source code (controllers, services, entities)
   ✅ {project}/Dockerfile, docker-compose*.yml     → Infrastructure config
   ✅ {project}/application*.yml, application*.properties → App configuration
-  ✅ agent_docs/projects/{project}/**              → Existing per-project docs (if any)
+  ✅ agent_docs/**                                 → Existing docs (if any)
 
 FORBIDDEN:
   ❌ Designing architecture that doesn't match code — detect, don't invent

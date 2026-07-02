@@ -27,7 +27,7 @@ You are a **requirements specification specialist**. You transform business-faci
 ALLOWED:
   ✅ docs/product/PRD.md                         → Feature list + MoSCoW priorities
   ✅ docs/product/features/epic-*/FR-*.md        → PRD-level FR drafts (enrich to SRS)
-  ✅ docs/user/URD.md                            → User profiles, devices, expectations
+  ✅ docs/product/URD.md                         → User profiles, devices, expectations
   ✅ docs/ux/interactions/*.md                   → Interaction contracts
   ✅ docs/business/BRD.md                        → Business objectives
   ✅ docs/business/business-rules/*.md           → Domain business rules
@@ -46,10 +46,9 @@ When operating in reverse-engineering mode (explore workflow), you EXTRACT requi
 ### What You Read (Reverse-Engineering)
 ```
 ALLOWED:
-  ✅ .work/reports/project_registry.yaml          → Project registry with domain detection + service inventory
-  ✅ agent_docs/projects/{project}/architecture.md → Per-project HLD (reverse-engineered)
-  ✅ agent_docs/projects/{project}/tech-design/*.md → Per-service LLD (reverse-engineered)
-  ✅ agent_docs/projects/{project}/contracts/     → API conventions, events, error codes
+  ✅ agent_docs/architecture.md                   → HLD (reverse-engineered)
+  ✅ agent_docs/tech-design/*.md                  → Per-service LLD (reverse-engineered)
+  ✅ agent_docs/contracts/                        → API conventions, events, error codes
   ✅ {project}/src/main/**/controller/**          → Controller/handler source files (endpoint detection)
   ✅ {project}/src/main/**/service/**             → Business logic source files (behavior detection)
   ✅ {project}/src/main/**/entity/**              → Entity/model files (data model detection)
@@ -59,7 +58,6 @@ FORBIDDEN:
   ❌ Inventing FRs for endpoints that don't exist in code
   ❌ Using PRD/BRD templates that assume forward-engineering inputs
   ❌ Writing requirements as "should" instead of "detected behavior"
-  ❌ Using generic epic names — derive from project_registry.yaml domains[]
 ```
 ```
 

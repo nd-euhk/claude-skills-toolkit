@@ -119,8 +119,7 @@ Producer: agt-configurator
 1. [ ] AGENTS.md covers all services, workflows, and constraints
 2. [ ] Routing table: every FR → service → impl spec → test spec
 3. [ ] Roadmap Sprint 1: concrete tasks, ordered, dependencies noted
-4. [ ] Board/backlog: tasks in correct status columns
-5. [ ] scripts/check-docs-sync.sh runs without errors (execute it)
+4. [ ] scripts/check-docs-sync.sh runs without errors (execute it)
 6. [ ] scripts/check-traceability.sh runs with 0 errors (execute it)
 7. [ ] Agent Validation Protocol: smoke test plan defined
 ```
@@ -172,7 +171,7 @@ Reviewer: component-validator or general-purpose
 Producer: lld-designer
 
 ```
-1. [ ] All 10 sections present (even if some are TODO)
+1. [ ] All 10 sections present (reverse LLD adds "API Surface" detected from controller code — forward LLD uses 9 sections)
 2. [ ] File name matches codebase directory structure ({service-name}-service.md)
 3. [ ] API endpoints match controller code (spot check 3 endpoints)
 4. [ ] Domain model reflects actual entity classes
