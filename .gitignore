@@ -1,2 +1,9 @@
 *.backup
 /evals/
+
+# Claude Code worktrees (embedded git repos)
+.claude/worktrees/
+
+# Python cache files
+__pycache__/
+*.pyc
