@@ -36,7 +36,9 @@ Transform LLD work packages (`agent_docs/features/FR-*.md` with routing overlays
 3. Read `agent_docs/tech-design/cross-cutting.md` — shared concerns (required)
 4. Read `agent_docs/contracts/api-{domain}.yaml` — API contracts (required)
 5. Read `agent_docs/hard-boundaries.md` — absolute constraints (required)
-6. If LLD outputs are missing, report: "sdlc-lld must run first"
+6. Read `agent_docs/conventions.md` — package structure, naming conventions, testing patterns (Given/When/Then), git conventions, DB conventions (REQUIRED)
+7. If LLD outputs are missing, report: "sdlc-lld must run first"
+8. If conventions.md is missing, report to orchestrator: "sdlc-preflight must run first — missing conventions.md"
 
 ## Procedure
 

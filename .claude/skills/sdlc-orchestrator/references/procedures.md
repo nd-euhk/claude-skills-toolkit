@@ -221,7 +221,9 @@ Orchestrator kiểm tra subagent self-check report sau mỗi phase. Nếu gate f
 
 ### 4.2 HLD Gate
 - [ ] C4 Container diagram hoàn chỉnh (không chỉ System Context)
-- [ ] Tất cả ADRs có: Context, Decision, Consequences
+- [ ] Tất cả ADRs có: Context, Decision, Rationale, Consequences, Alternatives Considered
+- [ ] ADR index (`agent_docs/adrs/README.md`) tồn tại với status tracking
+- [ ] ADR bị superseded có link đến ADR thay thế
 - [ ] Bounded context map cho mỗi service boundary
 - [ ] Event taxonomy + hard boundaries giữa các service
 - [ ] Không có per-service internals (để dành cho LLD)
@@ -263,7 +265,10 @@ Orchestrator kiểm tra subagent self-check report sau mỗi phase. Nếu gate f
 | Thiếu file | Hành động |
 |---|---|
 | `.work/board.md` | "Chạy `Skill(sprint)` để khởi tạo board." |
-| `agent_docs/` | "Project mới? SRS sẽ tạo các file đầu tiên." |
+| `agent_docs/` | "Project mới? Foundation Gate trong Preflight (SKILL.md Bước 3) sẽ invoke sdlc-preflight." |
+| `agent_docs/project-overview.md` | "Missing → Preflight Bước 3 tự động gọi `Skill(sdlc-preflight, '--project-overview')`" |
+| `agent_docs/user-context.md` | "Missing → Preflight Bước 3 tự động gọi `Skill(sdlc-preflight, '--user-context')`" |
+| `agent_docs/conventions.md` | "Missing → Preflight Bước 3 tự động gọi `Skill(sdlc-preflight, '--conventions')` (cho task flow)" |
 | Feature spec | "FR-{ID} không tồn tại. Tạo mới từ SRS?" |
 
 ### 5.3 Git State Conflicts

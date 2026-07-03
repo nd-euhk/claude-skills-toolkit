@@ -37,7 +37,8 @@ Transform IMP specs (`agent_docs/{backend,frontend}/*/implementation/`) into tes
 4. Read `agent_docs/tech-design/{svc}-service.md` — for integration points (required)
 5. Read `agent_docs/contracts/api-{domain}.yaml` — for contract tests (required)
 6. Read `agent_docs/hard-boundaries.md` — for testing boundaries (required)
-7. If IMP outputs are missing, report: "sdlc-imp must run first"
+7. Read `agent_docs/conventions.md` — testing conventions (Given/When/Then format, mock naming, test file naming) (recommended)
+8. If IMP outputs are missing, report: "sdlc-imp must run first"
 
 ## Procedure
 

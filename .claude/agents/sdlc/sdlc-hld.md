@@ -33,8 +33,8 @@ Transform SRS outputs (`agent_docs/features/`, `agent_docs/traceability/`) into 
 
 1. Read `agent_docs/features/FR-*.md` — all feature specs (required)
 2. Read `agent_docs/traceability/requirements-matrix.md` — traceability (required)
-3. Read `agent_docs/project-overview.md` — project context (optional)
-4. Read `agent_docs/user-context.md` — user context (optional)
+3. Read `agent_docs/project-overview.md` — architecture style preference, tech stack, stakeholder constraints (recommended)
+4. Read `agent_docs/user-context.md` — user personas for bounded context mapping, user journeys for service boundaries (recommended)
 5. If SRS outputs are missing, report to orchestrator: "sdlc-srs must run first"
 
 ## Procedure
@@ -61,12 +61,128 @@ Create `agent_docs/architecture.md`:
 
 ### Step 3: Architecture Decision Records
 
-Create `agent_docs/adrs/ADR-{NNN}--{slug}.md` — minimum 3 ADRs:
-1. **Architecture style choice** (why monolith/microservices/event-driven)
-2. **Communication pattern** (why sync/async for which interactions)
-3. **Data strategy** (why DB-per-service or shared-DB or CQRS)
+ADR là **decision log** ghi lại mọi quyết định kỹ thuật quan trọng trong suốt vòng đời dự án — không chỉ architecture ban đầu. Mỗi khi có trade-off đáng kể, ghi 1 ADR.
 
-Each ADR: Context → Decision → Rationale → Consequences → Alternatives Considered
+#### 3.1 ADR Format
+
+File: `agent_docs/adrs/ADR-{NNN}--{slug}.md`
+
+Mỗi ADR có 5 section:
+- **Context**: Tình huống hiện tại, vấn đề cần giải quyết, constraints
+- **Decision**: Quyết định cụ thể — chọn cái gì, KHÔNG chọn cái gì
+- **Rationale**: Lý do chọn (performance, team skill, cost, time-to-market, simplicity)
+- **Consequences**: Hệ quả tích cực + tiêu cực, debt kỹ thuật chấp nhận, migration path
+- **Alternatives Considered**: Các phương án đã cân nhắc + lý do từ chối
+
+Đánh số tuần tự: ADR-001, ADR-002, ADR-003... (global counter, không reset).
+
+#### 3.2 ADR Status Lifecycle
+
+Mỗi ADR có status:
+- `draft` → Đang thảo luận, chưa finalized
+- `proposed` → Đề xuất, chờ review
+- `accepted` → Đã approve, đang áp dụng
+- `superseded` → Bị thay thế bởi ADR khác (link đến ADR mới)
+- `deprecated` → Không còn áp dụng, giữ lại làm historical record
+
+#### 3.3 Base ADRs (Bắt buộc — tạo trong lần HLD đầu tiên)
+
+3 ADR nền tảng PHẢI có:
+
+| # | ADR | Trọng tâm | Ví dụ câu hỏi |
+|---|---|---|-------------|
+| 1 | **Architecture style** | Monolith → Modular Monolith → Microservices → Event-Driven | "Chọn modular monolith vì team 5 dev, chưa cần scale independent deploy" |
+| 2 | **Communication pattern** | Sync (REST/gRPC/GraphQL) vs Async (events/commands/queries) | "REST cho queries, Kafka events cho cross-service mutations" |
+| 3 | **Data strategy** | DB-per-service, shared-DB, CQRS, event sourcing | "Shared DB giai đoạn đầu, migration path → DB-per-service khi scale >10K users" |
+
+#### 3.4 Additional ADRs (Phát sinh trong quá trình phát triển)
+
+Các ADR bổ sung được tạo **khi vấn đề phát sinh**, không cần làm hết upfront. Mỗi category bên dưới có trigger — khi gặp trigger đó, tạo ADR:
+
+**Data & Persistence:**
+| Trigger | ADR cần tạo |
+|---|---|
+| Chọn giữa SQL vs NoSQL cho 1 use case cụ thể | "Database selection for {context}" |
+| Cần event sourcing cho audit trail | "Event sourcing strategy for {aggregate}" |
+| Dữ liệu tăng trưởng > dự kiến → cần sharding | "Database sharding strategy" |
+| Cần full-text search → Elasticsearch/Meilisearch | "Search engine selection" |
+| Caching strategy thay đổi | "Cache architecture: Redis vs in-memory vs CDN" |
+
+**Security:**
+| Trigger | ADR cần tạo |
+|---|---|
+| Chọn OAuth2 flow (authorization_code vs client_credentials vs PKCE) | "OAuth2 flow selection" |
+| Cần API key rotation strategy | "API key management & rotation" |
+| Quyết định rate limiting approach | "Rate limiting: token bucket vs sliding window vs distributed" |
+| Chọn encryption strategy | "Encryption at rest & in transit: algorithm + key management" |
+| Cần SSO integration | "SSO/SAML integration strategy" |
+
+**Observability:**
+| Trigger | ADR cần tạo |
+|---|---|
+| Chọn tracing tool (OpenTelemetry, Jaeger, Datadog) | "Distributed tracing strategy" |
+| Quyết định log aggregation | "Log aggregation: ELK vs Loki vs Cloud-native" |
+| Alert routing & on-call rotation | "Alert management & escalation policy" |
+| Cần custom metrics dashboard | "Metrics & dashboard strategy" |
+| Health check pattern | "Health check & liveness probe strategy" |
+
+**DevOps & Infrastructure:**
+| Trigger | ADR cần tạo |
+|---|---|
+| CI/CD pipeline design | "CI/CD pipeline: build → test → deploy stages" |
+| Deploy strategy (blue-green, canary, rolling) | "Deployment strategy" |
+| Feature flags infrastructure | "Feature flag: homegrown vs LaunchDarkly vs Unleash" |
+| Container orchestration | "Kubernetes vs Docker Compose vs Nomad" |
+| Secrets management | "Secret storage: Vault vs cloud KMS vs CI/CD vars" |
+
+**Frontend:**
+| Trigger | ADR cần tạo |
+|---|---|
+| Chọn SSR vs CSR vs SSG | "Rendering strategy: SSR vs CSR vs SSG" |
+| Chọn state management (Redux, Zustand, Context) | "State management library selection" |
+| Chọn UI component library | "Design system: custom vs MUI vs Tailwind UI" |
+| Cần micro-frontend architecture | "Micro-frontend: module federation vs iframe vs web components" |
+| Bundle size vượt ngưỡng → cần code splitting | "Frontend bundle optimization strategy" |
+
+**Integration & External Dependencies:**
+| Trigger | ADR cần tạo |
+|---|---|
+| Tích hợp third-party API (payment, email, SMS) | "Third-party integration: {service-name}" |
+| Cần webhook handling strategy | "Webhook reliability: retry + idempotency + DLQ" |
+| File upload pipeline | "File upload: direct-to-S3 vs server-proxy vs chunked" |
+| Cần multi-region deployment | "Multi-region data replication strategy" |
+| Chọn message broker (Kafka, RabbitMQ, SQS) | "Message broker selection" |
+
+#### 3.5 Decision Threshold — Khi Nào Cần ADR
+
+Tạo ADR khi câu trả lời YES cho **≥2** tiêu chí:
+
+| Tiêu chí | Ý nghĩa |
+|---|---|
+| **Cross-cutting** | Ảnh hưởng ≥2 services hoặc ≥2 teams |
+| **Hard to reverse** | Đảo ngược quyết định tốn >1 sprint |
+| **Trade-off đáng kể** | Có ≥2 lựa chọn hợp lý, mỗi lựa chọn có ưu/nhược rõ ràng |
+| **New pattern** | Pattern chưa từng dùng trong project này |
+| **Compliance/security** | Liên quan đến security posture, compliance, hoặc data privacy |
+
+Không cần ADR cho: chọn thư viện nhỏ (1 class, dễ swap), convention đã có sẵn, quyết định chỉ ảnh hưởng 1 file.
+
+#### 3.6 ADR Index
+
+Tạo `agent_docs/adrs/README.md` — index toàn bộ ADR:
+
+```markdown
+# ADR Index
+
+| ADR | Title | Status | Created | Superseded By |
+|-----|-------|--------|---------|---------------|
+| ADR-001 | Architecture style: Modular Monolith | accepted | 2026-01-15 | — |
+| ADR-002 | Communication: REST + Kafka events | accepted | 2026-01-15 | — |
+| ADR-003 | Data strategy: Shared DB → DB-per-service | accepted | 2026-01-15 | — |
+| ADR-004 | OAuth2 flow: authorization_code + PKCE | accepted | 2026-02-10 | — |
+| ADR-005 | Caching: Redis cache-aside | superseded | 2026-02-20 | ADR-008 |
+| ADR-006 | Deploy: Blue-green on K8s | proposed | 2026-03-05 | — |
+```
 
 ### Step 4: API Conventions
 
@@ -101,7 +217,10 @@ Create `agent_docs/hard-boundaries.md`:
 ### Step 7: Self-Check Gate
 
 - [ ] C4 System Context + Container diagrams present (in Mermaid)
-- [ ] Minimum 3 ADRs with full Context/Decision/Rationale/Consequences
+- [ ] Minimum 3 base ADRs with full Context/Decision/Rationale/Consequences/Alternatives
+- [ ] ADR index at `agent_docs/adrs/README.md` with status + superseded-by tracking
+- [ ] Superseded ADRs reference their replacement ADR
+- [ ] Each ADR has a status (accepted/proposed/draft)
 - [ ] domain-service-mapping.yaml maps every FR to a service
 - [ ] hard-boundaries.md has data ownership + communication rules
 - [ ] api-conventions.md defines URL structure, status codes, auth

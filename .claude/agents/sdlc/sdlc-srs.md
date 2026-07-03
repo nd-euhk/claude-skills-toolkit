@@ -32,10 +32,13 @@ Transform business requirements (PRD, URD, business rules) into structured speci
 
 Before doing anything, determine what input is available:
 
-1. Check `agent_docs/traceability/requirements-matrix.md` — if exists, you're updating existing specs
-2. Check `agent_docs/features/FR-*.md` — existing feature specs to update or reference
-3. Ask user for PRD, URD, business rules, or feature descriptions if none found
-4. If context is insufficient, tell the orchestrator you need more input
+1. Read `agent_docs/project-overview.md` — scope, glossary, NFR baselines, business rules, tech stack (REQUIRED)
+2. Read `agent_docs/user-context.md` — personas, user journeys, accessibility requirements (REQUIRED)
+3. Check `agent_docs/traceability/requirements-matrix.md` — if exists, you're updating existing specs
+4. Check `agent_docs/features/FR-*.md` — existing feature specs to update or reference
+5. Ask user for PRD, URD, business rules, or feature descriptions if none found
+6. If context is insufficient, tell the orchestrator you need more input
+7. If foundation files are missing, report to orchestrator: "sdlc-preflight must run first — missing project-overview.md and/or user-context.md"
 
 ## Procedure
 

@@ -10,10 +10,11 @@ description: >-
   "change request", "CR", "sửa bug", "fix bug", "debug lỗi", "code task",
   "cook task", "build feature", "triển khai code", hoặc bất kỳ yêu cầu
   phát triển nào cần SDLC pipeline có cấu trúc. Tự động phát hiện intent
-  và route đến flow phù hợp. Điều phối toàn bộ pipeline từ requirements
-  qua documentation đến production code, coordinating subagents, skills,
-  và sprint artifacts.
-version: 1.4.0
+  và route đến flow phù hợp. Tự động gọi sdlc-preflight để khởi tạo
+  foundation files (project-overview, user-context, conventions) khi
+  thiếu. Điều phối toàn bộ pipeline từ requirements qua documentation
+  đến production code, coordinating subagents, skills, và sprint artifacts.
+version: 1.5.0
 allowed-tools: Read, Write, Edit, Bash, Glob, Skill, Agent, EnterPlanMode, ExitPlanMode
 disable-model-invocation: false
 ---
@@ -111,7 +112,42 @@ AskUserQuestion({
 
 Gợi ý flow mặc định dựa trên: board status, file `agent_docs/` hiện có, git branch name.
 
-### Bước 3: Route đến Flow
+### Bước 3: Foundation Gate
+
+Kiểm tra file nền tảng trong `agent_docs/`:
+
+```bash
+for f in project-overview.md user-context.md conventions.md; do
+  test -f agent_docs/$f && echo "  ✅ $f" || echo "  ⚠️ MISSING: $f"
+done
+```
+
+**Route theo flow đã phát hiện ở Bước 2:**
+
+**task flow** — `project-overview.md` và `user-context.md` PHẢI tồn tại trước SRS:
+
+1. Kiểm tra file thiếu:
+   ```bash
+   NEEDED=""
+   test -f agent_docs/project-overview.md || NEEDED="$NEEDED --project-overview"
+   test -f agent_docs/user-context.md || NEEDED="$NEEDED --user-context"
+   test -f agent_docs/conventions.md || NEEDED="$NEEDED --conventions"
+   ```
+
+2. Nếu `NEEDED` không rỗng → `Skill("sdlc-preflight", NEEDED)` → đợi complete
+3. Post-preflight verify — nếu file vẫn missing → **dừng pipeline**, báo cáo human
+4. Báo cáo: "🏗️ Foundation: project-overview.md ✅ | user-context.md ✅ | conventions.md ✅"
+
+**cr flow** — cảnh báo, hỏi human trước khi invoke:
+
+1. Nếu thiếu → báo cáo + `AskUserQuestion`: "CR có thể cần SRS. Chạy preflight để tạo foundation files?"
+2. Nếu human đồng ý → `Skill("sdlc-preflight", "--project-overview --user-context --conventions")`
+
+**fixbug flow** — chỉ hiển thị trạng thái. Không block, không invoke.
+
+**cook flow** — hiển thị trạng thái. Warn nếu conventions.md thiếu.
+
+### Bước 4: Route đến Flow
 
 Khi flow đã được xác nhận, load file flow tương ứng và thực thi procedure:
 
@@ -183,6 +219,7 @@ Báo cáo cho human theo template:
 | `sprint` | Tất cả | Cập nhật board, backlog, roadmap |
 | `git` | cook, fixbug | Commit, push, branch management |
 | `sdlc-scout` | Tất cả | Khám phá codebase để lấy context |
+| `sdlc-preflight` | Tất cả | Khởi tạo foundation files (project-overview, user-context, conventions) |
 
 ### Subagents (spawn qua Agent tool)
 

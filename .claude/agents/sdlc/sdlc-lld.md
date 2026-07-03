@@ -37,7 +37,8 @@ Transform HLD architecture (`agent_docs/architecture.md`, `agent_docs/domain-ser
 4. Read `agent_docs/contracts/api-conventions.md` — API standards (required)
 5. Read `agent_docs/contracts/events.md` — event taxonomy (required)
 6. Read `agent_docs/features/FR-*.md` — feature specs from SRS (required)
-7. If HLD outputs are missing, report: "sdlc-hld must run first"
+7. Read `agent_docs/project-overview.md` — tech stack, architecture style context (optional)
+8. If HLD outputs are missing, report: "sdlc-hld must run first"
 
 ## Procedure
 
