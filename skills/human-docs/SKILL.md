@@ -5,6 +5,7 @@ description: >-
   Dùng khi cần xuất tài liệu cho người đọc từ agent artifacts: "/human-docs sync:product",
   "/human-docs sync:architecture", "/human-docs sync:all", "/human-docs review", "/human-docs update".
 disable-model-invocation: true
+allowed-tools: Read, Write, Glob, Bash(*)
 version: 1.0.0
 ---
 
@@ -145,7 +146,7 @@ Tổng hợp `agent_docs/features/FR-*.md` → human-readable SRS docs.
    - `c4-component-{service}.mermaid` (mỗi service 1 file nếu có)
 4. Sinh `docs/architecture/system-architecture.md`:
 
-```markdown
+````markdown
 # System Architecture — {Project}
 
 > **Source**: agent_docs/architecture.md
@@ -157,15 +158,15 @@ Tổng hợp `agent_docs/features/FR-*.md` → human-readable SRS docs.
 
 ## C4 — Context Diagram
 
-` ` `mermaid
+```mermaid
 [Nội dung từ diagrams/c4-context.mermaid]
-` ` `
+```
 
 ## C4 — Container Diagram
 
-` ` `mermaid
+```mermaid
 [Nội dung từ diagrams/c4-container.mermaid]
-` ` `
+```
 
 ## Service Details
 
@@ -178,7 +179,7 @@ Tổng hợp `agent_docs/features/FR-*.md` → human-readable SRS docs.
 ## Architectural Decisions
 
 Chi tiết trong [agent_docs/adrs/](../../agent_docs/adrs/) — xem [ADR Index](./ADRs/README.md).
-```
+````
 
 5. Sinh `docs/architecture/ADRs/README.md` — index trỏ về agent_docs:
 
