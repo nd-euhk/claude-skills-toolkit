@@ -217,6 +217,21 @@ Mode detection:
 
 GATE agents đã có light/full mode từ trước, không cần thay đổi. Light mode chạy sau khi tất cả TC hoàn thành (trước REFACTOR full). Full mode chạy sau REFACTOR full.
 
+### maxTurn Frontmatter
+
+Mỗi agent cần giới hạn số turn để tránh infinite loop, đặc biệt quan trọng với RED (mini-orchestrator + sabotage loop). Thêm vào frontmatter của từng agent:
+
+```yaml
+maxTurn: <N>
+```
+
+| Agent | maxTurn | Rationale |
+|-------|---------|-----------|
+| `tdd-be-red` / `tdd-fe-red` | **30** | Mini-orchestrator: viết test + Explore spawn + sabotage (max 3) + spawn GREEN + spawn REFACTOR + report. Nhiều vai trò nhất. |
+| `tdd-be-green` / `tdd-fe-green` | **25** | 8 layers implement + stuck protocol (max 5 iterations per layer) + state coverage checklist + report |
+| `tdd-be-refactor` / `tdd-fe-refactor` | **25** | Full mode: 6 categories × 2-3 turns + cross-cutting + test-run sau mỗi fix + report |
+| `tdd-be-gate` / `tdd-fe-gate` | **20** | Read-only, 10 gates full mode + report. Light mode chỉ cần ~5 turns, nhưng dùng chung max cho cả 2 mode. |
+
 ## Rollout Plan
 
 Cập nhật từng cặp agent, backend trước → frontend sau:
