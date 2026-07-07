@@ -3,12 +3,14 @@ name: sdlc-automation
 description: >-
   SDLC automation — điểm vào cho pipeline tự động hoàn toàn. Phỏng vấn human MỘT
   LẦN duy nhất, sau đó dispatch workflow script chạy autonomously toàn bộ pipeline
-  SRS → HLD → LLD → IMP∥TST. Dùng khi human muốn expedite toàn bộ SDLC pipeline
-  không cần review từng phase: "tự động hoá task", "auto task", "chạy tự động",
-  "automation pipeline", "autonomous SDLC", "tự động sinh specs", "auto pipeline".
-  Khác với sdlc-orchestrator (human-in-the-loop từng phase), skill này chỉ tương
-  tác MỘT LẦN upfront rồi chạy autonomously.
-version: 1.1.0
+  SRS → HLD → LLD → IMP∥TST hoặc TDD cook cycle (per-TC RED→GREEN→REFACTOR→GATE).
+  Dùng khi human muốn expedite SDLC không cần review từng phase: "tự động hoá task",
+  "auto task", "chạy tự động", "automation pipeline", "autonomous SDLC", "tự động
+  sinh specs", "auto pipeline", "tự động cook", "auto cook", "tự động code",
+  "auto implement", "tự động triển khai code". Khác với sdlc-orchestrator
+  (human-in-the-loop từng phase), skill này chỉ tương tác MỘT LẦN upfront rồi chạy
+  autonomously.
+version: 1.2.1
 allowed-tools: Read, Write, Edit, Bash, Glob, Skill, Agent, AskUserQuestion, Workflow
 disable-model-invocation: false
 ---
@@ -81,6 +83,7 @@ AskUserQuestion({
     options: [
       { label: "task", description: "Full spec pipeline: SRS → HLD → LLD → IMP∥TST. Cho feature mới hoặc thay đổi lớn." },
       { label: "cr", description: "Change request: impact analysis + re-spec có chọn lọc. Cho thay đổi nhỏ trên code hiện có." },
+      { label: "cook", description: "TDD code execution: per-TC RED→GREEN→REFACTOR→GATE→review→push. Cho code từ ready specs." },
       { label: "Không phù hợp", description: "Chuyển sang sdlc-orchestrator để có human-in-the-loop" }
     ],
     multiSelect: false
@@ -90,6 +93,7 @@ AskUserQuestion({
 
 > **Keyword hint**: Nếu human input chứa "bug"/"lỗi"/"fix" → gợi ý flow phù hợp trong câu hỏi.
 > "tự động"/"auto"/"spec" → mặc định task. "CR"/"change request"/"thay đổi" → cr.
+> "cook"/"code"/"build"/"triển khai code"/"implement code" → cook.
 
 ### Bước 3: Foundation Gate
 
@@ -103,6 +107,7 @@ done
   - Thiếu → `Skill("sdlc-preflight")` → verify lại
   - Vẫn thiếu → **dừng pipeline** (xem `references/error-handling.md#e12`)
 - **cr flow**: cảnh báo nếu thiếu, hỏi human trước khi invoke preflight
+- **cook flow**: verify cook prerequisites — board status `ready`, feature specs, IMP + TST specs, hard-boundaries, tech-design. Thiếu specs → từ chối cook, đề xuất flow task.
 
 Báo cáo: `🏗️ Foundation: [status từng file]`
 
@@ -126,17 +131,8 @@ Báo cáo: `🏗️ Foundation: [status từng file]`
 > **Chi tiết từng round** — câu hỏi mẫu, AskUserQuestion templates, exit criteria:
 > → `references/grilling-templates.md`
 
-#### Grilling Exit Criteria
-
-Trước khi proceed, xác nhận đã có:
-- [ ] ≥3 business requirements rõ ràng
-- [ ] ≥1 user flow với các bước cụ thể
-- [ ] Performance targets định lượng (p95 < Xms)
-- [ ] Service/API inventory (mới + affected)
-- [ ] Data requirements (schema + migration)
-- [ ] Test coverage expectations
-
-Thiếu criteria → hỏi thêm. Không đủ sau 2 attempts → fallback (xem `references/error-handling.md#e21`).
+> **Exit criteria đầy đủ** → `references/grilling-templates.md#grilling-exit-criteria-tổng-hợp`.
+> Thiếu criteria → hỏi thêm. Không đủ sau 2 attempts → fallback (xem `references/error-handling.md#e21`).
 
 ### 2. Xác Nhận Automation Scope
 
@@ -230,6 +226,50 @@ Dành cho change request trên code hiện có. Nhẹ hơn task flow — impact 
 
 ---
 
+## Cook Automation Flow
+
+Dành cho code execution từ ready specs. TDD cycle chạy autonomously qua workflow script.
+
+> **Chi tiết đầy đủ** (readiness check, per-TC orchestration, gate strategy, error handling):
+> → `references/cook-flow.md`
+
+**Tóm tắt quy trình:**
+
+1. **Readiness Check** — xác minh task status `ready`, specs đầy đủ (IMP + TST)
+2. **Grilling Cook** — xác nhận service, branch, dependencies, TC ordering
+3. **Move to In Progress** — update board qua `Skill(sprint)`
+4. **Dispatch TDD Workflow** — autonomous per-TC RED→GREEN→REFACTOR-light → GATE light → REFACTOR full → GATE full
+5. **Code Review** — `Skill(sdlc-review)` trên code mới
+6. **Git Push** — `Skill(git)` commit + push
+7. **Sprint Update** — move `in progress` → `in review` → `done`
+
+### Dispatch Cook Workflow
+
+> **Code block + args schema đầy đủ** → `references/cook-flow.md#giai-đoạn-4-dispatch-tdd-workflow`.
+> Dispatch fail → `references/error-handling.md#e3`.
+
+### Monitor & Report
+
+Workflow chạy autonomously. Khi complete, báo cáo:
+
+```
+🏁 Cook Automation hoàn thành — [feature name]
+   ✅ TC-1: DONE — [test name] (RED→GREEN→REFACTOR-light)
+   ✅ TC-2: DONE — [test name]
+   ⏭️ TC-3: SKIPPED — accidental green
+   🚦 GATE light: PASS (4/4)
+   🔧 REFACTOR full: [N] findings fixed, [M] flagged
+   🚦 GATE full: PASS (10/10)
+   👀 Code Review: [findings]
+   📦 Git: [commit hash] (đã push / chưa push)
+   📋 Sprint: [board updates]
+   🔗 Next: [gợi ý]
+```
+
+Gate fail → workflow báo cáo phase nào fail + lý do. Xem `references/error-handling.md#e4`.
+
+---
+
 ## Error Handling
 
 Mọi error scenario có structured fallback pattern. Nguyên tắc chung: **fail-safe — fallback về orchestrator, không tự retry mù quáng.**
@@ -275,5 +315,12 @@ Phát hiện tín hiệu trên trong grilling → dừng, đề xuất:
 |---|---|---|
 | `references/grilling-templates.md` | 4 rounds câu hỏi, AskUserQuestion patterns, exit criteria | Trước và trong khi grilling |
 | `references/cr-flow.md` | Full CR flow: 5 giai đoạn với impact analysis | Khi flow = cr |
-| `references/error-handling.md` | 5 categories error, 12+ scenarios với fallback | Khi gặp lỗi, hoặc review error pattern |
-| `.claude/workflows/automation/workflow-sdlc-automation.js` | Workflow script executor: prompt builders, gate criteria, phase runner | Khi debug workflow hoặc cập nhật prompts |
+| `references/cook-flow.md` | Full cook flow: readiness check, per-TC TDD orchestration, gate strategy, error handling | Khi flow = cook |
+| `references/error-handling.md` | 5 categories error, 12+ scenarios với fallback patterns | Khi gặp lỗi, hoặc review error pattern |
+
+**Workflow dependencies** (gọi qua `Workflow()` tool):
+
+| Script | Dùng cho |
+|---|---|
+| `.claude/workflows/automation/workflow-sdlc-automation.js` | Pipeline executor cho task/CR flow |
+| `.claude/workflows/automation/workflow-sdlc-cook.js` | TDD cycle executor cho cook flow |

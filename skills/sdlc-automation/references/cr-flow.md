@@ -71,7 +71,7 @@ Dispatch workflow script với `flow: "cr"`:
 
 ```javascript
 Workflow({
-  scriptPath: ".claude/workflows/workflow-sdlc-automation.js",
+  scriptPath: ".claude/workflows/automation/workflow-sdlc-automation.js",
   args: {
     flow: "cr",
     crTitle: "[từ grilling]",
