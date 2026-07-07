@@ -46,7 +46,7 @@ Sau đó explore các file liên quan đến nhiệm vụ của bạn.`
 ### sdlc-review --code
 
 ```diff
-- // Phase 0 is inside workflow-sdlc-review-code.js (1 agent)
+- // Phase 0 is inside review/workflow-sdlc-review-code.js (1 agent)
 + // Phase 0: Call sdlc-scout before dispatching review workflow
 + const scoutResult = await Skill(sdlc-scout, "{targetPath} --mode review --focus '{focus}'")
 + // Pass scoutReports to workflow
