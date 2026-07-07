@@ -268,11 +268,11 @@ if (mode === 'mr' || mode === 'pr') {
   }
 
   // Guard: kiểm tra workflow script tồn tại
-  // ls .claude/workflows/workflow-sdlc-review-mr.js
+  // ls .claude/workflows/review/workflow-sdlc-review-mr.js
   // Nếu thiếu → "Không tìm thấy workflow script. Vui lòng đảm bảo plugin đã được cài đặt đúng cách."
 
   const result = await Workflow({
-    scriptPath: ".claude/workflows/workflow-sdlc-review-mr.js",
+    scriptPath: ".claude/workflows/review/workflow-sdlc-review-mr.js",
     args: mrArgs
   })
 }
@@ -292,10 +292,10 @@ if (mode === 'code') {
     scoutReports: scoutResult?.reports || [],  // structured scout output, được workflow tiêu thụ
   }
 
-  // Guard: ls .claude/workflows/workflow-sdlc-review-code.js
+  // Guard: ls .claude/workflows/review/workflow-sdlc-review-code.js
 
   const result = await Workflow({
-    scriptPath: ".claude/workflows/workflow-sdlc-review-code.js",
+    scriptPath: ".claude/workflows/review/workflow-sdlc-review-code.js",
     args: codeArgs
   })
 }

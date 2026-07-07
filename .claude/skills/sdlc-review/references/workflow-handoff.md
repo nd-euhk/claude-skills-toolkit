@@ -48,10 +48,10 @@ const mrArgs = {
 ### Workflow Invocation
 
 ```
-Workflow({ scriptPath: ".claude/workflows/workflow-sdlc-review-mr.js", args: mrArgs })
+Workflow({ scriptPath: ".claude/workflows/review/workflow-sdlc-review-mr.js", args: mrArgs })
 ```
 
-**Guard**: `ls .claude/workflows/workflow-sdlc-review-mr.js` → nếu thiếu, hủy bỏ với thông báo lỗi.
+**Guard**: `ls .claude/workflows/review/workflow-sdlc-review-mr.js` → nếu thiếu, hủy bỏ với thông báo lỗi.
 
 ### Result Structure (Workflow → Skill)
 
@@ -157,10 +157,10 @@ const codeArgs = {
 ### Workflow Invocation
 
 ```
-Workflow({ scriptPath: ".claude/workflows/workflow-sdlc-review-code.js", args: codeArgs })
+Workflow({ scriptPath: ".claude/workflows/review/workflow-sdlc-review-code.js", args: codeArgs })
 ```
 
-**Guard**: `ls .claude/workflows/workflow-sdlc-review-code.js` → nếu thiếu, hủy bỏ.
+**Guard**: `ls .claude/workflows/review/workflow-sdlc-review-code.js` → nếu thiếu, hủy bỏ.
 
 ### Result Structure (Workflow → Skill)
 
