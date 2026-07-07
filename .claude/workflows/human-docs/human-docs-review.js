@@ -84,7 +84,7 @@ log(`━━━━━━━━━━━━━━━━━━━━━━━━━
 log(`Summary: ${synced} synced, ${stale} stale, ${missing} missing, ${orphan} orphan${diverged ? `, ${diverged} diverged` : ''}`)
 
 const action = stale > 0 || missing > 0
-  ? `run "/human-docs update" to fix ${stale + missing} out-of-date files`
+  ? `run "/human-docs sync:all" to fix ${stale + missing} out-of-date files`
   : 'All docs up-to-date ✅'
 
 log(`Action: ${action}`)

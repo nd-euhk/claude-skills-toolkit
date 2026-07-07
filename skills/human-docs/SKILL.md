@@ -3,10 +3,10 @@ name: human-docs
 description: >-
   Đồng bộ agent_docs/ → docs/ cho human-readable output. Agent là SSOT (Single Source of Truth).
   Dùng khi cần xuất tài liệu cho người đọc từ agent artifacts: "/human-docs sync:srs",
-  "/human-docs sync:architecture", "/human-docs sync:all", "/human-docs review", "/human-docs update".
+  "/human-docs sync:architecture", "/human-docs sync:all", "/human-docs review".
 disable-model-invocation: true
 allowed-tools: Read, Write, Glob, Bash(*), Workflow
-version: 2.0.0
+version: 2.2.0
 ---
 
 # human-docs — Agent → Human Documentation Sync
@@ -73,13 +73,16 @@ Agent definition: `human-docs-sync-architecture`.
 
 ### `/human-docs sync:all`
 
-Chạy tuần tự `sync:srs` → `sync:architecture`.
+Chạy song song `sync:srs` ∥ `sync:architecture`. Gọi đồng thời cả 2 workflow trong cùng một message:
 
 ```javascript
-Workflow({ scriptPath: ".claude/workflows/human-docs/human-docs-sync-all.js" })
+// Gọi song song — 2 workflow độc lập, không shared state, output khác thư mục
+Workflow({ scriptPath: ".claude/workflows/human-docs/human-docs-sync-srs.js" })
+Workflow({ scriptPath: ".claude/workflows/human-docs/human-docs-sync-architecture.js" })
 ```
 
-Báo cáo tổng kết: files written, warnings, status per phase.
+Khi cả 2 hoàn tất (nhận đủ 2 task notification), báo cáo tổng kết: files written, warnings, status per phase.
+Nếu 1 trong 2 fail → báo partial success, workflow còn lại vẫn tiếp tục.
 
 ### `/human-docs review`
 
@@ -93,16 +96,7 @@ Workflow({ scriptPath: ".claude/workflows/human-docs/human-docs-review.js" })
 Flag v1.0.0 artifacts (`SRS-BACKEND.md`, `SRS-FRONTEND.md`) là orphan.
 Agent definition: `human-docs-review` — JSON schema validation.
 
-### `/human-docs update`
-
-Incremental sync — chỉ cập nhật file có thay đổi dựa trên mtime comparison.
-
-```javascript
-Workflow({ scriptPath: ".claude/workflows/human-docs/human-docs-update.js" })
-```
-
-Fallback: nếu không có timestamp → tự động đề xuất chạy `sync:all`.
-Agent definition: `human-docs-update`.
+**Review + sync workflow:** Chạy `review` để phát hiện stale/missing, sau đó chạy `sync:all` để cập nhật. Sync idempotent — chạy lại không tạo duplicate.
 
 ## Edge Cases
 
