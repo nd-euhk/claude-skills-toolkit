@@ -49,31 +49,11 @@ Agent({
 })
 ```
 
-### 1.3 Developer Agent — cook
+### 1.3 TDD Agent Templates (cook flow)
 
-```
-Agent({
-  subagent_type: "sdlc-backend-developer",  // hoặc sdlc-frontend-developer
-  description: "Implement {FR-ID}: {title}",
-  permissionMode: "acceptEdits",
-  prompt: "
-    Implement feature {FR-ID} dựa trên specs:
-
-    IMP spec: agent_docs/{backend,frontend}/{service,app}/implementation/{FR-ID}-impl.md
-    TST spec: agent_docs/{backend,frontend}/{service,app}/test-specs/{FR-ID}-test.md
-    API contracts: agent_docs/contracts/api-{domain}.yaml
-    [nếu frontend] API routing: agent_docs/frontend/{app}/api-routing.md
-
-    Làm theo TDD: RED → GREEN → REFACTOR.
-  "
-})
-```
-
-### 1.4 Backend + Frontend Ordering
-
-- **Backend trước** (APIs cần tồn tại) → spawn backend, đợi finish, spawn frontend
-- **Song song** nếu độc lập thực sự → xác nhận với human trước
-- Default: tuần tự (backend → frontend)
+Tất cả template spawn TDD agents (RED, GREEN, REFACTOR, GATE) và BE+FE ordering nằm trong
+`references/flow-cook.md` Bước 4. **Flow cook là canonical source duy nhất cho mọi TDD procedure.**
+Không duplicate template ở đây — load `flow-cook.md` khi vào cook flow.
 
 ---
 
@@ -206,6 +186,12 @@ Dùng template AskUserQuestion trong SKILL.md, Preflight Bước 2. Template đ�
 2. Write `agent_docs/README.md` — file duy nhất orchestrator được phép Write
 
 **⚠️ Orchestrator KHÔNG BAO GIỜ tự sửa `.work/board.md`, `.work/backlog.md`, `agent_docs/roadmap.md`.**
+
+### 3.6 TDD Per-TC Cycle (cook flow)
+
+Procedure chi tiết cho TDD per-testcase cycle — trích xuất TCs, quyết định tuần tự/song song,
+spawn RED agent, parse kết quả, tổng hợp, GATE→REFACTOR→GATE sequence, và error recovery —
+nằm trong `references/flow-cook.md` Bước 4. **Flow cook là canonical source.**
 
 ---
 

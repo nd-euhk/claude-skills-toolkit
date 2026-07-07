@@ -14,7 +14,7 @@ description: >-
   foundation files (project-overview, user-context, conventions) khi
   thiếu. Điều phối toàn bộ pipeline từ requirements qua documentation
   đến production code, coordinating subagents, skills, và sprint artifacts.
-version: 1.5.0
+version: 1.7.0
 allowed-tools: Read, Write, Edit, Bash, Glob, Skill, Agent, EnterPlanMode, ExitPlanMode
 disable-model-invocation: false
 ---
@@ -103,7 +103,7 @@ AskUserQuestion({
       { label: "task", description: "Full spec pipeline (SRS → HLD → LLD → IMP∥TST). Feature mới hoặc cập nhật specs." },
       { label: "cr", description: "Change request — đánh giá impact lên task hiện có, optional re-spec." },
       { label: "fixbug", description: "Debug → document → fix → verify. Cho bug report hoặc error." },
-      { label: "cook", description: "Thực thi code từ ready specs — build, review, push." }
+      { label: "cook", description: "Thực thi code từ ready specs qua TDD cycle (per-TC RED→GREEN→REFACTOR) → review → push." }
     ],
     multiSelect: false
   }]
@@ -145,7 +145,30 @@ done
 
 **fixbug flow** — chỉ hiển thị trạng thái. Không block, không invoke.
 
-**cook flow** — hiển thị trạng thái. Warn nếu conventions.md thiếu.
+**cook flow** — verify cook-specific prerequisites trước khi vào TDD cycle:
+
+1. Hiển thị trạng thái 3 file nền tảng. Warn nếu conventions.md thiếu.
+2. Kiểm tra feature specs tồn tại:
+   ```bash
+   FR_ID="<FR-ID từ human input hoặc board>"
+   test -f agent_docs/features/$FR_ID.md && echo "  ✅ $FR_ID feature spec" || echo "  ⚠️ MISSING: $FR_ID feature spec"
+   ```
+3. Kiểm tra IMP + TST specs (backend và/hoặc frontend dựa trên feature):
+   ```bash
+   for spec in implementation test-specs; do
+     for dir in agent_docs/backend/*/ agent_docs/frontend/*/; do
+       test -f ${dir}${spec}/${FR_ID}-*.md 2>/dev/null && echo "  ✅ ${dir}${spec}/${FR_ID}" || true
+     done
+   done
+   ```
+4. Kiểm tra hard-boundaries và tech-design:
+   ```bash
+   test -f agent_docs/hard-boundaries.md && echo "  ✅ hard-boundaries.md" || echo "  ⚠️ MISSING: hard-boundaries.md"
+   # tech-design files nếu có
+   ls agent_docs/tech-design/*-service.md 2>/dev/null && echo "  ✅ tech-design files found" || echo "  ⚠️ No tech-design files"
+   ```
+5. Nếu thiếu IMP hoặc TST specs → từ chối cook: "Chưa có IMP/TST specs. Chạy flow task để tạo specs trước."
+6. Báo cáo: "🏗️ Cook Foundation: feature spec ✅ | IMP ✅ | TST ✅ | hard-boundaries ✅ | tech-design ✅"
 
 ### Bước 4: Route đến Flow
 
@@ -156,7 +179,7 @@ Khi flow đã được xác nhận, load file flow tương ứng và thực thi 
 | **task** | `references/flow-task.md` | Feature mới hoặc cập nhật specs. Yêu cầu task trên board. |
 | **cr** | `references/flow-cr.md` | Change request — impact analysis, optional re-spec. |
 | **fixbug** | `references/flow-fixbug.md` | Debug → document → update specs → fix → verify. |
-| **cook** | `references/flow-cook.md` | Thực thi code từ ready specs — build, review, push. |
+| **cook** | `references/flow-cook.md` | Thực thi code từ ready specs qua per-TC TDD cycle (RED→GREEN→REFACTOR-light) → GATE light (4 checks) → REFACTOR full (6 categories) → GATE full (10 gates) → code review → git push. Cook flow là canonical source cho mọi TDD procedure. |
 
 ---
 
@@ -223,6 +246,8 @@ Báo cáo cho human theo template:
 
 ### Subagents (spawn qua Agent tool)
 
+**Specs Pipeline:**
+
 | Agent | Phase | Mục đích |
 |---|---|---|
 | `sdlc-srs` | SRS | Functional + non-functional requirements |
@@ -230,8 +255,31 @@ Báo cáo cho human theo template:
 | `sdlc-lld` | LLD (opt) | Per-service tech design, API contracts |
 | `sdlc-imp` | IMP | Backend + frontend implementation specs |
 | `sdlc-tst` | TST | Backend + frontend test specifications |
-| `sdlc-backend-developer` | cook, fixbug | Viết backend code |
-| `sdlc-frontend-developer` | cook, fixbug | Viết frontend code |
+
+**TDD Cycle (cook flow) — Backend:**
+
+| Agent | Phase | Mục đích |
+|---|---|---|
+| `sdlc-tdd-be-red` | RED (per-TC) | **Mini-orchestrator cho 1 test case:** viết test → verify RED → accidental green detection (sanity→explore→sabotage→verify→revert) → spawn `sdlc-tdd-be-green` (implement) → spawn `sdlc-tdd-be-refactor --mode=light` (cleanup). Return DONE\|BLOCKED\|STALE. |
+| `sdlc-tdd-be-green` | GREEN (per-TC) | Implement code tối thiểu để pass test case hiện tại. **Skip protocol:** nếu RED báo accidental-green → skip implement, return ngay. |
+| `sdlc-tdd-be-refactor` | REFACTOR | **Light mode:** per-TC cleanup (extract method/function, rename, inline) — spawn bởi RED agent. **Full mode:** 6 categories (security, data integrity, performance, resilience, observability, code quality) + framework-specific — spawn bởi orchestrator sau GATE light. |
+| `sdlc-tdd-be-gate` | GATE | **Light mode:** 4 critical checks (test suite, hard boundaries, query safety, external call resilience) sau khi tất cả TCs hoàn thành. **Full mode:** 10 gates sau REFACTOR full. Read-only — no code changes. |
+
+**TDD Cycle (cook flow) — Frontend:**
+
+| Agent | Phase | Mục đích |
+|---|---|---|
+| `sdlc-tdd-fe-red` | RED (per-TC) | **Mini-orchestrator cho 1 test case:** viết test → verify RED → accidental green detection → spawn `sdlc-tdd-fe-green` (implement) → spawn `sdlc-tdd-fe-refactor --mode=light` (cleanup). Return DONE\|BLOCKED\|STALE. |
+| `sdlc-tdd-fe-green` | GREEN (per-TC) | Implement UI code tối thiểu để pass test case hiện tại. **Skip protocol:** nếu RED báo accidental-green → skip. |
+| `sdlc-tdd-fe-refactor` | REFACTOR | **Light mode:** per-TC cleanup (extract component/function, rename, inline) — spawn bởi RED agent. **Full mode:** 6 categories (a11y, UX, performance, security, code quality, accessibility) — spawn bởi orchestrator sau GATE light. |
+| `sdlc-tdd-fe-gate` | GATE | **Light mode:** 4 critical checks (token safety, XSS, state coverage, hard boundaries). **Full mode:** 10 gates sau REFACTOR full. Read-only — no code changes. |
+
+**Developer Agents (fixbug flow):**
+
+| Agent | Phase | Mục đích |
+|---|---|---|
+| `sdlc-backend-developer` | fixbug | Sửa backend bug đã document |
+| `sdlc-frontend-developer` | fixbug | Sửa frontend bug đã document |
 
 ---
 
@@ -244,5 +292,5 @@ Tất cả reference files — chỉ load khi cần, mỗi file có context đ�
 | `references/flow-task.md` | Procedure chi tiết cho flow task: board check, grilling, pipeline execution, sprint update | Khi flow **task** được xác nhận |
 | `references/flow-cr.md` | Procedure chi tiết cho flow cr: impact analysis, status evaluation, targeted re-spec | Khi flow **cr** được xác nhận |
 | `references/flow-fixbug.md` | Procedure chi tiết cho flow fixbug: Known/Unknown routing, debug, document, fix, verify | Khi flow **fixbug** được xác nhận |
-| `references/flow-cook.md` | Procedure chi tiết cho flow cook: readiness check, developer spawn, review loop, git push | Khi flow **cook** được xác nhận |
-| `references/procedures.md` | TẤT CẢ templates, shared procedures, gate criteria, error handling, progress reporting, và flow detection test scenarios | Khi cần: tạo prompt cho subagent, thực thi shared steps, kiểm tra gate, hoặc debug flow routing |
+| `references/flow-cook.md` | **Canonical source cho mọi TDD procedure.** Procedure chi tiết: readiness check, grilling, per-TC TDD cycle (RED→GREEN→REFACTOR-light), GATE light, REFACTOR full, GATE full, code review, git push, sprint update. Templates TDD agent nằm trong file này — không duplicate ở procedures.md. | Khi flow **cook** được xác nhận |
+| `references/procedures.md` | Shared procedures cho TẤT CẢ flow: Specs Pipeline templates (SRS/HLD/LLD/IMP/TST), fixbug developer template, bug document + README templates, impact assessment, spec update, fix+verify, sprint update, gate criteria (SRS→TST), error handling patterns, progress reporting, orchestrator self-check, flow detection test scenarios. **Không chứa TDD agent templates** — xem flow-cook.md cho TDD. | Khi cần: tạo prompt cho specs subagent, thực thi shared steps, kiểm tra gate criteria, debug flow routing, hoặc error handling |
