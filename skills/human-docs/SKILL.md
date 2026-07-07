@@ -2,7 +2,7 @@
 name: human-docs
 description: >-
   Đồng bộ agent_docs/ → docs/ cho human-readable output. Agent là SSOT (Single Source of Truth).
-  Dùng khi cần xuất tài liệu cho người đọc từ agent artifacts: "/human-docs sync:product",
+  Dùng khi cần xuất tài liệu cho người đọc từ agent artifacts: "/human-docs sync:srs",
   "/human-docs sync:architecture", "/human-docs sync:all", "/human-docs review", "/human-docs update".
 disable-model-invocation: true
 allowed-tools: Read, Write, Glob, Bash(*), Workflow
@@ -48,23 +48,24 @@ adrs/ADR-*.md                     →      architecture/ADRs/README.md
 
 Tất cả command dispatch đến workflow scripts trong `.claude/workflows/`. Skill này không chứa procedure logic — workflow scripts + agent definitions (`agents/`) đảm nhiệm toàn bộ execution.
 
-### `/human-docs sync:product`
+### `/human-docs sync:srs`
 
 Tổng hợp `agent_docs/features/FR-*.md` → `docs/product/SRS.md` + `docs/product/features/README.md`.
+Workflow dùng Explore fan-out theo domain: Discover → Gather (song song: foundation + traceability + contracts + per-domain FRs) → Generate (human-docs-sync-srs agent).
 
 ```javascript
-Workflow({ scriptPath: ".claude/workflows/human-docs-sync-product.js" })
+Workflow({ scriptPath: ".claude/workflows/human-docs/human-docs-sync-srs.js" })
 ```
 
-**Output (2 files):** SRS.md (tổng quan + toàn bộ FR detail, không BE/FE split) + features/README.md (index → agent_docs).
-Agent definition: `human-docs-sync-product` — JSON schema validation chống hallucination.
+**Output (2 files):** SRS.md (8 sections: introduction, FR overview, feature details per domain, NFRs, traceability, external interfaces, constraints, user journeys) + features/README.md (index → agent_docs).
+Agent definition: `human-docs-sync-srs` — nhận pre-gathered data từ Explore agents, synthesize SRS.md.
 
 ### `/human-docs sync:architecture`
 
 Đồng bộ `agent_docs/architecture.md` + `agent_docs/adrs/` → `docs/architecture/`.
 
 ```javascript
-Workflow({ scriptPath: ".claude/workflows/human-docs-sync-architecture.js" })
+Workflow({ scriptPath: ".claude/workflows/human-docs/human-docs-sync-architecture.js" })
 ```
 
 **Output:** system-architecture.md + diagrams/*.mermaid + ADRs/README.md.
@@ -72,10 +73,10 @@ Agent definition: `human-docs-sync-architecture`.
 
 ### `/human-docs sync:all`
 
-Chạy tuần tự `sync:product` → `sync:architecture`.
+Chạy tuần tự `sync:srs` → `sync:architecture`.
 
 ```javascript
-Workflow({ scriptPath: ".claude/workflows/human-docs-sync-all.js" })
+Workflow({ scriptPath: ".claude/workflows/human-docs/human-docs-sync-all.js" })
 ```
 
 Báo cáo tổng kết: files written, warnings, status per phase.
@@ -85,7 +86,7 @@ Báo cáo tổng kết: files written, warnings, status per phase.
 So sánh 2 chiều `agent_docs/` ↔ `docs/`, phát hiện inconsistency. **Read-only.**
 
 ```javascript
-Workflow({ scriptPath: ".claude/workflows/human-docs-review.js" })
+Workflow({ scriptPath: ".claude/workflows/human-docs/human-docs-review.js" })
 ```
 
 5 trạng thái: `synced` ✅ | `stale` ⚠️ | `missing` ❌ | `orphan` 👻 | `diverged` 🔀
@@ -97,7 +98,7 @@ Agent definition: `human-docs-review` — JSON schema validation.
 Incremental sync — chỉ cập nhật file có thay đổi dựa trên mtime comparison.
 
 ```javascript
-Workflow({ scriptPath: ".claude/workflows/human-docs-update.js" })
+Workflow({ scriptPath: ".claude/workflows/human-docs/human-docs-update.js" })
 ```
 
 Fallback: nếu không có timestamp → tự động đề xuất chạy `sync:all`.

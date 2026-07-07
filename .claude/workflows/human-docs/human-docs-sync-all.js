@@ -1,32 +1,32 @@
 export const meta = {
   name: 'human-docs-sync-all',
-  description: 'Run sync:product → sync:architecture sequentially',
+  description: 'Run sync:srs → sync:architecture sequentially',
   phases: [
-    { title: 'Product', detail: 'sync:product — FRs → SRS.md + README.md' },
+    { title: 'SRS', detail: 'sync:srs — FRs → SRS.md + README.md (Explore fan-out per domain)' },
     { title: 'Architecture', detail: 'sync:architecture — architecture.md → diagrams + ADRs' },
     { title: 'Report', detail: 'Summary of all sync operations' },
   ],
 }
 
-phase('Product')
-log('▶️ Phase 1/2: sync:product')
+phase('SRS')
+log('▶️ Phase 1/2: sync:srs')
 
 const productResult = await agent(
-  `Run the human-docs-sync-product workflow. Read agent_docs/features/FR-*.md and generate docs/product/SRS.md + docs/product/features/README.md. No BE/FE split. Report structured output.`,
+  `Run the human-docs-sync-srs workflow. Discover FR domains, spawn parallel Explore agents to gather foundation/traceability/contracts/per-domain FRs, then synthesize SRS.md + features/README.md. No BE/FE split. Report structured output.`,
   {
-    label: 'sync-product',
-    phase: 'Product',
-    agentType: 'human-docs-sync-product',
+    label: 'sync-srs',
+    phase: 'SRS',
+    agentType: 'human-docs-sync-srs',
   }
 )
 
 if (!productResult) {
-  log('❌ sync:product failed')
-  return { status: 'failed', phase: 'product' }
+  log('❌ sync:srs failed')
+  return { status: 'failed', phase: 'srs' }
 }
 
 const frCount = productResult.fr_count || 0
-log(`✅ sync:product — ${frCount} FRs processed`)
+log(`✅ sync:srs — ${frCount} FRs processed`)
 
 phase('Architecture')
 log('▶️ Phase 2/2: sync:architecture')
@@ -59,7 +59,7 @@ totalWarnings.forEach(w => log(`  ⚠️ ${w}`))
 
 return {
   status: 'completed',
-  product: { fr_count: frCount, files: productResult.files_written || [] },
+  srs: { fr_count: frCount, files: productResult.files_written || [] },
   architecture: archResult || { status: 'skipped' },
   total_files: totalFiles.length,
   total_warnings: totalWarnings.length,
