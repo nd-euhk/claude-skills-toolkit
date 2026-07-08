@@ -1,31 +1,44 @@
-# Flow Reverse — Reverse Engineering Pipeline
+# Flow Reverse — Workflow Args Packaging Guide
 
-Procedure chi tiết cho Bước 5 của sdlc-codebase: reverse engineer codebase → agent_docs/ artifacts.
+Procedure chi tiết cho Bước 5 của sdlc-codebase: package args → invoke workflow →
+reverse engineer codebase → agent_docs/ artifacts.
 
 Pipeline: **Scout Report → HLD → LLD → SRS → IMP ∥ TST**
+
+Workflow script: `.claude/workflows/codebase/workflow-codebase-reverse.js`
 
 ---
 
 ## Shared Context Injection
 
-Mỗi phase subagent nhận context block này trong prompt. Đây là thông tin codebase
-đã thu thập được, dùng làm input thay vì output của phase trước (như forward SDLC).
+Tất cả codebase-* agents nhận context từ args được package bởi skill.
+Workflow script truyền context vào prompt của từng agent. Không cần shared context block —
+mỗi agent type có prompt builder riêng trong workflow script.
 
-```
-## Codebase Context (từ sdlc-scout)
+---
 
-Scout report: {đường dẫn tới scout report}
-Foundation: agent_docs/project-overview.md, agent_docs/user-context.md
-Codebase scope: {scope path}
+## Phase 0: Plan & Package Args
 
-## Mode: REVERSE ENGINEERING
+Trước khi invoke workflow, skill thực hiện:
 
-Bạn đang REVERSE ENGINEER từ code có sẵn, KHÔNG PHẢI thiết kế từ đầu.
-- ĐỌC codebase để extract patterns, không DESIGN patterns mới
-- Nếu code không đủ context để xác định intent → flag rõ "UNCERTAIN: <lý do>"
-- Giữ nguyên cấu trúc output giống forward SDLC, nhưng nội dung đến từ code analysis
-- Mọi claim phải có evidence: file:line từ codebase thực tế
-```
+1. **EnterPlanMode** — plan tổng thể:
+   - Danh sách services phát hiện từ scout report
+   - Danh sách domains (từ HLD nếu có, hoặc từ scout grouping)
+   - Artifacts sẽ sinh
+   - Thứ tự phases
+   - Expected outputs overview
+
+2. **Human review → approve**
+
+3. **Package args** — dùng template trong `procedures.md` → "Workflow Args Packaging"
+
+4. **Invoke workflow**:
+   ```
+   Workflow({
+     scriptPath: ".claude/workflows/codebase/workflow-codebase-reverse.js",
+     args: { scope, scoutReportPath, services, domains, artifacts, focus, foundationPath, workDir }
+   })
+   ```
 
 ---
 
@@ -36,113 +49,111 @@ Bạn đang REVERSE ENGINEER từ code có sẵn, KHÔNG PHẢI thiết kế t�
 Từ code structure, extract: service topology, communication patterns, ADRs (inferred),
 C4 container diagrams, bounded context mapping, event taxonomy.
 
-### Procedure
+### Workflow Execution
 
-1. **EnterPlanMode** — plan bao gồm:
-   - Danh sách service phát hiện từ scout report
-   - Communication patterns cần extract (REST, gRPC, message queue, event bus)
-   - External systems phát hiện từ config files
-   - Chiến lược xử lý service không rõ boundary
+Workflow script spawns 1 agent:
+```js
+agent(hldPrompt(), {
+  label: 'HLD: architecture',
+  phase: 'HLD',
+  agentType: 'codebase-hld',
+})
+```
 
-2. **Plan Agent prompt:**
-   ```
-   Lập kế hoạch reverse engineer HLD từ codebase.
+### Args cần cho HLD
 
-   Scout report: {scout_report_path}
-   Foundation: agent_docs/project-overview.md
-   Codebase scope: {scope}
+| Field | Value | Source |
+|-------|-------|--------|
+| `scope` | `.` hoặc path cụ thể | Từ `--scope` flag |
+| `scoutReportPath` | Đường dẫn scout report | Từ Bước 4 |
+| `services` | Danh sách service từ scout | Parse scout report |
+| `foundationPath` | `"agent_docs/"` | Default |
+| `focus` | Optional focus area | Từ `--focus` flag |
 
-   Cần xác định:
-   - Service boundaries (từ directory structure, build files, Dockerfiles)
-   - Communication patterns (từ API clients, message broker configs, event handlers)
-   - External integrations (từ connection strings, client libraries)
-   - ADRs có thể infer từ code patterns (ví dụ: "dùng CQRS vì có separate read/write models")
-   - Những phần KHÔNG THỂ xác định từ code → flag để grill human
+### Expected Outputs
 
-   Output: plan chi tiết để spawn sdlc-hld agent với reverse engineering prompt.
-   ```
+| Output | Mô tả |
+|--------|-------|
+| `agent_docs/architecture.md` | C4 diagrams (Mermaid), service descriptions, architecture style |
+| `agent_docs/adrs/ADR-{NNN}--{slug}.md` | Minimum 3 base ADRs (inferred from code) |
+| `agent_docs/adrs/README.md` | ADR index with status tracking |
+| `agent_docs/contracts/api-conventions.md` | Observed URL/HTTP patterns |
+| `agent_docs/contracts/events.md` | Event types, taxonomy, transport |
+| `agent_docs/hard-boundaries.md` | Data ownership, communication rules, security boundaries |
 
-3. **Human review → approve**
+### Domain Detection từ HLD
 
-4. **Spawn sdlc-hld** — dùng template từ `procedures.md` → "HLD Reverse Prompt Template"
+Sau HLD hoàn tất, skill đọc `agent_docs/architecture.md` để extract domains[]:
 
-5. **Gate check** — HLD gate criteria:
-   - [ ] C4 Container diagram tồn tại và khớp với service structure trong scout report
-   - [ ] Mỗi service có: responsibility, tech stack, exposed APIs (từ code analysis)
-   - [ ] Communication pathways có evidence (file:line) từ code
-   - [ ] ADRs inferred từ code được flag rõ "Inferred from code — cần human validation"
-   - [ ] Hard boundaries giữa các service được xác định (từ package structure, API contracts)
-   - [ ] External systems được liệt kê kèm connection details từ config
+```
+Từ Service Descriptions → nhóm services theo bounded context → tạo domain list
+Từ "Summary for Synthesis" → suggested domains
+```
 
-6. **Report:**
-
-   ```
-   ✅ HLD hoàn thành — Reverse từ codebase
-      📄 Services: {N} phát hiện
-      📄 ADRs: {M} inferred (cần validation)
-      📄 External Systems: {X}
-      🚦 Gate: PASS (6/6)
-      ⏭️  Next: LLD
-   ```
-
-### Edge Cases
-
-- **Monolith phát hiện** → HLD vẫn được extract (internal module boundaries, package structure)
-- **Không tìm thấy service boundaries** → grill human: "Codebase có vẻ là monolith. Xác nhận? Cần tách thành services ảo để document?"
-- **Multiple repos trong scope** → mỗi repo = một service, trừ khi có evidence ngược lại
-- **Thiếu docker-compose hoặc deployment configs** → flag "Deployment architecture not found in code"
+Nếu HLD không chạy (--artifacts không include hld), domains từ scout report grouping.
 
 ---
 
-## Phase 2: Reverse LLD (Extract Per-Service Design từ Code)
+## Phase 2: Reverse LLD (Extract Per-Service Design)
 
 ### Mục tiêu
 
 Từ code, extract: domain models, API contracts, database schemas, transaction boundaries,
 error handling patterns, caching strategies, circuit breakers, degraded modes.
 
-### Procedure
+### Workflow Execution — Fan-Out Per Service
 
-1. **EnterPlanMode** — plan dựa trên HLD đã extract + scout report
+Workflow script spawns N agents song song + 1 synthesis agent:
 
-2. **Plan Agent prompt:**
-   ```
-   Lập kế hoạch reverse engineer LLD từ codebase.
+```js
+// Per-service LLD (parallel)
+const lldResults = await parallel(
+  services.map(svc => () =>
+    agent(lldPrompt(svc), {
+      label: `LLD: ${svc.name}`,
+      phase: 'LLD',
+      agentType: 'codebase-lld',
+    })
+  )
+)
 
-   HLD (đã extract): agent_docs/architecture.md
-   Scout report: {scout_report_path}
+// Cross-service synthesis (if N > 1)
+const lldSynthesisResult = await agent(lldSynthesisPrompt(lldResults), {
+  label: 'LLD synthesis',
+  phase: 'LLD',
+  agentType: 'codebase-lld-synthesis',
+})
+```
 
-   Cần xác định cho MỖI service:
-   - Domain model (từ entities, models, aggregates trong code)
-   - API contracts (từ route definitions, controllers, handlers)
-   - Database schema (từ migrations, ORM models, SQL files)
-   - Transaction boundaries (từ @Transactional, unit of work patterns)
-   - Error handling (từ exception classes, error middleware)
-   - Caching (từ cache annotations, Redis clients)
-   - Circuit breakers / retry (từ resilience libraries)
-   - Những phần KHÔNG THỂ xác định từ code → flag để grill
+### Args cần cho LLD
 
-   Output: plan cho từng service, thứ tự xử lý, expected outputs.
-   ```
+| Field | Value | Source |
+|-------|-------|--------|
+| `services` | Danh sách service (đã có từ scout) | Scout report |
+| `scoutReportPath` | Đường dẫn scout report | Từ Bước 4 |
+| `foundationPath` | `"agent_docs/"` | Default |
 
-3. **Human review → approve**
+### Expected Outputs
 
-4. **Spawn sdlc-lld** — dùng template từ `procedures.md` → "LLD Reverse Prompt Template"
+**Per-service (N files):**
+| Output | Mô tả |
+|--------|-------|
+| `agent_docs/backend/{name}/tech-design/{name}-service.md` | 9 sections per service |
 
-5. **Gate check** — LLD gate criteria:
-   - [ ] Mỗi service có 9 section: Domain Model, API Contracts, Data Storage, Transaction Boundaries, Error Handling, Caching Strategy, External Calls, Degraded Modes, Security Considerations
-   - [ ] Domain model khớp với entity/Model classes trong code (evidence: file:line)
-   - [ ] API contracts khớp với route/controller definitions trong code
-   - [ ] Error handling flows được extract từ code (không tự bịa)
-   - [ ] Degraded modes có evidence từ circuit breaker configs, fallback implementations
+**Synthesis (1 agent):**
+| Output | Mô tả |
+|--------|-------|
+| `agent_docs/cross-cutting.md` | Cross-service patterns (auth, errors, logging, data, deployment) |
+| `agent_docs/contracts/api-{domain}.yaml` | API contracts grouped by domain |
+| `agent_docs/contracts/error-codes.md` | Canonicalized error codes |
+| FR candidates | For SRS phase domain grouping |
 
-6. **Report**
+### Domain Refinement từ LLD Synthesis
 
-### Edge Cases
-
-- **Service không có API** (background worker, cron job) → skip API contracts, focus on event handlers / scheduled tasks
-- **Service dùng multiple databases** → document từng database connection + strategy (read/write split, CQRS)
-- **Không tìm thấy error handling patterns** → flag "No structured error handling detected in code"
+Sau LLD Synthesis, skill đọc kết quả để refine domains[]:
+- FR candidates → domain grouping suggestions
+- API domains → cross-service boundaries
+- Dùng refined domains cho SRS phase
 
 ---
 
@@ -153,108 +164,147 @@ error handling patterns, caching strategies, circuit breakers, degraded modes.
 Từ code behavior + HLD + LLD context, infer: functional requirements, NFRs,
 Gherkin Scenario Outlines, traceability matrix.
 
-**Đây là phase khó nhất** vì requirements là "WHY", code là "HOW".
-Cần suy luận cẩn thận và flag rõ uncertainty.
+### Workflow Execution — Fan-Out Per Domain
 
-### Procedure
+Workflow script spawns M agents song song + 1 synthesis agent:
 
-1. **EnterPlanMode** — plan dựa trên HLD + LLD + scout report
+```js
+// Per-domain SRS (parallel)
+const srsResults = await parallel(
+  domains.map(dom => () =>
+    agent(srsPrompt(dom), {
+      label: `SRS: ${dom.name}`,
+      phase: 'SRS',
+      agentType: 'codebase-srs',
+    })
+  )
+)
 
-2. **Plan Agent prompt:**
-   ```
-   Lập kế hoạch reverse engineer SRS từ codebase.
+// Cross-domain synthesis (if M > 1)
+const srsSynthesisResult = await agent(srsSynthesisPrompt(srsResults), {
+  label: 'SRS synthesis',
+  phase: 'SRS',
+  agentType: 'codebase-srs-synthesis',
+})
+```
 
-   HLD: agent_docs/architecture.md
-   LLD: agent_docs/backend/*/tech-design/, agent_docs/frontend/*/tech-design/
-   Scout report: {scout_report_path}
+### Args cần cho SRS
 
-   Cần suy ra:
-   - Functional Requirements từ: API endpoints, UI routes, validation logic, business rule implementations
-   - Non-Functional Requirements từ: performance configs (timeouts, pool sizes), security implementations (auth middleware, rate limiting), scalability patterns (queue workers, caching)
-   - Actor/Role identification từ: permission checks, role-based guards, auth middleware
-   - Feature grouping: nhóm các endpoint/logic liên quan thành features
+| Field | Value | Source |
+|-------|-------|--------|
+| `domains` | Danh sách domain với services + features | Từ HLD hoặc LLD synthesis |
+| `scoutReportPath` | Đường dẫn scout report | Từ Bước 4 |
+| `foundationPath` | `"agent_docs/"` | Default |
 
-   Nguyên tắc:
-   - Mỗi FR phải có evidence từ code (API endpoint, controller action, service method)
-   - Gherkin scenarios được suy ra từ: request validation, response format, error handling paths
-   - Flag UNCERTAIN cho những phần code không rõ business intent
-   - Dùng project-overview.md và user-context.md để bổ sung context
+### Expected Outputs
 
-   Output: plan với danh sách features sẽ extract, mapping code → FR, NFR detection strategy.
-   ```
+**Per-domain (M agents):**
+| Output | Mô tả |
+|--------|-------|
+| `agent_docs/features/FR-{DOMAIN}-{NNN}.md` | Feature specs với Gherkin scenarios |
+| `agent_docs/features/README.md` (per domain) | Domain feature index |
 
-3. **Human review → approve**
-
-4. **Spawn sdlc-srs** — dùng template từ `procedures.md` → "SRS Reverse Prompt Template"
-
-5. **Gate check** — SRS gate criteria:
-   - [ ] Mỗi feature có: description, actor/role, Gherkin Scenario Outlines
-   - [ ] Mỗi FR có evidence từ code (file:line) hoặc được flag UNCERTAIN
-   - [ ] NFRs có quantified thresholds (extracted từ configs) hoặc flag "threshold not found in code"
-   - [ ] Traceability matrix mapping features → code modules
-   - [ ] Các phần UNCERTAIN được tổng hợp để human review
-
-6. **Report**
-
-### Edge Cases
-
-- **Code không thể hiện business rules** (rules nằm trong external service, DB stored procedures) → grill human
-- **Validation logic phân tán** (FE + BE validate khác nhau) → document cả hai, flag inconsistency nếu có
-- **Không có permission/role system** → flag "No authorization logic detected — system may be open or uses external auth"
-- **Performance configs scattered** → tổng hợp tất cả timeout, pool size, rate limit configs; flag gaps
+**Synthesis (1 agent):**
+| Output | Mô tả |
+|--------|-------|
+| `agent_docs/features/README.md` | Unified feature index (all domains) |
+| `agent_docs/traceability/requirements-matrix.md` | FR → code module mapping with evidence quality |
 
 ---
 
 ## Phase 4: Reverse IMP + TST (Song Song)
 
-### IMP — Document Implementation Patterns
+### Mục tiêu
 
-1. **EnterPlanMode** — plan bao phủ cả IMP và TST
-2. **Spawn sdlc-imp** — dùng template từ `procedures.md` → "IMP Reverse Prompt Template"
-3. **Gate check** — IMP gate criteria:
-   - [ ] Mỗi feature có: execution flow, business rules mapping, data impact, error mapping, security considerations
-   - [ ] Execution flow có evidence từ code (service methods, middleware chains)
-   - [ ] Business rules map tới SRS FRs đã extract
-   - [ ] Error mapping khớp với exception classes và error handlers trong code
+IMP — Document implementation patterns từ code.
+TST — Document test patterns từ code.
 
-### TST — Document Test Patterns
+### Workflow Execution — Fan-Out Per Domain, IMP ∥ TST
 
-1. **Spawn sdlc-tst** (song song với IMP) — dùng template từ `procedures.md` → "TST Reverse Prompt Template"
-2. **Gate check** — TST gate criteria:
-   - [ ] Test architecture được document: test frameworks, test types, fixture strategy
-   - [ ] Test coverage patterns được extract từ test files
-   - [ ] Mỗi feature có: unit test cases, integration test cases, E2E scenarios (inferred từ code)
-   - [ ] Test data/fixture patterns được document
+Workflow script spawns 2M agents song song (M IMP + M TST), dùng functional typed-task pattern:
 
-### Đợi cả hai agent → verify gates độc lập → report
+```js
+// IMP per domain — functional map + typed tasks
+const impTasks = runIMP
+  ? domains.map(dom => () =>
+      agent(impPrompt(dom), {
+        label: `IMP: ${dom.name}`,
+        phase: 'IMP+TST',
+        agentType: 'codebase-imp',
+      }).then(result => ({ type: 'imp', domain: dom.name, result }))
+    )
+  : []
+
+// TST per domain — song song với IMP
+const tstTasks = runTST
+  ? domains.map(dom => () =>
+      agent(tstPrompt(dom), {
+        label: `TST: ${dom.name}`,
+        phase: 'IMP+TST',
+        agentType: 'codebase-tst',
+      }).then(result => ({ type: 'tst', domain: dom.name, result }))
+    )
+  : []
+
+// Tất cả IMP + TST chạy song song
+const allTasks = [...impTasks, ...tstTasks]
+if (allTasks.length > 0) {
+  const allResults = await parallel(allTasks)
+  impResults = allResults.filter(Boolean).filter(r => r.type === 'imp' && r.result)
+  tstResults = allResults.filter(Boolean).filter(r => r.type === 'tst' && r.result)
+}
+```
+
+**Pattern explanation:** Mỗi task trả về `{ type, domain, result }` qua `.then()` — không dùng mutable array side-effect. Filter theo `type` để tách IMP vs TST results. Đây là functional, declarative approach, tránh lỗi splitting như dùng `indexOf` trên object references.
+
+### Args cần cho IMP+TST
+
+| Field | Value | Source |
+|-------|-------|--------|
+| `domains` | CÙNG domains từ SRS phase | Đã có từ SRS |
+| `scoutReportPath` | Đường dẫn scout report | Từ Bước 4 |
+| `foundationPath` | `"agent_docs/"` | Default |
+
+### Expected Outputs
+
+**IMP (M files — 1 per domain, covering all features in domain):**
+| Output | Mô tả |
+|--------|-------|
+| `agent_docs/backend/{svc}/implementation/FR-{DOMAIN}-{NNN}-impl.md` | Execution flow, business rules, data impact, error mapping, security |
+
+**TST (M files — 1 per domain, covering all features in domain):**
+| Output | Mô tả |
+|--------|-------|
+| `agent_docs/backend/{svc}/test-specs/FR-{DOMAIN}-{NNN}-test.md` | Test architecture, test cases, fixtures, coverage gaps |
 
 ---
 
-## Grilling Integration
+## Phase 5: Report (Cross-Reference Validation + Completeness Critic)
 
-Khi code không đủ context, gọi `Skill("grilling")` để hỏi human. Các tình huống phổ biến:
+Workflow script thực hiện 2 bước trong Report phase:
 
-| Tình huống | Câu hỏi gợi ý |
-|------------|---------------|
-| Service boundary không rõ | "Code có N services trong thư mục X, Y, Z. Đây có phải là các service độc lập? Service nào gọi service nào?" |
-| Business rule ẩn | "Logic X trong code kiểm tra điều kiện Y. Quy tắc business đằng sau điều kiện này là gì?" |
-| ADR không rõ lý do | "Code dùng Kafka cho event X. Tại sao chọn Kafka thay vì RabbitMQ hoặc direct REST call?" |
-| Thiếu context về actor | "API endpoint X yêu cầu role 'admin'. Có những loại user nào khác trong hệ thống?" |
-| Performance requirement | "Code set timeout=30s cho external call X. Đây là requirement business hay technical decision?" |
+1. **Completeness Critic** — 1 agent kiểm tra toàn bộ pipeline:
+   - Service nào KHÔNG được cover bởi LLD?
+   - Domain nào KHÔNG được cover bởi SRS/IMP/TST?
+   - Artifact type nào có ZERO outputs?
+   - Cross-service domain nào thiếu API contracts?
+   - Consistency: feature counts khớp nhau giữa SRS/IMP/TST không?
+   - Coverage gap nào chưa được flag?
 
-**Quy tắc grilling:**
-- Hỏi từng câu một — đợi human trả lời mới hỏi tiếp
-- Luôn cung cấp context từ code trước khi hỏi
-- Cho phép human skip nếu không biết / không quan trọng
-- Tổng hợp cuối cùng — dump toàn bộ kết quả vào summary block
+2. **Cross-reference validation** — tổng hợp tất cả results → structured output
 
----
+Skill đọc workflow result:
+1. Parse outputs[] — danh sách tất cả files đã sinh
+2. Parse warnings[] — UNCERTAINTY flags, gaps, inconsistencies
+3. Parse critic findings — gaps được completeness critic phát hiện
+4. Gate check cho từng phase (dùng criteria trong procedures.md)
+5. Báo cáo final summary
 
-## Cross-Reference Validation (Post-Pipeline)
+### Cross-Reference Check (Post-Workflow, trong Skill)
 
-Sau khi tất cả artifacts được sinh, chạy cross-reference check:
+Sau workflow hoàn tất, skill chạy cross-reference validation:
 
-1. **SRS ↔ HLD**: Mỗi feature trong SRS có service nào implement? Service trong HLD có cover tất cả features?
+1. **SRS ↔ HLD**: Mỗi feature trong SRS có service nào implement?
 2. **SRS ↔ LLD**: Mỗi FR có API endpoint tương ứng trong LLD?
 3. **LLD ↔ IMP**: Mỗi API contract trong LLD có execution flow trong IMP?
 4. **IMP ↔ TST**: Mỗi execution flow trong IMP có test coverage trong TST?
@@ -274,13 +324,13 @@ Output:
 
 ## Resume & Partial Runs
 
-Pipeline hỗ trợ resume từ phase bất kỳ:
+Workflow hỗ trợ resume tự động — completed phases dùng cached results:
 
 - Nếu HLD đã có → skip HLD, bắt đầu từ LLD
-- Nếu chỉ muốn update SRS → `--artifacts srs` (vẫn chạy scout để có context mới nhất)
-- Nếu scout report đã tồn tại và code không thay đổi → dùng lại report (cache)
+- Nếu chỉ muốn update SRS → `--artifacts srs` (vẫn chạy scout trước)
+- Nếu scout report đã tồn tại và code không thay đổi → dùng lại report
 
-Kiểm tra trước mỗi phase:
+Kiểm tra trước khi package args:
 
 ```bash
 # Trước HLD
@@ -290,7 +340,36 @@ test -f agent_docs/architecture.md && echo "EXISTS" || echo "MISSING"
 ls agent_docs/backend/*/tech-design/*.md 2>/dev/null && echo "EXISTS" || echo "MISSING"
 
 # Trước SRS
-ls agent_docs/features/*.md 2>/dev/null && echo "EXISTS" || echo "MISSING"
+ls agent_docs/features/FR-*.md 2>/dev/null && echo "EXISTS" || echo "MISSING"
 ```
 
 File đã tồn tại → hỏi human: "Update", "Skip (giữ nguyên)", hay "Regenerate từ đầu".
+
+---
+
+## Edge Cases
+
+### Monolith Codebase
+
+- services[] = [{ name: "main", path: "src/", type: "monolith" }]
+- HLD: document internal module boundaries (package structure)
+- LLD: 1 agent cho toàn bộ monolith
+- SRS: domains từ internal module grouping
+
+### Single Service, Single Domain
+
+- HLD: 1 agent (bình thường)
+- LLD: 1 agent, skip synthesis
+- SRS: 1 agent, skip synthesis
+- IMP+TST: 2 agents ∥ (1 IMP + 1 TST)
+
+### Many Services, Unknown Domains
+
+- HLD: 1 agent → extract architecture → detect bounded contexts
+- Dùng HLD "Summary for Synthesis" để xác định domains
+- Nếu HLD không chạy → group services theo naming convention
+
+### No Test Code Found
+
+- TST agents vẫn chạy, output: "⚠️ NO TESTS FOUND" cho mỗi feature
+- Đây không phải error — là finding hợp lệ

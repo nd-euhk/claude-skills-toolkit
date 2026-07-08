@@ -8,11 +8,11 @@ description: >-
   code", "tạo agent_docs từ codebase", "document codebase", "extract specs
   from code", "đồng bộ tài liệu với code", "generate SDLC docs from source".
 argument-hint: "[--focus <description>] [--scope <path>] [--artifacts hld,lld,srs,imp,tst] [--dry-run]"
-version: 1.0.0
+version: 1.2.2
 user-invocable: true
 category: sdlc
 keywords: [reverse-engineer, codebase, agent-docs, documentation, sdlc, specs-from-code]
-allowed-tools: Read, Write, Edit, Bash, Glob, Skill, Agent, Workflow, AskUserQuestion, EnterPlanMode, ExitPlanMode
+allowed-tools: Read, Bash, Skill, Workflow, AskUserQuestion, EnterPlanMode, ExitPlanMode
 ---
 
 # SDLC Codebase
@@ -33,12 +33,13 @@ procedure chi tiết. Shared procedures và gate criteria nằm trong
 Đây là các quy tắc KHÔNG THỂ NEGOTIATE:
 
 - **Bạn điều phối, không thực thi** — không tự phân tích code, không tự viết spec content
-- **Human-in-the-loop bắt buộc** — mỗi phase: EnterPlanMode → Plan → Review → Spawn. Không skip
+- **Human-in-the-loop ở Plan level** — 1 EnterPlanMode tổng thể trước khi invoke workflow. Không plan từng phase riêng lẻ
+- **Dùng Workflow, không spawn Agent trực tiếp** — reverse pipeline luôn qua `Workflow({scriptPath, args})`. Workflow script xử lý fan-out, skill chỉ nhận kết quả cuối cùng
 - **Preflight trước, Reverse sau** — foundation files phải tồn tại trước khi reverse engineer
 - **Scout trước khi phân tích** — luôn chạy sdlc-scout trước để có structured codebase map
 - **Reverse order cố định** — Scout → HLD → LLD → SRS → IMP∥TST. Không đảo thứ tự
-- **Không tự sửa sprint files** — luôn qua `Skill(sprint)`
-- **Gate check sau MỖI agent** — verify gate pass trước phase tiếp theo. Fail → dừng, báo cáo human
+- **Không tự sửa sprint files** — luôn qua `Skill(sprint, "--all")`
+- **Gate tự động trong workflow với retry** — workflow script tự chạy `codebase-gate` giữa các phase với retry tối đa 3 lần. Gate fail ở attempt 3 → skip các phase còn lại, chuyển thẳng Report. Skill chỉ đọc kết quả cuối cùng, không can thiệp giữa chừng
 - **Tôn trọng file đã tồn tại** — hỏi human trước khi overwrite bất kỳ file agent_docs/ nào
 
 ---
@@ -181,65 +182,123 @@ Scout report được lưu tại `.work/scouts/`. Đọc report summary để x�
 
 Báo cáo: "🔍 Scout hoàn tất — {N} sub-project, {M} modules, {T} technologies"
 
-### Bước 5: Reverse Engineering Pipeline
+### Bước 5: Reverse Engineering Pipeline (qua Workflow)
 
-Pipeline ngược với sdlc-orchestrator task flow. Thứ tự cố định:
+Pipeline ngược với sdlc-orchestrator task flow. **Dùng Workflow để fan-out agent theo service/domain**, không spawn Agent trực tiếp trong skill.
 
 ```
-Scout Report ──→ HLD ──→ LLD ──→ SRS ──→ IMP ∥ TST
-                 (kiến trúc   (thiết kế   (requirements  (song song)
-                  từ code)     từ code)    từ code)
+Scout Report ──→ HLD ──→ 🚦Gate ──→ LLD ──→ 🚦Gate ──→ SRS ──→ 🚦Gate ──→ IMP∥TST ──→ 🚦Gate ──→ Report
+                 (1 agent)  (retry≤3)  (N∥ +S)  (retry≤3)  (M∥ +S)  (retry≤3)  (2M∥)      (retry≤3)
+
+                 Gate fail ở attempt 3 → skipRemaining = true → tất cả phase sau bị skip → Report
 ```
+
+**Gate + Retry tự động trong workflow:**
+- Sau mỗi phase, workflow tự gọi `codebase-gate` để validate outputs
+- Gate fail → retry phase với targeted feedback (chỉ ra chính xác criteria nào fail)
+- Retry tối đa 3 lần → fail ở lần 3 → `skipRemaining = true` → nhảy thẳng Report
+- Gate pass → proceed phase tiếp theo như bình thường
+- Skill **không can thiệp** giữa các phase — chỉ đọc kết quả cuối cùng từ workflow
 
 **Vì sao thứ tự này?** Khi reverse engineering từ code:
-- **HLD trước** — cấu trúc service, communication patterns thấy trực tiếp từ code
-- **LLD tiếp** — domain models, API contracts, data flow thấy từ code structure
-- **SRS sau** — functional requirements được suy ra từ implementation + HLD/LLD context
-- **IMP∥TST cuối** — implementation specs và test specs cần SRS + LLD làm nền
+- **HLD trước** — cấu trúc service, communication patterns thấy trực tiếp từ code (1 agent, cross-cutting)
+- **LLD tiếp** — domain models, API contracts, data flow extracted per service (N agents ∥)
+- **SRS sau** — functional requirements được suy ra từ implementation + HLD/LLD context, grouped by domain (M agents ∥)
+- **IMP∥TST cuối** — implementation + test specs per domain (2M agents ∥, song song IMP với TST)
 
-#### Human-in-the-Loop mỗi Phase
+#### Human-in-the-Loop (Plan Level)
 
-Cho MỖI phase (HLD, LLD, SRS, IMP, TST), thực hiện:
+Thay vì plan từng phase, skill làm 1 plan tổng thể trước khi invoke workflow:
 
-1. **EnterPlanMode**
-2. **Đọc context** — scout report, các file agent_docs/ đã sinh từ phase trước, foundation files, codebase
-3. **Spawn Plan agent** với prompt gồm: phase hiện tại, codebase context (scout report), các file đã tồn tại, expected outputs, mode reverse engineering
-4. **Đợi human review** — human review và approve/revise plan
-5. **ExitPlanMode**
-6. **Spawn subagent** qua `Agent` tool. Dùng agent SDLC tương ứng với prompt reverse engineering:
-   - HLD → `Agent("sdlc-hld", ...)` — prompt yêu cầu extract architecture từ code thay vì thiết kế từ SRS
-   - LLD → `Agent("sdlc-lld", ...)` — prompt yêu cầu extract per-service design từ code
-   - SRS → `Agent("sdlc-srs", ...)` — prompt yêu cầu infer requirements từ code behavior
-   - IMP → `Agent("sdlc-imp", ...)` — prompt yêu cầu document implementation patterns từ code
-   - TST → `Agent("sdlc-tst", ...)` — prompt yêu cầu document test patterns từ code
-7. **Verify gate** — kiểm tra self-check pass. Fail → báo cáo human
-8. **Report progress** — dùng template progress reporting
+1. **EnterPlanMode** — 1 lần duy nhất cho toàn bộ pipeline
+2. **Plan Agent prompt:**
+   ```
+   Lập kế hoạch reverse engineer từ codebase.
 
-Xem `references/procedures.md` → "Agent Spawn Templates" để có prompt template cho từng phase.
+   Scout report: {scout_report_path}
+   Foundation: agent_docs/project-overview.md, user-context.md
 
-#### IMP + TST Song Song
+   Cần xác định:
+   - Services: danh sách service từ scout report (tên, path, tech stack)
+   - Domains: nhóm services thành bounded contexts/domains
+   - Artifacts cần sinh: {artifacts}
+   - Phases sẽ chạy và expected outputs
+   - Risk areas: services/domains có thể thiếu context
 
-Sau SRS: một plan bao phủ cả IMP và TST → human approve → spawn `sdlc-imp` và `sdlc-tst` đồng thời → đợi cả hai → verify gates độc lập.
+   Output: plan với services[], domains[], artifacts[], và expected coverage.
+   ```
+3. **Human review → approve**
+4. **ExitPlanMode**
+5. **Package args** — dùng template trong `references/procedures.md` → "Workflow Args Packaging"
+6. **Invoke workflow** — gọi Workflow tool với script path và args đã package. Workflow tự chạy gate+retry giữa các phase, skill không can thiệp
+7. **Đọc workflow result** — parse status, outputs, warnings, gate results
+8. **Báo cáo kết quả** — dùng template progress reporting. Nếu `status: "partial (gate exhaustion)"`, báo cáo phase nào bị gate exhaustion
 
-#### Sau mỗi Phase
+#### Workflow Invocation
 
-Báo cáo cho human theo template:
-
+```js
+Workflow({
+  scriptPath: ".claude/workflows/codebase/workflow-codebase-reverse.js",
+  args: {
+    scope: scope,
+    scoutReportPath: scoutReportPath,
+    services: services,        // từ scout report
+    domains: domains,          // từ HLD hoặc scout grouping
+    artifacts: artifacts,      // từ --artifacts flag
+    focus: focus,              // optional
+    foundationPath: "agent_docs/",
+    workDir: "<đường dẫn tuyệt đối từ pwd>",
+  }
+})
 ```
-✅ [Phase] hoàn thành — Reverse từ codebase
-   📄 Output: [danh sách file đã tạo/cập nhật]
-   🚦 Gate: [PASS/FAIL] ([N]/[M] criteria met)
-   ⏭️  Next: [phase tiếp theo hoặc "Pipeline complete"]
-   ⚠️  Issues: [list hoặc "Không có"]
+
+#### Sau khi Workflow Hoàn Tất
+
+Đọc `result.status` để xác định pipeline outcome. Báo cáo cho human theo template:
+
+**Normal completion:**
 ```
+✅ Pipeline hoàn thành — Reverse từ codebase
+   📄 Output:
+      • HLD: architecture.md, {A} ADRs
+      • LLD: {N} service design docs + synthesis
+      • SRS: {M} feature specs + traceability matrix
+      • IMP: {X} implementation specs
+      • TST: {Y} test specs
+   🚦 Gates: {passed}/{total} passed, {exhausted} exhausted
+   ⚠️  UNCERTAIN flags: {Z} — cần human review
+   💡 Next: Review UNCERTAIN flags → validate với team
+```
+
+**Gate exhaustion (một hoặc nhiều phase bị skip):**
+```
+⚠️ Pipeline partial — Gate exhaustion
+   ✅ Completed phases: HLD, LLD (gate PASS)
+   🛑 Failed phase: SRS — gate FAIL sau 3 retries
+   ⏭️  Skipped phases: IMP, TST (do gate exhaustion)
+   📄 Partial outputs: HLD + LLD (architecture + per-service design)
+   🚦 Gate details:
+      • HLD: PASS (attempt 1/3, 6/6 criteria)
+      • LLD: PASS (attempt 1/3, 5/5 criteria)
+      • SRS: FAIL (attempt 3/3, 2/4 criteria — S1, S3 failed)
+   💡 Options:
+      1. Review gate failures → fix root cause (prompt/scout report) → re-run
+      2. Manually supplement the missing SRS outputs
+      3. Accept partial output và proceed
+```
+
+Xem `references/flow-reverse.md` để có hướng dẫn chi tiết về từng phase trong workflow.
+Xem `references/procedures.md` để có Workflow Args Packaging, Gate Criteria, và Error Handling.
 
 ### Bước 6: Validation & Summary
 
-Sau khi tất cả artifacts được sinh:
+Sau khi workflow hoàn tất (hoặc partial completion do gate exhaustion):
 
-1. **Cross-reference check** — đọc từng file agent_docs/, kiểm tra internal consistency giữa SRS ↔ HLD ↔ LLD ↔ IMP
-2. **Coverage report** — so sánh modules từ scout report với modules được document trong artifacts
-3. **Final summary**:
+1. **Đọc gate results** — kiểm tra `result.gates` để xác định phase nào pass, phase nào fail/exhausted
+2. **Cross-reference check** — đọc từng file agent_docs/, kiểm tra internal consistency giữa SRS ↔ HLD ↔ LLD ↔ IMP
+3. **Coverage report** — so sánh modules từ scout report với modules được document trong artifacts
+4. **Gate exhaustion handling** — nếu `result.status === "partial (gate exhaustion)"`, báo cáo rõ phase nào bị skip, lý do, và options cho human
+5. **Final summary**:
 
 ```
 ✅ SDLC Codebase — Pipeline Complete
@@ -283,17 +342,20 @@ Khi human chỉ định `--artifacts`, chỉ sinh những artifact được ch�
 | `sdlc-preflight` | Khởi tạo foundation files (project-overview, user-context, conventions) |
 | `sdlc-scout` | Khám phá codebase structure, module map, technologies |
 | `grilling` | Phỏng vấn human làm rõ context khi code không đủ thông tin |
-| `sprint` | Cập nhật board, backlog, roadmap |
+| `sprint` | Cập nhật board, backlog, roadmap. Flag: `--board`, `--backlog`, `--roadmap`, `--all`, `--init` |
 
-### Subagents (spawn qua Agent tool)
+### Subagents (dùng bởi workflow script, không spawn trực tiếp từ skill)
 
-| Agent | Phase | Mục đích |
-|-------|-------|----------|
-| `sdlc-hld` | HLD (reverse) | Extract architecture từ code: services, ADRs, C4 diagrams, boundaries |
-| `sdlc-lld` | LLD (reverse) | Extract per-service design từ code: domain models, API contracts, data flow, error handling |
-| `sdlc-srs` | SRS (reverse) | Infer functional + non-functional requirements từ code behavior |
-| `sdlc-imp` | IMP (reverse) | Document implementation patterns, business rules, security considerations từ code |
-| `sdlc-tst` | TST (reverse) | Document test patterns, coverage, fixtures, test architecture từ code |
+| Agent | Phase | Scope | Mục đích |
+|-------|-------|-------|----------|
+| `codebase-hld` | HLD (reverse) | Toàn bộ codebase | Extract architecture từ code: C4 diagrams, ADRs, service boundaries, event taxonomy |
+| `codebase-lld` | LLD (reverse) | 1 service | Extract per-service design: 9 sections (domain model → security) |
+| `codebase-lld-synthesis` | LLD synthesis | Cross-service | Merge per-service LLD: cross-cutting concerns, API contracts, error codes, FR candidates |
+| `codebase-srs` | SRS (reverse) | 1 domain/epic | Infer requirements từ code: FR specs với Gherkin scenarios, NFRs |
+| `codebase-srs-synthesis` | SRS synthesis | Cross-domain | Merge per-domain SRS: traceability matrix, unified feature index |
+| `codebase-imp` | IMP (reverse) | 1 domain/epic | Document implementation: execution flows, business rules, error mapping, security |
+| `codebase-tst` | TST (reverse) | 1 domain/epic | Document test patterns: test architecture, test cases, fixtures, coverage gaps |
+| `codebase-gate` | Gate (inter-phase) | Per-phase outputs | Verify artifacts against phase-specific gate criteria. Read-only. Returns structured PASS/FAIL. Called by workflow script between phases with retry ≤ 3 |
 
 ---
 
@@ -303,18 +365,23 @@ Tất cả reference files — chỉ load khi cần:
 
 | File | Nội dung | Khi nào đọc |
 |------|----------|-------------|
-| `references/flow-reverse.md` | Procedure chi tiết cho reverse engineering pipeline: prompt templates cho từng phase, grilling integration, edge cases | Khi bắt đầu Bước 5 (Reverse Pipeline) |
-| `references/procedures.md` | Shared procedures: Agent Spawn Templates (HLD/LLD/SRS/IMP/TST reverse mode), Gate Criteria, Progress Reporting templates, Error Handling, Cross-reference check procedure | Khi cần tạo prompt cho subagent, kiểm tra gate criteria, hoặc debug pipeline |
+| `references/flow-reverse.md` | Workflow Args Packaging cho từng phase: input args, agent type mapping, expected outputs, edge cases. Gate criteria đã được tự động hóa trong workflow qua `codebase-gate` | Khi bắt đầu Bước 5 (package args + invoke workflow) |
+| `references/procedures.md` | Workflow Args Packaging templates, Explore Gap Filling Protocol, Gate Criteria (tham khảo — thực tế gate chạy tự động trong workflow qua `codebase-gate`), Progress Reporting templates, Error Handling patterns | Khi cần package args cho workflow, debug pipeline, hoặc hiểu gate criteria |
 
 ---
 
 ## Key Notes
 
-- **Reverse ≠ Forward** — agent SDLC được prompt để EXTRACT từ code, không phải DESIGN từ specs. Cùng agent, khác prompt
+- **Reverse ≠ Forward** — codebase-* agents được thiết kế để EXTRACT từ code, không phải DESIGN từ specs. Có UNCERTAINTY protocol built-in
+- **Workflow, không Agent trực tiếp** — skill là thin orchestrator. Workflow script xử lý fan-out, skill chỉ nhận kết quả cuối cùng. Tránh context window overflow khi >3-5 services
+- **Fan-out theo service/domain** — LLD fan-out per service (N agents ∥), SRS/IMP/TST fan-out per domain (M agents ∥). IMP và TST theo domain (không per-feature) để giảm số lượng agent
+- **Synthesis agents** — sau LLD và SRS, synthesis agents merge kết quả cross-service/cross-domain
 - **Scout là mandatory** — không reverse engineer khi chưa có structured codebase map. Scout report là input chính cho mọi phase
+- **Explore Gap Filling** — mỗi codebase-* agent có `Agent` tool để spawn Explore subagents khi scout report không đủ thông tin
 - **File đã tồn tại = hỏi human** — không tự động overwrite. Hỏi: update, skip, hay merge
-- **Code có thể không đủ thông tin** — khi code không thể hiện rõ business context (ví dụ: "tại sao chọn Kafka thay vì RabbitMQ?"), dùng `Skill("grilling")` để hỏi human
-- **HLD và LLD được optional** — giống sdlc-orchestrator, hỏi human nếu không có service mới hoặc API mới
+- **Code có thể không đủ thông tin** — khi code không thể hiện rõ business context, agents flag UNCERTAIN thay vì guess
 - **Coverage gaps là bình thường** — không phải mọi module đều cần document. Báo cáo gaps, để human quyết định
 - **Preflight foundation được dùng lại** — preflight có thể đã được chạy bởi flow khác. Chỉ chạy lại nếu file thiếu
-- **Idempotent** — an toàn khi chạy lại. File đã có → hỏi trước khi overwrite. Scout report được cache
+- **Idempotent** — an toàn khi chạy lại. Workflow resume từ phase đã fail. File đã có → hỏi trước khi overwrite
+- **Resumable** — nếu workflow crash ở phase 3, chạy lại chỉ re-run phase 3+ (phase 1-2 dùng cached results)
+- **Gate + Retry tự động** — `codebase-gate` chạy sau mỗi phase trong workflow với retry tối đa 3 lần. Fail ở lần 3 → skipRemaining → nhảy Report. Skill không can thiệp giữa các phase, chỉ đọc `result.gates` và `result.status` để báo cáo cho human

@@ -215,10 +215,10 @@ Bỏ qua sub-project có report hợp lệ đã tồn tại (idempotent).
 
 Gọi pipeline:
 ```
-Workflow({ scriptPath: ".claude/workflows/workflow-sdlc-scout-pipeline.js", args })
+Workflow({ scriptPath: ".claude/workflows/scout/workflow-sdlc-scout-pipeline.js", args })
 ```
 
-**Guard**: `ls .claude/workflows/workflow-sdlc-scout-pipeline.js` → nếu thiếu, fallback về Chiến Lược A (Explore agent trực tiếp) kèm cảnh báo.
+**Guard**: `ls .claude/workflows/scout/workflow-sdlc-scout-pipeline.js` → nếu thiếu, fallback về Chiến Lược A (Explore agent trực tiếp) kèm cảnh báo.
 
 ### Giai Đoạn 4: Audit (chỉ pipeline strategy)
 
@@ -256,7 +256,7 @@ Pipeline workflow đã bao gồm giai đoạn Audit. Với chiến lược trự
 - `references/integration-guide.md` — Pattern tích hợp chung cho mọi skill SDLC, diff chi tiết, checklist verify
 - `references/report-format.md` — Template đầy đủ cho scout report, return data schema, các trường bắt buộc
 - `references/sdlc-enhancement.md` — Prompt template và quy trình bổ sung SDLC-specific sections sau khi scout
-- `references/pipeline-handoff.md` — Args schema, result structures, error handling cho workflow-sdlc-scout-pipeline.js
+- `references/pipeline-handoff.md` — Args schema, result structures, error handling cho workflow-sdlc-scout-pipeline.js (`.claude/workflows/scout/`). Đọc khi cần gọi pipeline strategy hoặc debug workflow scout
 - `references/scout-execution.md` — Prompt template, chiến lược chia thư mục, chunked file reading, xử lý timeout, tổng hợp kết quả
 - `references/task-management.md` — TaskCreate/TaskUpdate patterns, metadata schema, vòng đời agent, xử lý lỗi
 - `references/quality-gates.md` — 5 quality gates (completeness, coverage, schema, performance, relevance), self-test mode, integration test patterns cho downstream skills

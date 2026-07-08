@@ -1,138 +1,182 @@
-# Procedures — Shared Templates & Gate Criteria
+# Procedures — Workflow Args, Gate Criteria & Error Handling
 
-Shared procedures dùng chung cho toàn bộ reverse engineering pipeline.
-Templates cho Agent spawn, gate criteria, progress reporting, error handling.
+Shared procedures dùng chung cho toàn bộ reverse engineering pipeline qua Workflow.
+Templates cho Workflow Args Packaging, Explore Gap Filling Protocol, gate criteria,
+progress reporting, error handling.
 
 ---
 
-## Agent Spawn Templates
+## Workflow Args Packaging
 
-### Cấu trúc chung cho Reverse Engineering Prompt
+Skill sdlc-codebase package args từ scout report + HLD output → truyền vào workflow script.
+Workflow script nhận args làm input duy nhất, không đọc file từ skill context.
 
-Mỗi prompt có 4 phần: **MODE** (xác nhận reverse), **CONTEXT** (scout report + artifacts đã có + scope), **TASK** (extract gì, format), **UNCERTAINTY PROTOCOL** (cách flag phần không xác định được).
+### Args Structure
 
-### HLD Reverse Prompt Template
-
-```
-## MODE: REVERSE ENGINEERING — HLD
-EXTRACT architecture từ codebase. KHÔNG thiết kế mới. Mọi claim cần evidence (file:line).
-
-## CONTEXT
-Scout: {scout_report_path} | Foundation: agent_docs/project-overview.md, user-context.md
-Scope: {scope} | Output: agent_docs/architecture.md
-
-## TASK
-1. **C4 Container Diagram** (Mermaid) — containers từ build files/Dockerfiles, channels từ REST clients/message brokers, external systems từ connection strings. Evidence: `<!-- source: file:line -->`
-2. **Service Descriptions** — mỗi service: name, responsibility (inferred), tech stack (từ build files), exposed/consumed APIs (từ route defs, HTTP clients)
-3. **ADRs** (inferred) — pattern evidence → ADR. Flag: "⚠️ Inferred from code — cần human validation"
-4. **Hard Boundaries** — service boundaries (từ build artifacts, DB schemas), API contracts (từ shared types), event taxonomy (từ event classes, topic names)
-5. **Deployment View** (nếu có) — Dockerfiles, k8s manifests, infrastructure configs
-
-## UNCERTAINTY PROTOCOL
-- Không xác định được → "⚠️ UNCERTAIN: <what> — cần human input"
-- Pattern thấy nhưng không rõ lý do → "⚠️ INFERRED: <pattern> — lý do chưa xác nhận"
-
-## OUTPUT: agent_docs/architecture.md — mọi section có ≥1 evidence hoặc UNCERTAIN flag.
+```js
+{
+  scope: ".",                              // codebase scope path
+  scoutReportPath: ".work/scouts/scout-20260708-*.md",
+  services: [                              // từ scout report
+    { name: "auth", path: "src/auth/", type: "node" },
+    { name: "payment", path: "src/payment/", type: "go" },
+  ],
+  domains: [                               // từ HLD output hoặc scout report grouping
+    { name: "identity", services: ["auth"], features: ["login", "registration", "profile"] },
+    { name: "billing", services: ["payment"], features: ["checkout", "refund"] },
+  ],
+  artifacts: ["hld","lld","srs","imp","tst"],
+  focus: "Authentication module",          // optional
+  foundationPath: "agent_docs/",
+  workDir: "/path/to/repo",
+}
 ```
 
-### LLD Reverse Prompt Template
+### Service Detection (từ Scout Report)
+
+Sau khi scout hoàn tất, parse scout report để trích xuất service list:
 
 ```
-## MODE: REVERSE ENGINEERING — LLD
-EXTRACT per-service design từ codebase. KHÔNG thiết kế mới. Mọi claim cần evidence (file:line).
-
-## CONTEXT
-Scout: {scout_report_path} | HLD: agent_docs/architecture.md
-Foundation: agent_docs/project-overview.md, conventions.md
-Scope: {scope} | Services: {danh sách từ HLD}
-Output: agent_docs/{backend|frontend}/{name}/tech-design/{name}-{service|app}.md
-
-## TASK — 9 sections cho mỗi service:
-1. **Domain Model** — entities, value objects, aggregates, relationships (từ model classes, ORM annotations)
-2. **API Contracts** — REST/GraphQL/gRPC endpoints, request/response DTOs, auth requirements, rate limits (từ route defs, controllers)
-3. **Data Storage** — DB type+version, schema overview, index/migration strategy (từ connection configs, migrations, ORM defs)
-4. **Transaction Boundaries** — @Transactional blocks, saga patterns, unit of work (từ transaction annotations, saga implementations)
-5. **Error Handling** — exception hierarchy, error response formats, retry policies, DLQs (từ exception classes, error handlers)
-6. **Caching Strategy** — providers, cached entities/queries, TTL/invalidation (từ cache annotations, Redis configs)
-7. **External Calls** — called services, circuit breakers, timeout configs, fallbacks (từ HTTP/gRPC clients, resilience configs)
-8. **Degraded Modes** — graceful degradation, health checks, readiness probes (từ fallback logic, health endpoints)
-9. **Security** — auth mechanism, input validation, CORS, rate limiting (từ auth middleware, validation annotations)
-
-## UNCERTAINTY PROTOCOL
-- Không tìm thấy → "⚠️ NOT FOUND: <section> — không detect được từ code"
-- Pattern không đầy đủ → "⚠️ PARTIAL: <section> — thiếu <missing>"
-
-## OUTPUT: 1 file/service. Mỗi section có ≥1 evidence hoặc UNCERTAINTY flag.
+Đọc scout report → xác định:
+- Mỗi sub-project/build artifact → 1 service entry
+- Tech stack từ build files (package.json, pom.xml, go.mod, etc.)
+- Service path từ directory structure
+- Service type: backend (API server), frontend (UI app), worker (background job), library (shared code)
 ```
 
-### SRS Reverse Prompt Template
+Nếu scout không detect được service rõ ràng:
+- Dùng directory structure: mỗi top-level dir = 1 service candidate
+- Hỏi human xác nhận qua AskUserQuestion trước khi package args
+
+### Domain Detection (từ HLD Output)
+
+Sau HLD hoàn tất, đọc `agent_docs/architecture.md` để xác định domain grouping:
 
 ```
-## MODE: REVERSE ENGINEERING — SRS
-INFER requirements từ code behavior. KHÔNG thiết kế requirements mới. Mọi FR cần evidence hoặc UNCERTAIN flag.
-
-## CONTEXT
-Scout: {scout_report_path} | HLD: agent_docs/architecture.md | LLD: agent_docs/{backend,frontend}/*/tech-design/
-Foundation: agent_docs/project-overview.md, user-context.md
-Scope: {scope} | Output: agent_docs/features/{FR-ID}.md, agent_docs/README.md
-
-## TASK
-1. **Feature Discovery** — quét API endpoints, UI routes, background jobs, event handlers → nhóm thành features
-2. **Functional Requirements** (mỗi feature): FR-ID, description (suy từ endpoint semantics), actor/role (từ auth middleware), Gherkin Scenario Outlines (Given: validation rules, When: API call, Then: response format + side effects)
-3. **NFRs** — performance (timeout/pool configs), security (auth/rate limiting), availability (health checks/retry), scalability (queues/caching)
-4. **Traceability Matrix** — mỗi FR → code module(s), mỗi NFR → config evidence
-5. **Feature Index** — agent_docs/README.md với danh sách features (ID, title, status, services)
-
-## UNCERTAINTY PROTOCOL
-- Business intent không rõ → "⚠️ UNCERTAIN: <FR> — lý do business chưa rõ"
-- Actor không xác định → "⚠️ UNCERTAIN: actor for <FR> — không thấy auth check"
-- Threshold thiếu → "⚠️ NOT FOUND: NFR threshold for <metric>"
-
-## OUTPUT: feature specs + README.md. Mỗi FR có ≥1 evidence hoặc UNCERTAINTY flag.
+Đọc architecture.md → xác định:
+- Bounded contexts từ service descriptions
+- API groupings từ endpoint patterns
+- Domain suggestions từ "Summary for Synthesis" section
 ```
 
-### IMP Reverse Prompt Template
+Nếu HLD chưa chạy (--artifacts không include hld):
+- Group services theo naming convention (auth*, payment*, user*, etc.)
+- Hoặc hỏi human xác nhận domain grouping
+
+### Domain → Feature Mapping
+
+Mỗi domain entry cần danh sách features để SRS/IMP/TST agents biết scope:
 
 ```
-## MODE: REVERSE ENGINEERING — IMP
-DOCUMENT implementation patterns từ code. KHÔNG viết specs cho code chưa tồn tại. Mọi claim cần evidence.
+Đọc LLD output → xác định:
+- API endpoints trong domain
+- Nhóm endpoints thành features
+- Gán feature names
 
-## CONTEXT
-LLD: agent_docs/{backend,frontend}/*/tech-design/ | SRS: agent_docs/features/*.md
-Scope: {scope} | Output: agent_docs/{backend,frontend}/{name}/implementation/{FR-ID}-{slug}.md
-
-## TASK — mỗi feature từ SRS, document 5 phần:
-1. **Execution Flow** — Controller→Service→Repository chain, middleware sequence, event flow (step-by-step từ code)
-2. **Business Rules Mapping** — rule → implementation (file:line), validation → validator class, authZ → permission check
-3. **Data Impact** — tables/collections modified, events published, cache invalidated
-4. **Error Mapping** — exception types → HTTP status codes, error handling chain, fallback behaviors
-5. **Security** — input validation, authZ check, data sanitization implementation
-
-## OUTPUT: implementation spec với evidence (file:line) cho mỗi claim.
+Nếu LLD chưa có:
+- Đọc scout report → API route patterns
+- Tạo feature list từ endpoint grouping
 ```
 
-### TST Reverse Prompt Template
+### Packaging Workflow
 
 ```
-## MODE: REVERSE ENGINEERING — TST
-DOCUMENT test patterns từ code. KHÔNG viết specs cho tests chưa tồn tại. Mọi pattern cần evidence (file:line).
-
-## CONTEXT
-IMP: agent_docs/{backend,frontend}/*/implementation/ | Scope: {scope}
-Output: agent_docs/{backend,frontend}/{name}/test-specs/{FR-ID}-{slug}.md
-
-## TASK — từ test files trong codebase, document 4 phần:
-1. **Test Architecture** — frameworks (JUnit/Vitest/Playwright), test types (unit/integration/E2E), fixture/factory patterns, mock/stub strategy
-2. **Per-Feature Test Cases** — unit tests (từ test files), integration tests (từ @SpringBootTest/Testcontainers), E2E (từ Playwright/Cypress), performance (từ k6/JMeter nếu có)
-3. **Test Data & Fixtures** — factory classes, test data files (JSON/SQL seeds), mock server configs (WireMock/MSW)
-4. **Coverage Patterns** — current coverage config, test organization, naming conventions
-
-## OUTPUT: test spec với evidence (file:line). Flag gaps: "⚠️ NO TESTS FOUND: <scenario>"
+1. Parse scout report → extract services[]
+2. Nếu runHLD:
+   a. Package args với services (domains có thể rỗng)
+   b. Workflow chạy HLD phase
+   c. Đọc HLD output → extract domains[]
+3. Nếu runLLD:
+   a. Package args với services (đã có từ scout)
+   b. Workflow chạy LLD phase (N agents ∥)
+   c. Đọc LLD synthesis → extract domain suggestions
+4. Nếu runSRS:
+   a. Package args với domains (từ HLD hoặc LLD synthesis)
+   b. Workflow chạy SRS phase (M agents ∥)
+5. Nếu runIMP | runTST:
+   a. Package args với domains (cùng domains từ SRS)
+   b. Workflow chạy IMP+TST phase (2M agents ∥)
 ```
+
+---
+
+## Explore Gap Filling Protocol
+
+Mỗi codebase-* agent có `Agent` tool để spawn Explore subagents khi scout report
+không đủ thông tin. Đây là protocol chuẩn mà tất cả agents tuân theo.
+
+### Decision Flow
+
+```
+Agent nhận nhiệm vụ → đọc scout report → đánh giá gaps:
+
+1. Scout có đủ thông tin cho phạm vi của agent không?
+   - ĐỦ → tiến hành extract + viết output
+   - THIẾU → xác định gaps cụ thể → spawn Explore subagents
+
+2. Sau khi Explore hoàn tất:
+   - Dùng kết quả Explore + tự Read code → viết output
+   - Flag phần vẫn không đủ: "⚠️ NOT FOUND: <detail> — even after code exploration"
+```
+
+### Explore Spawn Patterns
+
+Mỗi agent type có pattern Explore khác nhau tùy theo loại thông tin cần đào sâu:
+
+**codebase-hld:**
+```
+- "Find all Dockerfiles, docker-compose files, and k8s manifests"
+- "Find all HTTP client configs, gRPC stubs, message broker consumers/producers"
+- "Find all connection strings and external service URLs in config files"
+- "Find all build files (package.json, pom.xml, go.mod) to identify services and tech stacks"
+```
+
+**codebase-lld (per service):**
+```
+- "Find all entity/domain/model classes in {service_path}/"
+- "Find all controller/handler/route definitions in {service_path}/"
+- "Find all database migration files and ORM configs in {service_path}/"
+- "Find all exception/error classes and error handling middleware in {service_path}/"
+- "Find all cache configs and annotations in {service_path}/"
+```
+
+**codebase-srs (per domain):**
+```
+- "Find all validation logic and business rules related to {domain} in {service_paths}"
+- "Find all permission/role checks and authorization logic in {service_paths}"
+- "Find all config files with thresholds, limits, timeouts related to {domain}"
+- "Find all event handlers and background jobs related to {domain}"
+```
+
+**codebase-imp (per domain):**
+```
+- "Find all controller/action methods related to {features} in {service_paths}"
+- "Find all service/business logic classes related to {features} in {service_paths}"
+- "Find all repository/DAO classes related to {features} in {service_paths}"
+- "Find all middleware/interceptors for auth, validation, logging in {service_paths}"
+```
+
+**codebase-tst (per domain):**
+```
+- "Find all test files (unit, integration, E2E) related to {domain} in {service_paths}"
+- "Find all test config files (jest.config, pytest.ini, JUnit) in {service_paths}"
+- "Find all test fixtures, factories, and seed data files in {service_paths}"
+- "Find all mock/stub configs and WireMock/MSW setups in {service_paths}"
+```
+
+### Explore Constraints
+
+- Mỗi agent spawn tối đa 4 Explore subagents cho 1 nhiệm vụ
+- Explore subagents dùng subagent_type: "Explore" (read-only)
+- Kết quả Explore được tổng hợp trước khi viết output
+- Nếu Explore vẫn không đủ → flag UNCERTAIN, không spawn thêm
 
 ---
 
 ## Gate Criteria
+
+Gate criteria được áp dụng sau khi workflow hoàn tất từng phase.
+Skill đọc kết quả workflow và kiểm tra gate trước khi cho phép phase tiếp theo.
 
 ### HLD Gate (Reverse Mode)
 
@@ -155,6 +199,15 @@ Output: agent_docs/{backend,frontend}/{name}/test-specs/{FR-ID}-{slug}.md
 | 4 | Error handling flows có evidence | Exception class references |
 | 5 | Degraded modes có implementation evidence | Fallback/health check references |
 
+### LLD Synthesis Gate
+
+| # | Criteria | Check |
+|---|----------|-------|
+| 1 | cross-cutting.md covers auth, errors, logging, data, deployment | Đếm patterns documented |
+| 2 | api-{domain}.yaml cho mỗi cross-service domain | Đếm domain files |
+| 3 | error-codes.md canonicalized từ tất cả services | Check deduplication |
+| 4 | FR candidates list với domain grouping suggestions | Check suggestions |
+
 ### SRS Gate (Reverse Mode)
 
 | # | Criteria | Check |
@@ -162,8 +215,16 @@ Output: agent_docs/{backend,frontend}/{name}/test-specs/{FR-ID}-{slug}.md
 | 1 | Mỗi feature có description + actor + Gherkin | Đếm features → verify |
 | 2 | Mỗi FR có evidence hoặc UNCERTAINTY flag | Không FR nào thiếu flag |
 | 3 | NFRs có quantified thresholds hoặc NOT FOUND flag | Đếm NFR categories |
-| 4 | Traceability matrix tồn tại | Check bảng mapping |
-| 5 | README.md feature index tồn tại | Check file |
+| 4 | Features grouped by domain (không per-service) | Check domain grouping |
+
+### SRS Synthesis Gate
+
+| # | Criteria | Check |
+|---|----------|-------|
+| 1 | features/README.md với complete domain+feature index | Check file |
+| 2 | traceability/requirements-matrix.md maps mỗi FR→code module | Check matrix |
+| 3 | Evidence quality rating cho mỗi FR | Check HIGH/MEDIUM/LOW/UNCERTAIN |
+| 4 | Cross-domain dependencies documented | Check dependency section |
 
 ### IMP Gate (Reverse Mode)
 
@@ -173,6 +234,7 @@ Output: agent_docs/{backend,frontend}/{name}/test-specs/{FR-ID}-{slug}.md
 | 2 | Business rules map tới FR | Cross-ref SRS |
 | 3 | Error mapping khớp exception classes | file:line check |
 | 4 | Security considerations có implementation evidence | AuthZ/validation references |
+| 5 | All features in domain documented (không per-feature gaps) | Count features vs IMP files |
 
 ### TST Gate (Reverse Mode)
 
@@ -182,33 +244,38 @@ Output: agent_docs/{backend,frontend}/{name}/test-specs/{FR-ID}-{slug}.md
 | 2 | Per-feature test cases có evidence | file:line references |
 | 3 | Test data/fixture patterns được document | Factory references |
 | 4 | Gaps được flag NO TESTS FOUND | Scan for gaps |
+| 5 | All features in domain covered | Count features vs TST files |
 
 ---
 
 ## Progress Reporting
 
-Sau mỗi phase, báo cáo theo template:
+### Per-Phase Report (từ Workflow Result)
+
+Sau mỗi phase trong workflow, parse kết quả và báo cáo:
 
 ```
 ✅ [Phase] hoàn thành — Reverse từ codebase
    📄 Output:
       • agent_docs/architecture.md — HLD với {N} services
-      • agent_docs/backend/{svc}/tech-design/{svc}-service.md — LLD
+      • agent_docs/backend/{svc}/tech-design/{svc}-service.md — LLD ({M} services)
    🚦 Gate: [PASS/FAIL] ([N]/[M] criteria met)
    ⚠️  Failures: [danh sách criteria fail + lý do]
    ⏭️  Next: [phase tiếp theo]
    💡 UNCERTAIN flags: {N} — cần human review trước phase sau
 ```
 
-Khi pipeline complete:
+### Pipeline Complete Report
 
 ```
 ✅ SDLC Codebase — Pipeline Complete
 
    📄 Artifacts Generated:
-      ✅ HLD — architecture.md
+      ✅ HLD — architecture.md, {A} ADRs
       ✅ LLD — {N} service design docs
-      ✅ SRS — {M} feature specs
+      ✅ LLD Synthesis — cross-cutting.md, {D} API domain contracts
+      ✅ SRS — {M} feature specs across {D} domains
+      ✅ SRS Synthesis — traceability matrix, feature index
       ✅ IMP — {X} implementation specs
       ✅ TST — {Y} test specs
 
@@ -217,37 +284,120 @@ Khi pipeline complete:
    💡 Next: Review UNCERTAIN flags → validate với team → merge docs
 ```
 
+### Workflow Failure Report
+
+```
+❌ Workflow thất bại ở phase [{phase}]
+
+   ✅ Completed phases: [danh sách]
+   ❌ Failed phase: {phase} — {lý do}
+   📄 Partial outputs đã tạo: [danh sách files từ các phase đã hoàn thành]
+   💡 Options:
+      1. Retry workflow (completed phases will use cached results)
+      2. Skip phase và proceed với partial results
+      3. Abort và review issues manually
+```
+
 ---
 
 ## Error Handling
 
-### Agent Timeout
+### Workflow-Level Errors
 
-- Mỗi agent có timeout 5 phút
-- Timeout → ghi log, hỏi human: "Retry", "Skip phase", "Abort pipeline"
-- **Không** tự retry nếu không có human confirm
+#### Workflow Script Syntax Error
 
-### Agent Returns Empty/Invalid Output
+1. Báo cáo: "❌ Workflow script có lỗi syntax: {error}"
+2. Hiển thị line number và context
+3. Hỏi human: "Fix script và retry", "Fallback về manual mode (spawn từng agent)"
+4. **Không** tự sửa workflow script khi đang chạy pipeline
 
-1. Đọc output file (nếu agent đã write)
-2. Kiểm tra: file rỗng? Sai format? Thiếu sections?
-3. Báo cáo human: "⚠️ Agent {name} returned invalid output: {issue}"
-4. Hỏi: "Retry với prompt điều chỉnh", "Skip phase", "Abort"
+#### Workflow Timeout
 
-### Gate Failure
+1. Báo cáo phase đang chạy khi timeout
+2. Hiển thị phases đã hoàn thành (cached results)
+3. Hỏi human: "Resume workflow (chỉ re-run phase bị timeout)", "Retry toàn bộ", "Abort"
 
-1. Dừng pipeline — không proceed đến phase tiếp theo
-2. Báo cáo criteria fail kèm chi tiết
-3. Hỏi human: "Retry phase", "Override gate (chấp nhận fail)", "Abort"
+#### Partial Agent Failure (Some Agents Fail, Others Succeed)
+
+Đây là tình huống phổ biến nhất trong fan-out:
+
+1. Parse workflow result — xác định agent nào fail, agent nào success
+2. Báo cáo:
+   ```
+   ⚠️ Partial failure in {phase}:
+      ✅ {success_count}/{total} agents completed
+      ❌ {failed_count} agents failed:
+         - {agent_label}: {error_reason}
+         - {agent_label}: {error_reason}
+   ```
+3. Hỏi human:
+   - "Retry failed agents only" — re-run workflow, completed agents dùng cache
+   - "Proceed with partial results" — tiếp tục phase sau với dữ liệu thiếu
+   - "Skip phase" — bỏ qua toàn bộ phase, proceed không có outputs
+   - "Abort"
+
+#### All Agents in Phase Fail
+
+1. Dừng pipeline — không proceed
+2. Báo cáo tất cả errors
+3. Hỏi human: "Retry phase", "Skip phase (chấp nhận gap)", "Abort pipeline"
+4. **Không** tự retry nếu không có human confirm
+
+### Agent-Level Errors (Handled by Workflow Script)
+
+Workflow script tự xử lý các error này, skill chỉ nhận kết quả cuối cùng:
+
+- **Agent returns null**: Workflow script ghi nhận agent fail, continue với agents khác
+- **Agent timeout**: Workflow script retry 1 lần, nếu vẫn fail → null result
+- **Agent schema mismatch**: Workflow script retry với schema validation
 
 ### Codebase Too Large
 
 - Nếu scout report > 500 files → đề xuất `--focus` hoặc `--scope` để giới hạn
-- Nếu > 20 services → đề xuất chia nhỏ: chạy từng service một
-- Hỏi human trước khi scale up
+- Nếu > 20 services → vẫn chạy được với fan-out (mỗi service 1 agent)
+- Nếu > 50 services → đề xuất chia thành nhiều lần chạy (theo domain)
 
 ### File Conflict (agent_docs/ đã có file)
 
-- Trước mỗi phase → check file tồn tại
+- Trước mỗi phase → check file tồn tại từ phase trước
 - Hỏi human: "Update" (ghi đè), "Skip" (giữ nguyên), "Merge" (giữ sections không conflict)
 - **Không** tự động overwrite
+- Workflow agents mặc định acceptEdits — nhưng skill orchestrator check conflict trước khi invoke workflow
+
+---
+
+## Workflow Invocation Template
+
+### Bước 5 — Invoke Workflow
+
+```js
+// 1. EnterPlanMode — plan tổng thể (services, domains, artifacts)
+// 2. Human review → approve
+// 3. Package args từ scout report + plan
+// 4. Invoke workflow
+
+Workflow({
+  scriptPath: ".claude/workflows/codebase/workflow-codebase-reverse.js",
+  args: {
+    scope: scope,
+    scoutReportPath: scoutReportPath,
+    services: services,        // từ scout report
+    domains: domains,          // từ HLD hoặc scout grouping
+    artifacts: artifacts,      // từ --artifacts flag
+    focus: focus,              // optional
+    foundationPath: "agent_docs/",
+    workDir: "<đường dẫn tuyệt đối từ pwd>",
+  }
+})
+```
+
+### Post-Workflow Actions
+
+```
+1. Đọc workflow result
+2. Parse: status, outputs, warnings
+3. Gate check cho từng phase (dùng criteria trên)
+4. Báo cáo progress (dùng template trên)
+5. Nếu gate fail → dừng, báo cáo human
+6. Nếu gate pass → continue hoặc final summary
+```

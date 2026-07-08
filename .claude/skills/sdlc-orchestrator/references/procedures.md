@@ -27,27 +27,63 @@ Agent({
 })
 ```
 
-### 1.2 Developer Agent — fixbug
+### 1.2 TDD Fix Cycle — fixbug
+
+Fix bug dùng TDD mini-cycle (per-bug, không per-TC như cook flow).
+Thay vì spawn developer agent đơn lẻ, orchestrator điều phối TDD subagents:
 
 ```
 Agent({
-  subagent_type: "sdlc-backend-developer",  // hoặc sdlc-frontend-developer
+  subagent_type: "sdlc-tdd-be-red",  // hoặc sdlc-tdd-fe-red
   description: "Fix BUG-{NNN}: {title}",
   permissionMode: "acceptEdits",
   prompt: "
-    Fix bug được document tại: agent_docs/{backend,frontend}/{service,app}/bugs/BUG-{NNN}--{slug}.md
+    Đây là TDD fix cycle cho MỘT bug (không phải feature mới).
+
+    Bug document: agent_docs/{backend,frontend}/{service,app}/bugs/BUG-{NNN}--{slug}.md
+    Feature: {FR-ID}
+    Service: {service}
 
     Root cause: [từ bug doc]
     Proposed fix: [từ grilling/problem-solving]
 
-    Reference IMP spec: agent_docs/{backend,frontend}/{service,app}/implementation/FR-{DOMAIN}-{NNN}-impl.md
-    Reference TST spec: agent_docs/{backend,frontend}/{service,app}/test-specs/FR-{DOMAIN}-{NNN}-test.md
+    Đọc IMP spec: agent_docs/{backend,frontend}/{service,app}/implementation/FR-{DOMAIN}-{NNN}-impl.md
+    Đọc TST spec: agent_docs/{backend,frontend}/{service,app}/test-specs/FR-{DOMAIN}-{NNN}-test.md
+    Đọc tech-design: agent_docs/tech-design/{service}-service.md
+    Đọc hard-boundaries: agent_docs/hard-boundaries.md
+    Đọc conventions: agent_docs/conventions.md
 
-    Thêm regression tests như đã mô tả trong TST spec update.
-    Cập nhật bug document status thành 'fixed' khi done.
+    Thực hiện TDD fix cycle:
+    1. VIẾT regression test — test phải FAIL (tái hiện bug)
+       - Nếu test PASS (bug không tái hiện được) → accidental green detection
+       - Sanity check → explore → sabotage → verify → revert nếu cần
+    2. Nếu test RED (bug confirmed) → spawn sdlc-tdd-be-green để fix code
+       - GREEN agent: implement fix TỐI THIỂU để pass test
+       - Không refactor code không liên quan đến bug
+    3. Sau GREEN → spawn sdlc-tdd-be-refactor --mode=light
+       - Chỉ cleanup code liên quan đến fix
+    4. Return kết quả: DONE|BLOCKED|STALE
+       - DONE: fix hoàn thành, regression test pass
+       - BLOCKED: không thể fix sau 3 attempts
+       - STALE: bug doc hoặc spec không đủ rõ
+
+    Sau khi DONE → cập nhật bug document status thành 'fixed'.
   "
 })
 ```
+
+**Khác biệt với cook flow TDD:**
+- **1 bug = 1 TDD cycle** (không per-TC)
+- **Regression test** thay vì feature test
+- **Fix tối thiểu** — không implement feature mới
+- **REFACTOR light chỉ cleanup fix area** — không refactor toàn bộ file
+- **Không có GATE light/full** sau fix (code đã có sẵn, chỉ verify fix + regression)
+
+**Verify fix (orchestrator thực hiện sau khi RED return DONE):**
+1. Chạy test suite — tất cả tests pass (cũ + mới)
+2. Bug doc status = 'fixed'
+3. Regression test cover đúng root cause
+4. IMP/TST specs nhất quán với fix
 
 ### 1.3 TDD Agent Templates (cook flow)
 
@@ -168,21 +204,51 @@ Dùng template AskUserQuestion trong SKILL.md, Preflight Bước 2. Template đ�
 
 ### 3.4 Fix + Verify Pattern (fixbug)
 
-**Fix:**
-- Backend bug → spawn `sdlc-backend-developer`
-- Frontend bug → spawn `sdlc-frontend-developer`
+**Fix — TDD Mini-Cycle (per-bug):**
+
+Orchestrator spawn RED agent làm mini-orchestrator cho fix cycle:
+
+```
+Cho mỗi bug:
+  RED (sdlc-tdd-be-red hoặc sdlc-tdd-fe-red)
+  ├─ Viết regression test (tái hiện bug)
+  ├─ Verify RED (test fails — bug confirmed)
+  ├─ Accidental green? → sanity→explore→sabotage→verify→revert
+  ├─ Spawn GREEN (fix code tối thiểu)
+  └─ Spawn REFACTOR-light (cleanup fix area only)
+```
+
+**Routing:**
+- Backend bug → spawn `sdlc-tdd-be-red` (RED agent tự spawn GREEN + REFACTOR)
+- Frontend bug → spawn `sdlc-tdd-fe-red`
 - Cả hai → tuần tự (backend trước, frontend sau)
 - Dùng template Section 1.2
 
-**Verify:**
-1. Developer agents đã finish
-2. Bug `status` → `fixed`
-3. IMP/TST specs nhất quán với fix
-4. Update sprint artifacts nếu bug ảnh hưởng board tasks
+**Verify (orchestrator thực hiện sau RED DONE):**
+1. RED agent return DONE
+2. Chạy test suite: `sdlc-tdd-be-gate --mode=light` (4 critical checks)
+   - L1: Tất cả tests pass (cũ + regression mới)
+   - L2: Hard Boundaries không bị vi phạm
+   - L3: Query Safety (không SQL injection trong fix)
+   - L4: External Call Resilience (timeout + fallback)
+3. Bug `status` → `fixed`
+4. IMP/TST specs nhất quán với fix
+5. Update sprint artifacts nếu bug ảnh hưởng board tasks
+
+**Nếu GATE light FAIL:**
+- Báo cáo failures cho human
+- Spawn developer fix từng failure
+- Chạy lại GATE light (max 2 lần)
+- Nếu vẫn fail → human quyết định: skip gate, manual verify, hoặc abort
+
+**Khác biệt với cook flow verify:**
+- **Chỉ GATE light** (4 checks) — không REFACTOR full, không GATE full
+- **Regression-focused** — verify bug không tái xuất + không regression
+- **Fix area only** — không kiểm tra toàn bộ feature code
 
 ### 3.5 Sprint Artifact Update
 
-1. Invoke `Skill(sprint)` để cập nhật board, backlog, roadmap
+1. Invoke `Skill(sprint, "--all")` để cập nhật board, backlog, roadmap
 2. Write `agent_docs/README.md` — file duy nhất orchestrator được phép Write
 
 **⚠️ Orchestrator KHÔNG BAO GIỜ tự sửa `.work/board.md`, `.work/backlog.md`, `agent_docs/roadmap.md`.**
@@ -250,7 +316,7 @@ Orchestrator kiểm tra subagent self-check report sau mỗi phase. Nếu gate f
 
 | Thiếu file | Hành động |
 |---|---|
-| `.work/board.md` | "Chạy `Skill(sprint)` để khởi tạo board." |
+| `.work/board.md` | "Chạy `Skill(sprint, "--init")` để khởi tạo board." |
 | `agent_docs/` | "Project mới? Foundation Gate trong Preflight (SKILL.md Bước 3) sẽ invoke sdlc-preflight." |
 | `agent_docs/project-overview.md` | "Missing → Preflight Bước 3 tự động gọi `Skill(sdlc-preflight, '--project-overview')`" |
 | `agent_docs/user-context.md` | "Missing → Preflight Bước 3 tự động gọi `Skill(sdlc-preflight, '--user-context')`" |

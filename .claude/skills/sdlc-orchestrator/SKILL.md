@@ -14,9 +14,8 @@ description: >-
   foundation files (project-overview, user-context, conventions) khi
   thiếu. Điều phối toàn bộ pipeline từ requirements qua documentation
   đến production code, coordinating subagents, skills, và sprint artifacts.
-version: 1.7.0
+version: 1.8.0
 allowed-tools: Read, Write, Edit, Bash, Glob, Skill, Agent, EnterPlanMode, ExitPlanMode
-disable-model-invocation: false
 ---
 
 # SDLC Orchestrator
@@ -37,7 +36,7 @@ không hợp lệ.
 - **Bạn điều phối, không thực thi** — không viết spec content, test cases, hoặc code
 - **Human-in-the-loop bắt buộc** — mỗi phase: EnterPlanMode → Plan → Review → Spawn. Không skip
 - **Không skip pipeline phases** — SRS → HLD → LLD → IMP∥TST. Chỉ HLD và LLD được optional với human confirmation
-- **Không tự sửa sprint files** — luôn qua `Skill(sprint)`. Orchestrator chỉ được Write `agent_docs/README.md`
+- **Không tự sửa sprint files** — luôn qua `Skill(sprint, "--all")`. Orchestrator chỉ được Write `agent_docs/README.md`
 - **Không tự sửa feature specs** — chỉ sdlc-srs và sdlc-lld touch `agent_docs/features/`. Bạn chỉ đọc
 - **Gate check sau MỖI agent** — verify gate pass trước phase tiếp theo (criteria: `references/procedures.md` → "Gate Criteria"). Fail → dừng, báo cáo human
 - **Grilling trong flow** — mỗi flow tự quyết định khi nào grill. Không grill trước khi phát hiện flow
@@ -239,7 +238,7 @@ Báo cáo cho human theo template:
 | `debugging` | fixbug | Phân tích stack traces, logs, root cause hypothesis |
 | `problem-solving` | fixbug | Đánh giá fix approaches, trade-offs |
 | `sdlc-review` | cook | Review code mới (--code, --full) |
-| `sprint` | Tất cả | Cập nhật board, backlog, roadmap |
+| `sprint` | Tất cả | Cập nhật board, backlog, roadmap. Flag: `--board`, `--backlog`, `--roadmap`, `--all`, `--init` |
 | `git` | cook, fixbug | Commit, push, branch management |
 | `sdlc-scout` | Tất cả | Khám phá codebase để lấy context |
 | `sdlc-preflight` | Tất cả | Khởi tạo foundation files (project-overview, user-context, conventions) |
@@ -274,12 +273,18 @@ Báo cáo cho human theo template:
 | `sdlc-tdd-fe-refactor` | REFACTOR | **Light mode:** per-TC cleanup (extract component/function, rename, inline) — spawn bởi RED agent. **Full mode:** 6 categories (a11y, UX, performance, security, code quality, accessibility) — spawn bởi orchestrator sau GATE light. |
 | `sdlc-tdd-fe-gate` | GATE | **Light mode:** 4 critical checks (token safety, XSS, state coverage, hard boundaries). **Full mode:** 10 gates sau REFACTOR full. Read-only — no code changes. |
 
-**Developer Agents (fixbug flow):**
+**TDD Fix Cycle (fixbug flow) — dùng chung TDD agents từ cook flow:**
 
 | Agent | Phase | Mục đích |
 |---|---|---|
-| `sdlc-backend-developer` | fixbug | Sửa backend bug đã document |
-| `sdlc-frontend-developer` | fixbug | Sửa frontend bug đã document |
+| `sdlc-tdd-be-red` | fixbug (BE) | **Mini-orchestrator cho 1 bug:** viết regression test → verify RED (bug tái hiện) → accidental green detection → spawn `sdlc-tdd-be-green` (fix) → spawn `sdlc-tdd-be-refactor --mode=light` (cleanup fix area). Return DONE\|BLOCKED\|STALE. |
+| `sdlc-tdd-be-green` | fixbug (BE) | Implement fix code TỐI THIỂU để pass regression test. **Skip protocol:** nếu RED báo accidental-green → skip. |
+| `sdlc-tdd-be-refactor` | fixbug (BE) | **Light mode only:** cleanup fix area (extract method, rename, inline). |
+| `sdlc-tdd-be-gate` | fixbug (BE) | **Light mode only:** 4 critical checks (test suite, hard boundaries, query safety, external call resilience) để verify fix + không regression. |
+| `sdlc-tdd-fe-red` | fixbug (FE) | **Mini-orchestrator cho 1 frontend bug:** viết regression test → verify RED → accidental green detection → spawn `sdlc-tdd-fe-green` (fix) → spawn `sdlc-tdd-fe-refactor --mode=light`. |
+| `sdlc-tdd-fe-green` | fixbug (FE) | Implement UI fix code TỐI THIỂU. **Skip protocol** như backend. |
+| `sdlc-tdd-fe-refactor` | fixbug (FE) | **Light mode only:** cleanup fix area (extract component, rename, inline). |
+| `sdlc-tdd-fe-gate` | fixbug (FE) | **Light mode only:** 4 critical checks (token safety, XSS, state coverage, hard boundaries) để verify fix. |
 
 ---
 
@@ -293,4 +298,4 @@ Tất cả reference files — chỉ load khi cần, mỗi file có context đ�
 | `references/flow-cr.md` | Procedure chi tiết cho flow cr: impact analysis, status evaluation, targeted re-spec | Khi flow **cr** được xác nhận |
 | `references/flow-fixbug.md` | Procedure chi tiết cho flow fixbug: Known/Unknown routing, debug, document, fix, verify | Khi flow **fixbug** được xác nhận |
 | `references/flow-cook.md` | **Canonical source cho mọi TDD procedure.** Procedure chi tiết: readiness check, grilling, per-TC TDD cycle (RED→GREEN→REFACTOR-light), GATE light, REFACTOR full, GATE full, code review, git push, sprint update. Templates TDD agent nằm trong file này — không duplicate ở procedures.md. | Khi flow **cook** được xác nhận |
-| `references/procedures.md` | Shared procedures cho TẤT CẢ flow: Specs Pipeline templates (SRS/HLD/LLD/IMP/TST), fixbug developer template, bug document + README templates, impact assessment, spec update, fix+verify, sprint update, gate criteria (SRS→TST), error handling patterns, progress reporting, orchestrator self-check, flow detection test scenarios. **Không chứa TDD agent templates** — xem flow-cook.md cho TDD. | Khi cần: tạo prompt cho specs subagent, thực thi shared steps, kiểm tra gate criteria, debug flow routing, hoặc error handling |
+| `references/procedures.md` | Shared procedures cho TẤT CẢ flow: Specs Pipeline templates (SRS/HLD/LLD/IMP/TST), TDD fix cycle template (Section 1.2), bug document + README templates, impact assessment, spec update, fix+verify with GATE light (Section 3.4), sprint update, gate criteria (SRS→TST), error handling patterns, progress reporting, orchestrator self-check, flow detection test scenarios. **TDD agent templates cho cook flow** → xem flow-cook.md (canonical source). | Khi cần: tạo prompt cho specs subagent hoặc TDD fix cycle, thực thi shared steps, kiểm tra gate criteria, debug flow routing, hoặc error handling |

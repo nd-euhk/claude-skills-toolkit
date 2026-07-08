@@ -30,7 +30,7 @@ Nếu task status `ready` và context chưa đủ:
 ## Bước 3: Chuyển Task sang In Progress
 
 1. Update task status trên board từ `ready` → `in progress`
-2. Invoke `Skill(sprint)` để cập nhật `.work/board.md` và `.work/backlog.md`
+2. Invoke `Skill(sprint, "--board --backlog")` để cập nhật `.work/board.md` và `.work/backlog.md`
 
 ## Bước 4: TDD Orchestration (Per-Testcase)
 
