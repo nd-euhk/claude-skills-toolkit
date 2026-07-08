@@ -8,7 +8,7 @@ description: >-
   to code paths, or specifying error handling at the feature level.
   Specifications only — no actual code. References LLD work packages and tech-design.
   Input from agent_docs/ LLD outputs. Writes to agent_docs/ only.
-model: sonnet
+model: opus
 tools: Read, Write, Edit, Bash, Glob
 permissionMode: acceptEdits
 hooks:

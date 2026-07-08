@@ -8,7 +8,7 @@ description: >-
   and mock definitions. Test specifications only — no implementation code.
   References IMP specs for feature behavior.
   Input from agent_docs/ IMP outputs. Writes to agent_docs/ only.
-model: sonnet
+model: opus
 tools: Read, Write, Edit, Bash, Glob
 permissionMode: acceptEdits
 hooks:

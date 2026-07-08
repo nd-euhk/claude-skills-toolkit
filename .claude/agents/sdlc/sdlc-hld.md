@@ -8,7 +8,7 @@ description: >-
   establishing event taxonomy and hard boundaries between services.
   Architecture only — no implementation details, no code, no per-service internals.
   Input from agent_docs/ SRS outputs. Writes to agent_docs/ only.
-model: sonnet
+model: opus
 tools: Read, Write, Edit, Bash, Glob
 permissionMode: acceptEdits
 hooks:

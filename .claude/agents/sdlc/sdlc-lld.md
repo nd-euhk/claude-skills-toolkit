@@ -8,7 +8,7 @@ description: >-
   and degraded modes, or creating feature work packages with routing overlays.
   Service internals from HLD artifacts — no new architectural decisions.
   Input from agent_docs/ HLD outputs. Writes to agent_docs/ only.
-model: sonnet
+model: opus
 tools: Read, Write, Edit, Bash, Glob
 permissionMode: acceptEdits
 hooks:

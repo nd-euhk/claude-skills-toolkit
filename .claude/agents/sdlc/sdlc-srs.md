@@ -7,7 +7,7 @@ description: >-
   Gherkin scenarios, defining non-functional requirements with measurable thresholds,
   or creating traceability from features back to business requirements.
   Writes to agent_docs/ only. WHAT the system does, not HOW.
-model: sonnet
+model: opus
 tools: Read, Write, Edit, Bash, Glob
 permissionMode: acceptEdits
 hooks:
