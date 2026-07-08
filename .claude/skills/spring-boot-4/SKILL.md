@@ -1,6 +1,7 @@
 ---
 name: spring-boot-4
 version: 1.1.0
+user-invocable: false
 description: Use when writing, editing, reviewing, or migrating Java/Kotlin code in a Spring Boot 4.x (4.0/4.1) project. Spring Boot 4 removed ~88% of APIs deprecated in 3.x and changed several defaults silently — code correct by 3.x conventions may not compile, fail at runtime, or silently produce wrong results (REST APIs returning 403, JSON output changing shape). Trigger before: writing Spring Boot code, suggesting starter dependencies, configuring Security/CSRF, touching Jackson/JSON, writing @ConfigurationProperties or @Repository, writing tests that mock beans, writing @HttpExchange clients, touching Spring gRPC, or migrating from 3.x to 4.x — even if the request doesn't mention "Spring Boot 4" since most training data defaults to 3.x.
 allowed-tools: Read, Write, Bash
 ---

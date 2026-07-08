@@ -6,6 +6,7 @@ keywords: [debug, root-cause, bugs, test-failures]
 languages: all
 argument-hint: "[error or issue description]"
 model: sonnet
+user-invocable: false
 ---
 
 # Debugging & System Investigation

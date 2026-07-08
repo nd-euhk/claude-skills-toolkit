@@ -7,6 +7,7 @@ description: >-
   event matching, decision schemas, and production safety validation. Claude auto-activates when
   you ask to build a hook, check hook reliability, improve hook configurations, or validate hooks for production.
 version: 2.4.1
+user-invocable: false
 allowed-tools: Read,Write,Edit,Glob,Grep,AskUserQuestion
 ---
 

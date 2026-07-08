@@ -4,6 +4,7 @@ description: Creative problem-solving techniques for breaking through stuck poin
 when_to_use: when stuck on a problem, need innovation beyond conventional approaches, or want to find elegant solutions
 model: sonnet
 effort: high
+user-invocable: false
 ---
 
 # Problem-Solving Skills

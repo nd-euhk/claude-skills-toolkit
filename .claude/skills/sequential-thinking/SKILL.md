@@ -6,6 +6,7 @@ keywords: [reasoning, step-by-step, analysis]
 license: MIT
 argument-hint: "[problem to analyze step-by-step]"
 model: sonnet
+user-invocable: false
 ---
 
 # Sequential Thinking
