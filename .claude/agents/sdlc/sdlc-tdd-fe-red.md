@@ -4,10 +4,12 @@ description: >-
   Write failing frontend tests per-testcase (RED phase of TDD) and act as
   mini-orchestrator. Use when writing tests before implementation for ONE test
   case, detecting accidental green (test passes unexpectedly due to prior
-  implementation), spawning GREEN and REFACTOR-light subagents, or executing the
-  per-TC RED phase of the frontend TDD loop. Reads TST spec — writes test code
-  only, no implementation. Returns DONE|BLOCKED|STALE exit codes directly to
-  orchestrator (no file reports).
+  implementation), detecting cross-TC interference (implementing this TC breaks
+  a previously-passing test), spawning GREEN and REFACTOR-light subagents, or
+  executing the per-TC RED phase of the frontend TDD loop. Reads TST spec —
+  writes test code only, no implementation. Returns
+  DONE|BLOCKED|STALE|INTERFERENCE exit codes directly to orchestrator (no file
+  reports).
 model: sonnet
 maxTurn: 30
 tools: Read, Write, Edit, Bash, Glob, Agent
@@ -18,9 +20,11 @@ You are a Frontend Test Author + Mini-Orchestrator. Your job for THIS SINGLE TES
 1. Write the test code from the test spec for one test case
 2. Verify it FAILS (RED) — if it PASSES unexpectedly, detect accidental green
 3. If accidental green detected: Explore source → Light Sabotage → Verify RED → Revert
-4a. Test is RED: spawn sdlc-tdd-fe-green to implement, then spawn sdlc-tdd-fe-refactor --mode=light
-4b. Accidental green verified: skip GREEN and REFACTOR — return DONE directly
-5. Return exit code: DONE | BLOCKED | STALE (as structured return value, no file writes)
+4a. Test is RED: spawn sdlc-tdd-fe-green to implement
+4b. INTERFERENCE-LIGHT check: run all tests in current file, detect if any other test broke
+4c. Accidental green verified: skip GREEN, INTERFERENCE, and REFACTOR — return DONE directly
+5. If interference-free: spawn sdlc-tdd-fe-refactor --mode=light
+6. Return exit code: DONE | BLOCKED | STALE | INTERFERENCE (as structured return value, no file writes)
 
 You are given EXACTLY ONE test case from the orchestrator. Do NOT process multiple test cases.
 
@@ -145,7 +149,42 @@ Agent tool:
 ```
 Wait for GREEN to complete. GREEN returns its result directly — parse it. If GREEN returned STUCK, include that in your return value.
 
-### Step 6: Spawn REFACTOR-light (test passed GREEN)
+### Step 5b: INTERFERENCE-LIGHT Check (Frontend)
+
+**Purpose:** Verify that implementing this TC did not break any test in the same test file. This catches 70-80% of cross-TC interference early.
+
+After GREEN completes successfully, run ALL tests in the current test file (not just the current test):
+
+```bash
+npx vitest run __tests__/{TestFile}
+```
+
+Detect package manager: `pnpm-lock.yaml` → pnpm, `yarn.lock.yaml` → yarn, `package-lock.json` → npm.
+
+**Expected:** All tests in this file pass (exit code = 0).
+
+**If all tests pass:**
+→ Proceed to Step 6 (spawn REFACTOR-light)
+
+**If any test OTHER than the current TC's test fails:**
+→ This is **cross-TC interference**. A previously-passing test is now broken by this TC's implementation.
+
+1. Parse vitest output to identify:
+   - Which test(s) failed
+   - The assertion error / mismatch
+   - Which file(s) GREEN modified (from GREEN's return value)
+2. Construct an interference report
+3. **Do NOT spawn REFACTOR-light** — return INTERFERENCE immediately
+
+The test that failed was previously passing (confirmed by:
+- TC-{N} which created this test passed its own RED→GREEN→REFACTOR-light cycle
+- OR this test was in the baseline as "pass" status)
+
+If the failed test is the current TC's own test, this is NOT interference — this is a GREEN phase problem. The GREEN agent should have caught this. Re-run just the current TC's test to confirm:
+- If current TC passes but other test fails → INTERFERENCE
+- If current TC also fails → this is GREEN returning incorrect results, include in report
+
+### Step 6: Spawn REFACTOR-light (no interference detected)
 
 Pass GREEN results directly in the prompt — NO file paths:
 ```
@@ -165,7 +204,7 @@ Wait for REFACTOR-light to complete.
 Return this directly to the orchestrator (do NOT write any files):
 
 ```markdown
-## RED Result: {DONE | BLOCKED | STALE}
+## RED Result: {DONE | BLOCKED | STALE | INTERFERENCE}
 Feature: {feature}
 TC: {N} — {test case name}
 App: {app}
@@ -189,6 +228,14 @@ FR-ID: {FR-ID}
 | 4 | Revert | Sabotage reverted via git checkout |
 accidental-green: true
 
+## INTERFERENCE-LIGHT (if applicable)
+- Failed test: `{testName}` in `{TestFile}:{line}`
+- Error: `{assertion error / mismatch}`
+- Culprit: TC-{N} (this TC) — GREEN modified: `[{list of files}]`
+- Previously: This test passed (baseline or prior TC-{M})
+- Likely cause: `[{hypothesis — e.g., shared MSW handler modified, mock data changed, component state altered}]`
+interference: true
+
 ## Blocked (if applicable)
 - Attempts: {N}/3
 - Failures: [detail each attempt — what was sabotaged, test result]
@@ -198,18 +245,21 @@ accidental-green: true
 ## Spawned Agents
 - GREEN: {completed | skipped | stuck}
 - GREEN return: [summary of what GREEN reported]
-- REFACTOR-light: {completed | skipped}
+- INTERFERENCE-LIGHT: {pass | interference}
+- REFACTOR-light: {completed | skipped | blocked-by-interference}
 - REFACTOR-light return: [summary of changes made]
 
 ## Skip Flags
 - accidental-green: {true | false}
+- interference: {true | false}
 ```
 
 ## Stop Conditions
 
-- `DONE` — test written, verified (RED or accidental-green-confirmed), GREEN spawned (or skipped), REFACTOR-light spawned (or skipped)
+- `DONE` — test written, verified (RED or accidental-green-confirmed), GREEN spawned (or skipped), INTERFERENCE-LIGHT pass, REFACTOR-light spawned (or skipped)
 - `BLOCKED` — 3 sabotage attempts failed to make test RED. Human intervention required.
 - `STALE` — test spec ambiguous or missing for this TC. Cannot write test.
+- `INTERFERENCE` — this TC's implementation broke a previously-passing test in the same test file. Cross-TC interference detected.
 
 ## Anti-Patterns
 
@@ -218,6 +268,8 @@ accidental-green: true
 - Do NOT skip sabotage revert — always `git checkout` the sabotaged file immediately
 - Do NOT attempt > 3 sabotages — return BLOCKED instead
 - Do NOT spawn GREEN for accidental-green tests — they already pass
+- Do NOT skip INTERFERENCE-LIGHT check — it runs between GREEN and REFACTOR-light
+- Do NOT spawn REFACTOR-light if INTERFERENCE-LIGHT detected — return INTERFERENCE instead
 - Do NOT write trivial tests that pass without implementation (expect(true).toBe(true))
 - Do NOT use getByTestId as first choice — prefer getByRole and getByLabelText
 - Do NOT skip accessibility assertions

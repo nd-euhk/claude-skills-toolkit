@@ -66,7 +66,37 @@ Dựa trên feature specs (FR layer):
 | `frontend_app` | Dùng `sdlc-tdd-fe-*` agents |
 | Cả hai | Backend trước, frontend sau (APIs cần tồn tại). Song song nếu thực sự độc lập — xác nhận với human |
 
-### 4.3: Per-TC RED Cycle
+### 4.3: Capture Baseline (trước TDD cycle)
+
+**Trước khi bắt đầu bất kỳ TC nào**, spawn gate agent ở baseline mode để chụp trạng thái test suite:
+
+```
+Agent({
+  subagent_type: "sdlc-tdd-be-gate",
+  description: "BASELINE: {feature}",
+  permissionMode: "acceptEdits",
+  prompt: "
+    Mode: baseline
+    Feature: {feature}
+    Service: {service}
+    FR-ID: {FR-ID}
+    Date: {YYYYMMDD}
+
+    Capture the current test suite state before TDD cycle begins.
+    Run the full test suite and save baseline to:
+    .work/baselines/{YYYYMMDD}-FR-{ID}-BE.json
+
+    This baseline will be used by GATE light to detect cross-TC interference.
+  "
+})
+```
+
+Sau khi baseline capture hoàn thành:
+- Verify baseline file đã được tạo: `ls .work/baselines/{YYYYMMDD}-FR-{ID}-BE.json`
+- Nếu có pre-existing failures → báo cáo human: "⚠️ Có {N} tests đang fail trước TDD cycle. Đây là pre-existing, không phải interference."
+- Nếu không có pre-existing failures → "✅ Baseline captured: {N} tests, all pass."
+
+### 4.4: Per-TC RED Cycle
 
 Cho MỖI test case. **Mặc định tuần tự** (mỗi TC build trên TC trước). **Song song** nếu TCs thực sự độc lập (xác nhận với human).
 
@@ -93,6 +123,9 @@ Agent({
     Đọc hard-boundaries: agent_docs/hard-boundaries.md
     Đọc conventions: agent_docs/conventions.md
 
+    Baseline file: .work/baselines/{YYYYMMDD}-FR-{ID}-BE.json
+    (tham chiếu nếu cần xác nhận test nào đã pass trước đó)
+
     Kết quả từ các TC trước (nếu có):
     [Tóm tắt files đã thay đổi từ TC-1 đến TC-{N-1}]
 
@@ -100,9 +133,11 @@ Agent({
     1. Viết test code cho test case này
     2. Verify test FAILS (RED)
     3. Nếu accidental green → detect + sabotage → confirm
-    4a. Test RED → spawn sdlc-tdd-be-green để implement → spawn sdlc-tdd-be-refactor --mode=light
-    4b. Accidental green confirmed → skip GREEN và REFACTOR
-    5. Return kết quả (DONE|BLOCKED|STALE)
+    4a. Test RED → spawn sdlc-tdd-be-green để implement
+    4b. INTERFERENCE-LIGHT: sau GREEN, chạy tất cả test trong file hiện tại → detect nếu TC này break test khác
+    4c. Accidental green confirmed → skip GREEN, INTERFERENCE, và REFACTOR
+    5. Nếu interference-free → spawn sdlc-tdd-be-refactor --mode=light
+    6. Return kết quả (DONE|BLOCKED|STALE|INTERFERENCE)
   "
 })
 ```
@@ -110,33 +145,37 @@ Agent({
 **RED agent xử lý nội bộ:**
 - Viết test → verify RED → accidental green detection (nếu cần)
 - Spawn `sdlc-tdd-be-green` để implement code tối thiểu
-- Spawn `sdlc-tdd-be-refactor --mode=light` để cleanup per-TC
-- Return kết quả có cấu trúc (DONE|BLOCKED|STALE) + skip flags
+- **INTERFERENCE-LIGHT check:** chạy toàn bộ test file → nếu có test khác fail → return INTERFERENCE
+- Spawn `sdlc-tdd-be-refactor --mode=light` để cleanup per-TC (chỉ khi interference-free)
+- Return kết quả có cấu trúc (DONE|BLOCKED|STALE|INTERFERENCE) + skip flags
 
 **Sau mỗi TC, orchestrator kiểm tra:**
 - DONE → tiếp tục TC tiếp theo
 - SKIPPED (accidental green) → tiếp tục TC tiếp theo
+- **INTERFERENCE → dừng, báo cáo human: "TC-{N} gây INTERFERENCE: test {broken_test} trong {file}:{line} bị break. GREEN đã sửa [{files}]. Cần fix interference trước khi tiếp tục."**
 - BLOCKED → dừng, báo cáo human: "TC-{N} bị BLOCKED sau 3 sabotage attempts. Cần human kiểm tra."
 - STALE → báo cáo human: "TC-{N} ambiguous spec. Cần làm rõ trước khi tiếp tục."
 
-### 4.4: Tổng hợp Kết quả Per-TC
+### 4.5: Tổng hợp Kết quả Per-TC
 
 Sau khi tất cả TCs hoàn thành, tổng hợp:
 
 ```
-✅ TC-1: DONE — {test name} (RED→GREEN→REFACTOR-light)
+✅ TC-1: DONE — {test name} (RED→GREEN→INTERFERENCE-LIGHT→REFACTOR-light)
 ✅ TC-2: DONE — {test name}
 ⏭️ TC-3: SKIPPED — accidental green (đã có implementation)
-❌ TC-4: STALE — ambiguous spec
+⚠️ TC-4: INTERFERENCE — broke {test} in {file}
+❌ TC-5: STALE — ambiguous spec
 ```
 
-Báo cáo human: "N/N TCs hoàn thành. {N} DONE, {N} SKIPPED, {N} BLOCKED, {N} STALE."
+Báo cáo human: "N/N TCs hoàn thành. {N} DONE, {N} SKIPPED, {N} INTERFERENCE, {N} BLOCKED, {N} STALE."
 
+Nếu có INTERFERENCE → không proceed đến GATE. Human quyết định: fix interference rồi continue, hoặc revert culprit TC.
 Nếu có BLOCKED hoặc STALE → không proceed đến GATE. Human quyết định: fix rồi continue, hoặc skip TCs bị lỗi.
 
-### 4.5: GATE Light (sau khi tất cả TCs pass)
+### 4.6: GATE Light (sau khi tất cả TCs pass, không có INTERFERENCE)
 
-Spawn gate agent để verify 4 critical checks trước khi refactor toàn diện:
+Spawn gate agent để verify 4 critical checks (bao gồm INTERFERENCE-FULL) trước khi refactor toàn diện:
 
 ```
 Agent({
@@ -150,13 +189,16 @@ Agent({
     FR-ID: {FR-ID}
 
     Tất cả per-TC cycles đã hoàn thành. Đây là tổng hợp:
-    [Insert per-TC result summary từ Bước 4.4 — danh sách từng TC với status, files changed, skip flags]
+    [Insert per-TC result summary từ Bước 4.5 — danh sách từng TC với status, files changed, skip flags]
+
+    Baseline file: .work/baselines/{YYYYMMDD}-FR-{ID}-BE.json
+    (dùng để so sánh INTERFERENCE-FULL — test nào pass trước đây mà giờ fail)
 
     Tổng số files changed: {N}
     Tech stack hint: [từ RED agent reports]
 
     Chạy 4 critical gates (L1-L4):
-    - L1: Test Suite (tất cả tests pass)
+    - L1: Test Suite + INTERFERENCE-FULL (so sánh baseline, xác định test bị break + culprit TC)
     - L2: Hard Boundaries (không cross-service DB access)
     - L3: Query Safety (không raw SQL concatenation)
     - L4: External Call Resilience (timeout + fallback)
@@ -165,10 +207,11 @@ Agent({
 ```
 
 **GATE light result:**
-- ALL 4 PASS → tiếp tục Bước 4.6 (REFACTOR full)
-- FAIL → báo cáo failures cho human. Spawn developer agents fix từng failure. Chạy lại GATE light.
+- ALL 4 PASS (bao gồm INTERFERENCE-FULL clean) → tiếp tục Bước 4.7 (REFACTOR full)
+- INTERFERENCE DETECTED → báo cáo human với broken tests + culprit TCs. Dừng pipeline.
+- FAIL (khác interference) → báo cáo failures cho human. Spawn developer agents fix từng failure. Chạy lại GATE light.
 
-### 4.6: REFACTOR Full
+### 4.7: REFACTOR Full
 
 Spawn refactor agent để cải thiện toàn bộ feature code:
 
@@ -183,8 +226,9 @@ Agent({
     Service: {service}
     FR-ID: {FR-ID}
 
-    GATE light: PASS (4/4)
-    Files changed across all TCs: [tổng hợp từ Bước 4.4]
+    GATE light: PASS (4/4, no interference)
+    Baseline: .work/baselines/{YYYYMMDD}-FR-{ID}-BE.json
+    Files changed across all TCs: [tổng hợp từ Bước 4.5]
     Tech stack: [detected từ RED reports]
 
     Chạy tất cả 6 categories + framework-specific check:
@@ -206,7 +250,7 @@ Agent({
 
 **REFACTOR full result:** báo cáo findings + fixes cho human. Nếu có flagged-but-not-fixed issues → human quyết định.
 
-### 4.7: GATE Full
+### 4.8: GATE Full
 
 Spawn gate agent để verify toàn bộ 10 gates:
 
@@ -222,8 +266,8 @@ Agent({
     FR-ID: {FR-ID}
 
     REFACTOR full đã hoàn thành. Tổng hợp:
-    - Per-TC results: [từ Bước 4.4]
-    - GATE light: PASS (4/4)
+    - Per-TC results: [từ Bước 4.5]
+    - GATE light: PASS (4/4, no interference)
     - REFACTOR full findings: {N} fixed, {N} flagged
     - Files changed: [danh sách cập nhật]
 
@@ -243,10 +287,10 @@ Agent({
 - ALL 10 PASS → code ready cho review và push. Tiếp tục Bước 5.
 - FAIL → báo cáo failures. Fix từng failure. Chạy lại GATE full.
 
-### 4.8: Backend + Frontend Ordering (khi cả hai)
+### 4.9: Backend + Frontend Ordering (khi cả hai)
 
 ```
-Backend TDD cycle hoàn thành (Bước 4.1-4.7)
+Backend TDD cycle hoàn thành (Bước 4.1-4.8)
   │
   ├─ GATE full BE PASS?
   │   ├─ YES → Bắt đầu Frontend TDD cycle
@@ -292,10 +336,16 @@ Bước 1: Readiness Check → Bước 2: Grilling → Bước 3: Move to In Pro
                                                           ▼
 Bước 4: TDD Orchestration ─────────────────────────────────────────────┐
 │                                                                       │
+│  ┌─ BASELINE Capture ─────────────────────────────────────────────┐ │
+│  │ sdlc-tdd-be-gate --mode=baseline                                │ │
+│  │   └─ Run test suite → .work/baselines/YYYYMMDD-FR-{ID}-BE.json │ │
+│  └─────────────────────────────────────────────────────────────────┘ │
+│                                                                       │
 │  ┌─ TC-1 ──────────────────────────────────────────────────────────┐ │
 │  │ sdlc-tdd-be-red (mini-orchestrator)                              │ │
 │  │   ├─ Write test → Verify RED → Accidental green?                │ │
 │  │   ├─ Spawn sdlc-tdd-be-green (implement tối thiểu)               │ │
+│  │   ├─ INTERFERENCE-LIGHT (chạy test file → có test khác fail?)   │ │
 │  │   └─ Spawn sdlc-tdd-be-refactor --mode=light (cleanup per-TC)   │ │
 │  └─────────────────────────────────────────────────────────────────┘ │
 │  ┌─ TC-2 ──────────────────────────────────────────────────────────┐ │
@@ -308,6 +358,10 @@ Bước 4: TDD Orchestration ─────────────────
 │                                                                       │
 │  ┌─ GATE Light ────────────────────────────────────────────────────┐ │
 │  │ sdlc-tdd-be-gate --mode=light (L1-L4: 4 critical checks)        │ │
+│  │   ├─ L1: Test Suite + INTERFERENCE-FULL (baseline comparison)   │ │
+│  │   ├─ L2: Hard Boundaries                                        │ │
+│  │   ├─ L3: Query Safety                                           │ │
+│  │   └─ L4: External Call Resilience                               │ │
 │  └─────────────────────────────────────────────────────────────────┘ │
 │  ┌─ REFACTOR Full ─────────────────────────────────────────────────┐ │
 │  │ sdlc-tdd-be-refactor --mode=full (6 categories + framework)     │ │
@@ -328,8 +382,10 @@ Bước 5: Code Review → Bước 6: Git Push → Bước 7: Sprint Update
 |---|---|
 | RED returns BLOCKED (3 sabotage attempts failed) | Dừng TDD cycle. Báo cáo human với code map từ Explore agent. Human kiểm tra thủ công. |
 | RED returns STALE (ambiguous spec) | Dừng TC đó. Báo cáo human. Option: skip TC này, tiếp tục TCs khác. |
+| RED returns INTERFERENCE (TC này break test khác) | Dừng TDD cycle. Báo cáo human: broken test, culprit TC, files changed. Human quyết định: revert hay fix. |
 | GREEN returns STUCK (5 iterations failed) | Dừng TC đó. Báo cáo: test nào fail, hypothesis, cần help gì. |
-| GATE light FAIL | Báo cáo failures. Spawn developer fix từng failure. Chạy lại GATE light (max 2 lần). |
+| GATE light L1i detects INTERFERENCE-FULL | Dừng pipeline. Báo cáo human với interference table (broken tests + culprit TCs). |
+| GATE light FAIL (non-interference) | Báo cáo failures. Spawn developer fix từng failure. Chạy lại GATE light (max 2 lần). |
 | GATE full FAIL | Báo cáo failures. Fix từng failure. Chạy lại GATE full (max 2 lần). |
 | REFACTOR full gây test failure | REFACTOR agent phải tự undo + report. Orchestrator verify test suite vẫn pass. |
 | Subagent crash / timeout | Báo cáo human. Option: retry (max 2), skip, hoặc abort pipeline. |

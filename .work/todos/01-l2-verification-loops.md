@@ -2,7 +2,7 @@
 
 **Ngày tạo:** 2026-07-08
 **Độ ưu tiên:** High
-**Trạng thái:** pending
+**Trạng thái:** 1/3 done (Cross-TC Interference Detection ✅)
 
 ## Mục Tiêu
 
@@ -10,17 +10,26 @@ Nâng cấp verification loops từ "rất tốt" (4/5) lên "xuất sắc" (5/5
 
 ## Todo
 
-### 1. Cross-TC Interference Detection
+### 1. Cross-TC Interference Detection ✅ DONE (2026-07-08)
 
-**Vấn đề:** Khi implement TC_B, có thể vô tình break TC_A đã pass trước đó. Hiện tại GATE light chỉ check test suite tổng thể, không phát hiện interference pattern cụ thể.
+**Giải pháp đã triển khai:** Hybrid 2-tầng
 
-**Giải pháp:**
-- Thêm interference detection vào `sdlc-tdd-be-gate` và `sdlc-tdd-fe-gate` (light mode)
-- Sau mỗi TC hoàn thành, chạy toàn bộ test suite và so sánh baseline
-- Nếu có test mới fail → flag interference, báo cáo TC nào gây ra, test nào bị break
-- Integration: thêm 1 check mới trong 4 critical checks của GATE light
+**Tầng 1 — INTERFERENCE-LIGHT** (trong RED agent):
+- Chạy toàn bộ test file sau mỗi TC GREEN
+- Phát hiện 70-80% interference, cost ~2-5s
+- RED agent return `INTERFERENCE` exit code — orchestrator dừng pipeline ngay
+- File: `.claude/agents/sdlc/sdlc-tdd-be-red.md`, `.claude/agents/sdlc/sdlc-tdd-fe-red.md`
 
-**Tham khảo:** OpenSearch harness-first verification pattern
+**Tầng 2 — INTERFERENCE-FULL** (trong GATE light L1):
+- So sánh baseline (chụp trước TDD cycle) với test results hiện tại
+- Map failed tests → files changed per TC → xác định culprit TC
+- Phát hiện cross-file interference
+- File: `.claude/agents/sdlc/sdlc-tdd-be-gate.md`, `.claude/agents/sdlc/sdlc-tdd-fe-gate.md`
+
+**Baseline capture** (orchestrator spawn gate agent `--mode=baseline`):
+- Chạy trước TDD cycle
+- Lưu vào `.work/baselines/YYYYMMDD-FR-{ID}-{BE|FE}.json`
+- File: `.claude/skills/sdlc-orchestrator/references/flow-cook.md`
 
 ---
 
