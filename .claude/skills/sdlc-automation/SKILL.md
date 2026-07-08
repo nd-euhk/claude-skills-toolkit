@@ -12,7 +12,6 @@ description: >-
   autonomously.
 version: 1.2.1
 allowed-tools: Read, Write, Edit, Bash, Glob, Skill, Agent, AskUserQuestion, Workflow
-disable-model-invocation: false
 ---
 
 # SDLC Automation
@@ -36,7 +35,7 @@ toàn diện, sau đó dispatch `workflow-sdlc-automation` chạy autonomously. 
 - **Grilling toàn diện bắt buộc** — không dispatch automation khi chưa đủ thông tin
 - **Workflow script là executor** — pipeline chạy trong `.claude/workflows/automation/workflow-sdlc-automation.js`
 - **Không skip pipeline phases** — SRS → HLD → LLD → IMP∥TST. HLD và LLD có thể được skip với human confirmation
-- **Không tự sửa sprint files** — luôn qua `Skill(sprint)`. Chỉ được Write `agent_docs/README.md`
+- **Không tự sửa sprint files** — luôn qua `Skill(sprint, "--all")`. Chỉ được Write `agent_docs/README.md`
 - **Không tự sửa feature specs** — chỉ sdlc-srs và sdlc-lld touch `agent_docs/features/`
 - **Respect human decision** — nếu grilling kết luận automation không phù hợp, đề xuất `sdlc-orchestrator`
 - **Fail-safe** — khi có lỗi không mong đợi, fallback về orchestrator. Xem `references/error-handling.md`
@@ -237,7 +236,7 @@ Dành cho code execution từ ready specs. TDD cycle chạy autonomously qua wor
 
 1. **Readiness Check** — xác minh task status `ready`, specs đầy đủ (IMP + TST)
 2. **Grilling Cook** — xác nhận service, branch, dependencies, TC ordering
-3. **Move to In Progress** — update board qua `Skill(sprint)`
+3. **Move to In Progress** — update board qua `Skill(sprint, "--board")`
 4. **Dispatch TDD Workflow** — autonomous per-TC RED→GREEN→REFACTOR-light → GATE light → REFACTOR full → GATE full
 5. **Code Review** — `Skill(sdlc-review)` trên code mới
 6. **Git Push** — `Skill(git)` commit + push

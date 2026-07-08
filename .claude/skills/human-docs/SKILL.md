@@ -4,7 +4,6 @@ description: >-
   Đồng bộ agent_docs/ → docs/ cho human-readable output. Agent là SSOT (Single Source of Truth).
   Dùng khi cần xuất tài liệu cho người đọc từ agent artifacts: "/human-docs sync:srs",
   "/human-docs sync:architecture", "/human-docs sync:all", "/human-docs review".
-disable-model-invocation: true
 allowed-tools: Read, Write, Glob, Bash(*), Workflow
 version: 2.2.0
 ---

@@ -137,7 +137,7 @@ Trước khi proceed, xác nhận đã có:
 
 ## Giai đoạn 3: Move Task sang In Progress
 
-Update board qua `Skill(sprint)`:
+Update board + backlog qua `Skill(sprint, "--board --backlog")`:
 
 ```
 Board: move [FR-ID] từ "ready" → "in progress"
@@ -247,7 +247,7 @@ Sau khi workflow báo cáo tất cả gates pass:
 
 ## Giai đoạn 7: Sprint Update
 
-Qua `Skill(sprint)`:
+Qua `Skill(sprint, "--all")`:
 
 ```
 Board: move [FR-ID] từ "in progress" → "in review" → "done"
