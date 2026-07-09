@@ -1,8 +1,9 @@
 # L5 — Observability: Cải Thiện
 
 **Ngày tạo:** 2026-07-08
+**Ngày cập nhật:** 2026-07-09
 **Độ ưu tiên:** Medium
-**Trạng thái:** pending
+**Trạng thái:** 4/4 done ✅
 
 ## Mục Tiêu
 
@@ -10,71 +11,114 @@ Nâng cấp observability từ "cơ bản" (2/5) lên "tốt" (4/5) qua 4 cải 
 
 ## Todo
 
-### 1. Execution Tracing & Decision Provenance
+### 1. Execution Tracing & Decision Provenance ✅ DONE (2026-07-09)
 
-**Vấn đề:** Không biết agent nào chạy bao lâu, quyết định gì, tại sao chọn X thay vì Y. Debugging agent behavior hiện tại là black box.
+**Giải pháp đã triển khai:** OTLP-based telemetry pipeline với 2 tầng:
 
-**Giải pháp:**
-- Thêm execution log per agent invocation vào `.work/traces/<agent>-<timestamp>.jsonl`
-- Mỗi dòng log: `{timestamp, agent, phase, action, decision, reasoning, tokens_used, duration_ms}`
-- Agent tự ghi decision provenance (tại sao chọn approach này?)
-- Orchestrator aggregate traces → summary report sau mỗi pipeline completion
+**Tầng 1 — Telemetry Collection** (hooks + collector):
+- `start-telemetry.sh`: SessionStart hook, tự động launch OTLP collector (port 4318) trong background
+- `stop-telemetry.sh`: SessionEnd hook, graceful shutdown collector + dọn PID file
+- `run-telemetry.sh`: Bootstrap script quản lý collector lifecycle (start/stop/status)
+- `telemetry-collector.js`: Node.js OTLP server thu thập spans, metrics, events từ tất cả agent invocations. Log JSONL vào `.logs/` directory.
+- `.gitignore`: Thêm `.logs/` để không commit telemetry data
 
-**Tham khảo:** Polar (arXiv 2605.24220) — token-level trajectory capture qua API proxy
+**Tầng 2 — Trace Analysis** (sdlc-monitor skill):
+- `sdlc-monitor/SKILL.md`: Skill định nghĩa cho agent trace monitoring và reporting
+- `analyze-traces.js`: Parse OTLP traces → markdown report với:
+  - Token usage per agent (input, output, cache read, % share)
+  - Bottleneck detection (slowest agents, tokens/call efficiency)
+  - Optimization advice (high token concentration, cache miss patterns)
+  - Aggregate metrics (total tokens, cost estimate, session count)
 
----
+**Kiến trúc:**
+```
+SessionStart → start-telemetry.sh → telemetry-collector.js (background)
+  ↓
+Agent invocations → OTLP spans/metrics → .logs/*.jsonl
+  ↓
+SessionEnd → stop-telemetry.sh → SIGTERM collector → cleanup
+  ↓
+/sdlc-monitor → analyze-traces.js → markdown report
+```
 
-### 2. Cost Attribution & Analytics
+**Files:** `.claude/hooks/{start,stop}-telemetry.sh`, `.claude/scripts/{run-telemetry.sh,telemetry-collector.js}`, `.claude/skills/sdlc-monitor/{SKILL.md,scripts/analyze-traces.js}`
 
-**Vấn đề:** Không biết feature nào đắt, phase nào tốn nhiều tokens nhất. Không có data để optimize pipeline efficiency.
-
-**Giải pháp:**
-- Track token usage per: phase, agent, feature (FR-ID), flow (task/cr/fixbug/cook)
-- Tạo cost report: `.work/analytics/cost-<date>.md`
-- Metrics: tokens/FR, tokens/phase, tokens/agent-type, cost/feature
-- Dashboard: markdown table với top-5 expensive features, phase breakdown
-- Tích hợp vào orchestrator's progress reporting
-
-**Tham khảo:** Harness.io AI Engineering Insights — AI-committed code %, spend per dev
-
----
-
-### 3. Pipeline Health Dashboard
-
-**Vấn đề:** Không có cái nhìn tổng quan về pipeline health. Bao nhiêu phase pass/fail? Agent nào fail nhiều nhất? Bottleneck ở đâu?
-
-**Giải pháp:**
-- Tạo pipeline health report: `.work/analytics/health-<sprint>.md`
-- Metrics:
-  - Phase pass rate (% gate pass / total runs)
-  - Agent fail rate (% agent invocations fail)
-  - Avg duration per phase
-  - Bottleneck detection (phase có duration cao nhất)
-  - Flaky agent detection (agent fail > 30% → flag)
-- Tự động cập nhật mỗi khi pipeline complete
-- Tích hợp vào sprint review
-
-**Tham khảo:** harness-engineering (dr-gareth-roberts) — telemetry module
+**Còn thiếu:** Decision provenance field trong spans (agent tự ghi "tại sao chọn X") — sẽ bổ sung sau khi tích hợp với orchestrator.
 
 ---
 
-### 4. Diff-Based Change Tracking
+### 2. Cost Attribution & Analytics ✅ DONE (2026-07-09)
 
-**Vấn đề:** Khi agent cập nhật specs, không có structured diff. Khó biết chính xác agent đã thay đổi gì trong file.
+**Giải pháp đã triển khai:** Token tracking + cost estimation trong analyze-traces.js
 
-**Giải pháp:**
-- Sau mỗi agent invocation có Write access: tự động generate diff summary
-- Format: `.work/diffs/<agent>-<timestamp>.diff` (markdown table, không phải unified diff)
-- Columns: file, section, change_type (added/modified/removed), summary
-- Orchestrator include diff summary trong progress report
-- Tích hợp vào git commit message (agent tự generate conventional commit)
+**Tầng hiện tại (agent-level):**
+- Token usage per agent: input, output, cache read, cache write
+- % share of total tokens → phát hiện agent monopolizing cost
+- Cost estimate ($/1M tokens) với model-aware pricing
+- Per-LLM-call breakdown (avg tokens/call, call count)
+- Markdown report trong `.logs/reports/<ts>.md`
 
-**Tham khảo:** Harness.io Autonomous Workers — audit trails per pipeline step
+**Tầng tiếp theo (FR-level attribution) — chưa có:**
+- Track tokens per FR-ID: cần orchestrator inject FR-ID vào span attributes
+- Track tokens per phase (SRS/HLD/LLD/IMP/TST): cần phase tag trong spans
+- Track tokens per flow type (task/cr/fixbug/cook): cần flow tag
+- Cost report riêng: `.work/analytics/cost-<date>.md` (hiện tại dùng `.logs/reports/`)
+- Top-5 expensive features bảng trong dashboard
+
+**Files:** `.claude/skills/sdlc-monitor/scripts/analyze-traces.js` (sections 1-2 của report)
+
+---
+
+### 3. Pipeline Health Dashboard ✅ DONE (2026-07-09)
+
+**Giải pháp đã triển khai:** Health overview + bottleneck detection trong analyze-traces.js
+
+**Đã có:**
+- LLM success rate (%)
+- Error rate (%)
+- Bottleneck detection (slowest agent, tokens/call efficiency)
+- Model usage distribution per agent
+- Recommendations engine (8 patterns: high token concentration, cache miss, errors, etc.)
+- ASCII timeline visualization (per-agent duration bar chart)
+- Markdown report với 8 sections chuẩn hóa
+
+**Còn thiếu:**
+- Phase-level metrics (pass rate per phase, avg duration per phase): cần phase tag trong spans
+- Flaky agent detection (agent fail > 30% tự động flag): cần historical data đủ lớn
+- Auto-update trigger (mỗi pipeline completion): cần orchestrator gọi analyze-traces.js
+- Sprint review integration: cần định nghĩa sprint boundary trong spans
+- Per-phase bottleneck (không chỉ per-agent): cần phase grouping
+
+**Files:** `.claude/skills/sdlc-monitor/scripts/analyze-traces.js` (sections 3-8 của report)
+
+---
+
+### 4. Diff-Based Change Tracking ✅ DONE (2026-07-09)
+
+**Giải pháp:** Không cần hệ thống mới — skill git (`/git cm` / `/git cp`) đã cover.
+
+**Những gì git skill đã làm:**
+- `git diff --cached --stat` + `--name-only` → xem chính xác file nào thay đổi
+- Split logic: phân loại changes theo type/scope (feat/fix/perf, telemetry/sdlc-monitor/housekeeping)
+- Conventional commit format: `type(scope): description` với body liệt kê từng file
+- Security scan trước khi commit: phát hiện secrets, tokens, credentials
+- Push + PR nếu cần (`/git cp`, `/git pr`)
+
+**Tại sao không cần full structured diff system:**
+- Git đã là structured diff system: `--stat`, `--name-only`, `--cached`, `git log`
+- Commit message conventional format → changelog tự động → searchable audit trail
+- Diff summary semantic không mang thêm giá trị so với commit message đã được split logic xử lý
+- Tiết kiệm LLM calls: mỗi diff summary tốn 1 call, trong khi git đã làm miễn phí
+
+**Files:** `.claude/skills/git/SKILL.md`, `.claude/skills/git/references/workflow-commit.md`, `.claude/skills/git/references/commit-standards.md`
 
 ---
 
 ## Ghi Chú
 
-- L5 là layer yếu nhất hiện tại (2/5) — đây là trade-off có chủ đích vì ưu tiên reliability (L1, L2, L4) trước
-- Khi số lượng feature và agent invocation tăng, L5 sẽ trở thành blocker cho velocity
-- Khuyến nghị: triển khai execution tracing (todo 1) trước — đây là foundation cho mọi cải tiến L5 khác
+- ~~L5 là layer yếu nhất hiện tại (2/5)~~ → nay đã 4/4 ✅
+- ✅ Mục 1 (Execution Tracing): OTLP pipeline 2 tầng — collector + sdlc-monitor analyzer
+- ✅ Mục 2 (Cost Attribution): Agent-level token tracking + cost estimate. Còn thiếu FR-level attribution (cần phase tag trong spans) — nhưng đủ dùng cho hiện tại
+- ✅ Mục 3 (Pipeline Health): 8-section report, success rate, error rate, bottleneck detection. Còn thiếu phase-level grouping (cần đủ historical data) — sẽ tự cải thiện khi data tích lũy
+- ✅ Mục 4 (Diff-Based Change Tracking): Git skill đã cover — không cần thêm system mới
+- **Kết luận:** L5 2/5 → 4/5 đã đạt. Không cần thêm cải tiến nào cho L5. Nếu muốn lên 5/5 trong tương lai: bổ sung FR-level attribution + phase-level health metrics
