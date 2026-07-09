@@ -8,7 +8,7 @@ description: >-
   code", "tạo agent_docs từ codebase", "document codebase", "extract specs
   from code", "đồng bộ tài liệu với code", "generate SDLC docs from source".
 argument-hint: "[--focus <description>] [--scope <path>] [--artifacts hld,lld,srs,imp,tst] [--dry-run]"
-version: 1.2.2
+version: 1.3.0
 user-invocable: true
 category: sdlc
 keywords: [reverse-engineer, codebase, agent-docs, documentation, sdlc, specs-from-code]
@@ -96,9 +96,10 @@ Xác nhận scope với human:
    Scope:     {scope}
    Focus:     {focus hoặc "Toàn bộ codebase"}
    Artifacts: {danh sách artifacts}
+   Verify:    Adversarial (3 skeptics per domain)
    Mode:      {dry-run ? "Dry Run" : "Full Generation"}
 
-   Pipeline:  Scout → HLD → LLD → SRS → IMP ∥ TST
+   Pipeline:  Scout → HLD → LLD → SRS → Verify SRS → IMP ∥ TST
 ```
 
 Nếu ambiguous → `AskUserQuestion` để làm rõ scope và artifacts.

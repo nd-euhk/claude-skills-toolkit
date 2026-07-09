@@ -1,12 +1,13 @@
 export const meta = {
   name: 'codebase-reverse',
-  description: 'Reverse engineer codebase → agent_docs/ with per-service and per-domain fan-out, inter-phase gates with retry (max 3), and skip-to-report on gate exhaustion.',
+  description: 'Reverse engineer codebase → agent_docs/ with per-service and per-domain fan-out, inter-phase gates with retry (max 3), adversarial SRS verification (3 skeptics per domain), and skip-to-report on gate exhaustion.',
   phases: [
     { title: 'HLD', detail: 'Extract architecture from code (single agent — cross-cutting)' },
     { title: 'Gate:HLD', detail: 'Validate HLD outputs against 6 criteria' },
     { title: 'LLD', detail: 'Fan-out per service + cross-service synthesis' },
     { title: 'Gate:LLD', detail: 'Validate LLD outputs against 5 criteria per service' },
     { title: 'SRS', detail: 'Fan-out per domain + cross-domain synthesis' },
+    { title: 'SRS-Verify', detail: 'Adversarially verify inferred FRs with 3 diverse-lens skeptics per domain' },
     { title: 'Gate:SRS', detail: 'Validate SRS outputs against 4 criteria per domain' },
     { title: 'IMP+TST', detail: 'Fan-out per domain (IMP ∥ TST per domain concurrently)' },
     { title: 'Gate:IMP+TST', detail: 'Validate IMP (5 criteria) and TST (5 criteria) per domain' },
@@ -26,6 +27,7 @@ const {
   focus,
   foundationPath = 'agent_docs/',
   workDir,
+  adversarial = true,
 } = _args
 
 // -- Phase Selection --
@@ -42,6 +44,7 @@ const domainCount = domains.length
 // === GATE + RETRY CONFIG ===
 
 const MAX_RETRIES = 3
+const MAX_VERIFY_RETRIES = 2
 let skipRemaining = false
 const gateResults = []  // accumulated gate results for final report
 
@@ -206,6 +209,326 @@ function failureFeedbackForAgent(phase, failureDetails, entityName) {
 }
 
 
+// ═══════════════════════════════════════════
+// SRS ADVERSARIAL VERIFICATION
+// ═══════════════════════════════════════════
+
+const SRS_VERIFY_SCHEMA = {
+  type: "object",
+  properties: {
+    domain: { type: "string" },
+    fr_verdicts: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          fr_id: { type: "string" },
+          verdict: { type: "string", enum: ["CONFIRMED", "UNCERTAIN", "REJECTED"] },
+          reasoning: { type: "string" },
+          concerns: { type: "array", items: { type: "string" } },
+        },
+        required: ["fr_id", "verdict", "reasoning"],
+      },
+    },
+    summary: { type: "string" },
+  },
+  required: ["domain", "fr_verdicts"],
+}
+
+// 3 skeptic lenses — different from review skeptics (correctness/security/repro)
+// because we are verifying REQUIREMENTS INFERENCE, not bug finding
+// Each skeptic discovers FR files themselves using Bash/Glob (avoids depending on extractOutputs)
+
+function skepticCodeEvidencePrompt(domain, frGlob) {
+  return `You are a CODE EVIDENCE SKEPTIC. Your job is to verify that each inferred FR has SUFFICIENT code evidence to support its claims.
+
+## Domain: ${domain.name}
+## FR File Pattern: ${frGlob}
+
+## Step 1: Discover FR Files
+Use Bash to list all FR files for this domain:
+  ls ${frGlob}
+Then READ each FR file fully before evaluating.
+
+## Your Lens: CODE EVIDENCE
+For EACH FR in the domain, evaluate:
+
+1. **Evidence Quality**: Does the Code Evidence table cite specific file:line references? Are those references real and verifiable?
+2. **Evidence Sufficiency**: Does each claim in the FR have corresponding evidence? Are there claims without any code reference?
+3. **Evidence Relevance**: Does the cited code actually support the claim, or is it a stretch? Check the code at the cited locations.
+4. **UNCERTAINTY Flag Appropriateness**: Are UNCERTAINTY flags used where evidence is weak? Are there cases where the agent claimed certainty but evidence is thin?
+
+## Verdict per FR:
+- **CONFIRMED**: Strong code evidence — file:line references are specific, relevant, and support all major claims. UNCERTAINTY flags used honestly where needed.
+- **UNCERTAIN**: Evidence exists but is incomplete — some claims lack evidence, or evidence is tangential. Needs human review.
+- **REJECTED**: Evidence is missing, fabricated, or contradicts the FR claims. The FR should be discarded or completely rewritten.
+
+## CRITICAL RULES
+1. READ each FR file fully before evaluating.
+2. Spot-check code at cited file:line references — verify they exist and say what the FR claims.
+3. Flag any FR where evidence looks fabricated (generic references without real code backing).
+4. Be strict but fair — reverse engineering is hard, UNCERTAINTY is a valid outcome.
+5. Return structured output with verdict for EVERY FR in the domain.`
+}
+
+function skepticBehavioralPrompt(domain, frGlob) {
+  return `You are a BEHAVIORAL COMPLETENESS SKEPTIC. Your job is to verify that each inferred FR covers all behavior visible in the code.
+
+## Domain: ${domain.name}
+## FR File Pattern: ${frGlob}
+
+## Step 1: Discover FR Files
+Use Bash to list all FR files for this domain:
+  ls ${frGlob}
+Then READ each FR file fully AND the code it references before evaluating.
+
+## Your Lens: BEHAVIORAL COMPLETENESS
+For EACH FR in the domain, evaluate:
+
+1. **Error Path Coverage**: Does the code have error handling (try/catch, error responses, validation failures) that is NOT reflected in the FR's Gherkin scenarios?
+2. **Edge Case Coverage**: Are there boundary conditions in the code (null checks, empty arrays, zero values, max limits) missing from the FR?
+3. **Happy Path Accuracy**: Does the happy path Gherkin scenario match what the code actually does? Check the endpoint/controller logic.
+4. **Missing Scenarios**: Are there code paths (different HTTP status codes, different business outcomes) that should have Gherkin scenarios but don't?
+
+## Verdict per FR:
+- **CONFIRMED**: FR covers the major code paths — happy path, key error cases, and edge cases visible in code. Gaps are minor or flagged with UNCERTAINTY.
+- **UNCERTAIN**: FR covers the happy path but misses important error/edge cases visible in the code. Needs supplementary scenarios.
+- **REJECTED**: FR fundamentally misrepresents what the code does — wrong behavior described, or critical code paths entirely missing.
+
+## CRITICAL RULES
+1. READ each FR file AND the code it references before evaluating.
+2. Check error responses, validation logic, and edge case handling in the actual code.
+3. The question is: "If a developer read only this FR, would they miss important behavior that exists in the code?"
+4. Return structured output with verdict for EVERY FR in the domain.`
+}
+
+function skepticBusinessPrompt(domain, frGlob) {
+  return `You are a BUSINESS COHERENCE SKEPTIC. Your job is to verify that each inferred FR makes business sense and correctly interprets the code's intent.
+
+## Domain: ${domain.name}
+## FR File Pattern: ${frGlob}
+
+## Step 1: Discover FR Files
+Use Bash to list all FR files for this domain:
+  ls ${frGlob}
+Then READ each FR file fully AND the code it references before evaluating.
+
+## Your Lens: BUSINESS COHERENCE
+For EACH FR in the domain, evaluate:
+
+1. **Actor/Role Accuracy**: Is the inferred actor consistent with auth middleware, permission checks, and guard logic in the code? Does the code suggest a different actor than what the FR claims?
+2. **Feature Description Accuracy**: Does the FR description match what the endpoints/controllers actually do? Or did the agent misinterpret the code's purpose?
+3. **Business Logic Interpretation**: Are business rules correctly inferred? Check: validation logic, workflow steps, state transitions — do they mean what the FR says they mean?
+4. **Plausibility**: Would this feature make sense in a real system? Is the inferred business intent plausible given the code patterns and domain context?
+
+## Verdict per FR:
+- **CONFIRMED**: Business interpretation is sound — actor, description, and business rules align with code behavior. Feature makes sense in this domain.
+- **UNCERTAIN**: Interpretation is plausible but ambiguous — code could support multiple interpretations. Flagged honestly with UNCERTAINTY.
+- **REJECTED**: Business interpretation is wrong — code clearly does something different than described. Wrong actor, wrong feature purpose, or nonsensical business logic inferred.
+
+## CRITICAL RULES
+1. READ each FR file AND the code it references before evaluating.
+2. Check auth middleware, permission annotations, role guards — verify the actor claim.
+3. Check endpoint paths, HTTP methods, request/response shapes — verify the feature description.
+4. The question is: "Would a domain expert agree with this FR, or would they say 'that's not what this code does'?"
+5. Return structured output with verdict for EVERY FR in the domain.`
+}
+
+/**
+ * Run adversarial verification on SRS outputs for all domains.
+ * For each domain, 3 independent skeptics review ALL FRs through different lenses.
+ * Results are consolidated: ≥2/3 CONFIRMED → CONFIRMED, 1/3 → UNCERTAIN, 0/3 → REJECTED.
+ * Updates FR files with verification status in frontmatter.
+ * Returns consolidated verdicts per domain, passed to SRS synthesis.
+ */
+async function verifySRSForDomains(domains, srsResults) {
+  const allVerdicts = {}
+  const verificationStats = { total: 0, confirmed: 0, uncertain: 0, rejected: 0 }
+
+  for (let i = 0; i < domains.length; i++) {
+    const domain = domains[i]
+    const result = srsResults[i]
+    if (!result) {
+      log(`SRS-Verify: ${domain.name} — skipped (no SRS result)`)
+      continue
+    }
+
+    log(`SRS-Verify: ${domain.name} — dispatching 3 skeptics...`)
+
+    // Try to extract FR file paths from SRS output (for logging)
+    const frFiles = extractOutputs(result).filter(f => f.match(new RegExp(`FR-${domain.name.toUpperCase()}-\\\\d+`)))
+    const frGlob = `${foundationPath}features/FR-${domain.name.toUpperCase()}-*.md`
+    log(`SRS-Verify: ${domain.name} — FR glob: ${frGlob} (${frFiles.length} path(s) extracted from SRS output)`)
+
+    // 3 independent skeptics, each reviewing ALL FRs for this domain
+    // Each skeptic discovers FR files themselves using the glob pattern
+    const votes = await parallel([
+      () => agent(skepticCodeEvidencePrompt(domain, frGlob), {
+        label: `verify:srs:evidence:${domain.name}`,
+        phase: 'SRS-Verify',
+        agentType: 'general-purpose',
+        schema: SRS_VERIFY_SCHEMA,
+      }),
+      () => agent(skepticBehavioralPrompt(domain, frGlob), {
+        label: `verify:srs:behavioral:${domain.name}`,
+        phase: 'SRS-Verify',
+        agentType: 'general-purpose',
+        schema: SRS_VERIFY_SCHEMA,
+      }),
+      () => agent(skepticBusinessPrompt(domain, frGlob), {
+        label: `verify:srs:business:${domain.name}`,
+        phase: 'SRS-Verify',
+        agentType: 'general-purpose',
+        schema: SRS_VERIFY_SCHEMA,
+      }),
+    ])
+
+    const validVotes = votes.filter(Boolean)
+    if (validVotes.length < 2) {
+      log(`SRS-Verify: ${domain.name} — WARNING: only ${validVotes.length}/3 skeptics returned results`)
+    }
+
+    // Consolidate: for each FR, count CONFIRMED votes
+    // Build a map of fr_id → { confirmed: N, verdicts: [...] }
+    const frVoteMap = {}
+    for (const vote of validVotes) {
+      for (const frv of (vote.fr_verdicts || [])) {
+        if (!frVoteMap[frv.fr_id]) {
+          frVoteMap[frv.fr_id] = { confirmed: 0, uncertain: 0, rejected: 0, reasonings: [], concerns: [] }
+        }
+        if (frv.verdict === 'CONFIRMED') frVoteMap[frv.fr_id].confirmed++
+        else if (frv.verdict === 'UNCERTAIN') frVoteMap[frv.fr_id].uncertain++
+        else if (frv.verdict === 'REJECTED') frVoteMap[frv.fr_id].rejected++
+        frVoteMap[frv.fr_id].reasonings.push(`[${frv.verdict}] ${frv.reasoning}`)
+        if (frv.concerns && frv.concerns.length > 0) {
+          frVoteMap[frv.fr_id].concerns.push(...frv.concerns)
+        }
+      }
+    }
+
+    // Apply majority vote rule
+    const consolidatedFRs = []
+    for (const [frId, counts] of Object.entries(frVoteMap)) {
+      let finalVerdict
+      if (counts.confirmed >= 2) finalVerdict = 'CONFIRMED'
+      else if (counts.confirmed === 1) finalVerdict = 'UNCERTAIN'
+      else finalVerdict = 'REJECTED'
+
+      consolidatedFRs.push({
+        fr_id: frId,
+        verdict: finalVerdict,
+        votes: { confirmed: counts.confirmed, uncertain: counts.uncertain, rejected: counts.rejected },
+        reasonings: counts.reasonings,
+        concerns: counts.concerns,
+      })
+
+      verificationStats.total++
+      if (finalVerdict === 'CONFIRMED') verificationStats.confirmed++
+      else if (finalVerdict === 'UNCERTAIN') verificationStats.uncertain++
+      else verificationStats.rejected++
+
+      log(`  ${frId}: ${finalVerdict} (${counts.confirmed}/3 confirmed)`)
+    }
+
+    allVerdicts[domain.name] = { frs: consolidatedFRs, stats: { total: consolidatedFRs.length, confirmed: verificationStats.confirmed, uncertain: verificationStats.uncertain, rejected: verificationStats.rejected } }
+  }
+
+  log(`SRS-Verify complete: ${verificationStats.total} FRs — ${verificationStats.confirmed} CONFIRMED, ${verificationStats.uncertain} UNCERTAIN, ${verificationStats.rejected} REJECTED`)
+  return { verdicts: allVerdicts, stats: verificationStats }
+}
+
+/**
+ * Write back verification verdicts to FR files on disk.
+ * Extracted as a helper so it can be called both after the initial retry loop
+ * and after gate-induced SRS re-runs.
+ */
+async function writebackVerificationVerdicts(verificationResult) {
+  if (!verificationResult) return
+
+  const vs = verificationResult.stats
+  log(`SRS-Verify final: ${vs.total} FRs — ${vs.confirmed} CONFIRMED, ${vs.uncertain} UNCERTAIN, ${vs.rejected} REJECTED`)
+
+  log('Writing verification verdicts to FR files...')
+  const writebackTasks = []
+  for (const [domainName, data] of Object.entries(verificationResult.verdicts)) {
+    const frGlob = `${foundationPath}features/FR-${domainName.toUpperCase()}-*.md`
+    const verdictMap = {}
+    for (const fr of data.frs) {
+      verdictMap[fr.fr_id] = { verdict: fr.verdict, concerns: fr.concerns, reasonings: fr.reasonings }
+    }
+
+    // Build conditional sections — only include what this domain needs
+    const rejectedEntries = Object.entries(verdictMap).filter(([, v]) => v.verdict === 'REJECTED')
+    const uncertainEntries = Object.entries(verdictMap).filter(([, v]) => v.verdict === 'UNCERTAIN')
+
+    let extraSections = ''
+
+    if (rejectedEntries.length > 0) {
+      extraSections += `
+### For REJECTED FRs ONLY
+After the frontmatter, add this section at the END of each REJECTED FR file:
+\`\`\`markdown
+## ⚠️ Verification Rejected
+
+This FR was **REJECTED** by adversarial verification (0/3 skeptics confirmed).
+
+### Skeptic Concerns
+${rejectedEntries.map(([id, v]) => `**${id}**: ${(v.concerns || ['insufficient evidence']).join('; ')}`).join('\n')}
+
+### What This Means
+- This FR will be **excluded** from the unified feature index
+- IMP and TST agents will **skip** this FR
+- Human review is **required** before this FR can be used
+\`\`\`
+`
+    }
+
+    if (uncertainEntries.length > 0) {
+      extraSections += `
+### For UNCERTAIN FRs ONLY
+After the frontmatter, add this section at the END of each UNCERTAIN FR file:
+\`\`\`markdown
+## ⚠️ Verification Uncertain
+
+This FR was flagged as **UNCERTAIN** by adversarial verification (1/3 skeptics confirmed).
+
+### Skeptic Concerns
+${uncertainEntries.map(([id, v]) => `**${id}**: ${(v.concerns || ['mixed verdict']).join('; ')}`).join('\n')}
+
+### What This Means
+- This FR is included in the feature index but **flagged for human review**
+- IMP and TST agents will process this FR normally
+- Review the concerns above and confirm or reject manually
+\`\`\`
+`
+    }
+
+    writebackTasks.push(() => agent(
+      `## Task: Update verification status in FR files for domain ${domainName}
+
+Read each FR file matching \`${frGlob}\` and update the frontmatter:
+- Change \`verification: pending\` to the correct verdict (see map below)
+- Change \`verification_date: ""\` to \`verification_date: "${new Date().toISOString().split('T')[0]}"\`
+
+### FR Verdict Map
+${Object.entries(verdictMap).map(([id, v]) => `- **${id}**: ${v.verdict}`).join('\n')}
+${extraSections}
+### CRITICAL
+- ONLY update the frontmatter fields (verification, verification_date)
+- ONLY add the rejection/uncertainty sections for REJECTED/UNCERTAIN FRs as instructed above
+- Do NOT change any other content in the FR file
+- For CONFIRMED FRs, just update the frontmatter — no extra section needed`,
+      { label: `writeback:verify:${domainName}`, phase: 'SRS-Verify', agentType: 'general-purpose' }
+    ))
+  }
+
+  if (writebackTasks.length > 0) {
+    await parallel(writebackTasks)
+    log('Verification verdicts written to FR files')
+  }
+}
+
+
 // === PROMPT BUILDERS ===
 // Each prompt builder accepts an optional failureFeedback string.
 // When provided, it appends targeted failure feedback to the prompt.
@@ -349,7 +672,34 @@ Infer functional and non-functional requirements from EXISTING code for domain "
   return p
 }
 
-function srsSynthesisPrompt(srsSummaries) {
+function srsSynthesisPrompt(srsSummaries, verificationResult) {
+  let verificationContext = ''
+  if (verificationResult) {
+    const { verdicts, stats } = verificationResult
+    verificationContext = `
+
+## Adversarial Verification Results
+${stats.total} FRs verified by 3 independent skeptics per domain:
+- **${stats.confirmed} CONFIRMED** (≥2/3 skeptics agree)
+- **${stats.uncertain} UNCERTAIN** (1/3 skeptics agree — needs human review)
+- **${stats.rejected} REJECTED** (0/3 skeptics agree — likely false inference)
+
+### Per-Domain Verification Details
+${Object.entries(verdicts).map(([domain, data]) => {
+  const frDetails = data.frs.map(fr =>
+    `  - ${fr.fr_id}: **${fr.verdict}** (${fr.votes.confirmed}/3) — concerns: ${fr.concerns.length > 0 ? fr.concerns.slice(0, 3).join('; ') : 'none'}`
+  ).join('\n')
+  return `#### ${domain}\n${frDetails}`
+}).join('\n\n')}
+
+**IMPORTANT for synthesis:**
+- REJECTED FRs MUST be EXCLUDED from the unified feature index — do NOT list them in README.md
+- REJECTED FRs MUST NOT appear in traceability matrix (they will not have IMP/TST downstream)
+- UNCERTAIN FRs should be included but flagged for human review
+- CONFIRMED FRs are reliable — include normally
+- Cross-domain dependencies involving REJECTED FRs should be flagged`
+  }
+
   return `## MODE: CROSS-DOMAIN SYNTHESIS — SRS
 
 Merge per-domain SRS outputs into unified cross-domain documentation.
@@ -359,16 +709,18 @@ Merge per-domain SRS outputs into unified cross-domain documentation.
 - **Per-domain SRS outputs**: ${domains.map(d => `${foundationPath}features/FR-${d.name.toUpperCase()}-*.md`).join(', ')}
 - **SRS Agent Summaries**:
 ${srsSummaries.map((s, i) => `  ${i + 1}. ${domains[i]?.name || `domain-${i}`}: ${s}`).join('\n')}
+${verificationContext}
 
 ## Task
 1. **Unified Feature Index** -> ${foundationPath}features/README.md
    - Complete domain+feature table
-   - Status tracking (all "inferred" initially)
+   - Status tracking: mark each FR as CONFIRMED/UNCERTAIN/REJECTED based on verification
    - Actor summary per domain
 
 2. **Traceability Matrix** -> ${foundationPath}traceability/requirements-matrix.md
    - Every FR -> code module(s) + service
    - Evidence Quality: HIGH | MEDIUM | LOW | UNCERTAIN
+   - Include verification status from adversarial review
    - Cross-domain dependencies
 
 3. **Cross-Domain Dependencies**
@@ -387,7 +739,8 @@ ${srsSummaries.map((s, i) => `  ${i + 1}. ${domains[i]?.name || `domain-${i}`}: 
 
 ## CRITICAL
 - Do NOT modify per-domain feature files
-- Include "Summary for Synthesis" section`
+- Include "Summary for Synthesis" section
+`
 }
 
 function impPrompt(domain, failureFeedback) {
@@ -414,6 +767,7 @@ Output: ${foundationPath}backend/{svc}/implementation/FR-${domain.name.toUpperCa
 
 ## CRITICAL
 - ALL features in this domain, not one feature per agent
+- **BEFORE processing, READ each FR file and check frontmatter \`verification\` field. SKIP any FR marked \`verification: REJECTED\` — these were rejected by adversarial verification and must NOT have implementation specs generated.**
 - Document what EXISTS, not what should be
 - Every claim needs file:line evidence
 - If context insufficient -> spawn Explore subagents
@@ -444,6 +798,7 @@ Output: ${foundationPath}backend/{svc}/test-specs/FR-${domain.name.toUpperCase()
 
 ## CRITICAL
 - ALL features in this domain, not one feature per agent
+- **BEFORE processing, READ each FR file and check frontmatter \`verification\` field. SKIP any FR marked \`verification: REJECTED\` — these were rejected by adversarial verification and must NOT have test specs generated.**
 - Document what TESTS EXIST, not what should be written
 - Explicitly flag: "⚠️ NO TESTS FOUND: <feature>" for missing coverage
 - Every test case referenced needs file:line evidence
@@ -627,26 +982,156 @@ if (runSRS && domainCount > 0 && !skipRemaining) {
   const successfulSRS = srsResults.filter(Boolean).length
   log(`SRS fan-out complete — ${successfulSRS}/${domainCount} domain(s)`)
 
-  // Cross-domain synthesis
-  if (successfulSRS > 1) {
+  // -- Adversarial SRS Verification (always-on, with retry for REJECTED FRs, before synthesis) --
+  let srsVerificationResult = null
+  if (successfulSRS > 0 && !skipRemaining) {
+    phase('SRS-Verify')
+    log(`Adversarial SRS verification — 3 skeptics per domain (code-evidence, behavioral-completeness, business-coherence)`)
+
+    // Round 1: verify all domains
+    srsVerificationResult = await verifySRSForDomains(domains, srsResults)
+
+    // Retry loop for REJECTED FRs — re-spawn SRS agent with skeptic feedback, then re-verify
+    for (let retry = 1; retry <= MAX_VERIFY_RETRIES; retry++) {
+      // Collect REJECTED FRs per domain
+      const rejectedByDomain = {}
+      if (srsVerificationResult) {
+        for (const [domainName, data] of Object.entries(srsVerificationResult.verdicts)) {
+          const rejected = data.frs.filter(f => f.verdict === 'REJECTED')
+          if (rejected.length > 0) {
+            rejectedByDomain[domainName] = rejected
+          }
+        }
+      }
+
+      if (Object.keys(rejectedByDomain).length === 0) break
+
+      log(`SRS-Verify retry ${retry}/${MAX_VERIFY_RETRIES}: ${Object.entries(rejectedByDomain).map(([d, frs]) => `${frs.length} REJECTED in ${d}`).join(', ')}`)
+
+      // For each domain with rejected FRs, re-run SRS agent with targeted feedback
+      for (const [domainName, rejectedFRs] of Object.entries(rejectedByDomain)) {
+        const domain = domains.find(d => d.name === domainName)
+        if (!domain) continue
+
+        // Build targeted feedback from ALL skeptic concerns across all rejected FRs
+        const allConcerns = []
+        const frList = []
+        for (const fr of rejectedFRs) {
+          frList.push(`- **${fr.fr_id}**: REJECTED (${fr.votes.confirmed}/3 confirmed). Concerns: ${fr.concerns.join('; ') || 'insufficient code evidence, weak business interpretation'}`)
+          if (fr.concerns.length > 0) allConcerns.push(...fr.concerns)
+        }
+
+        const retryFeedback = `
+
+## ⚠️ ADVERSARIAL VERIFICATION RETRY (${retry}/${MAX_VERIFY_RETRIES})
+
+The following FRs were **REJECTED** by 3 independent skeptics after adversarial review. You MUST fix these specific issues before re-verification:
+
+${frList.join('\n')}
+
+### Common Concerns Across All Rejected FRs
+${[...new Set(allConcerns)].map(c => `- ${c}`).join('\n')}
+
+### CRITICAL FIX INSTRUCTIONS
+1. **Add specific code evidence** — every claim needs file:line references. Skeptics will spot-check these.
+2. **Verify actor/role** — check auth middleware, permission annotations, role guards in the actual code.
+3. **Expand Gherkin scenarios** — cover error paths, edge cases, and validation failures visible in the code.
+4. **Flag remaining uncertainty** — if something truly cannot be determined from code alone, use UNCERTAINTY flag honestly.
+5. **Do NOT invent evidence** — skeptics will detect fabricated file:line references and reject again.`
+
+        // Re-run SRS agent with retry feedback
+        log(`  Re-running SRS for ${domainName} with verification feedback...`)
+        const retrySRSResult = await agent(srsPrompt(domain, retryFeedback), {
+          label: `SRS: ${domain.name} (verify-retry-${retry})`,
+          phase: 'SRS-Verify',
+          agentType: 'codebase-srs',
+        })
+
+        // Update srsResults so synthesis uses the retried output (Issue #1 fix)
+        const domainIdx = domains.findIndex(d => d.name === domainName)
+        if (domainIdx !== -1) srsResults[domainIdx] = retrySRSResult
+
+        // Re-verify this domain only
+        log(`  Re-verifying ${domainName} after retry...`)
+        const reVerification = await verifySRSForDomains([domain], [retrySRSResult])
+
+        // Merge results back: update the domain's verdicts in the main result
+        if (reVerification && reVerification.verdicts[domainName]) {
+          const oldFRs = srsVerificationResult.verdicts[domainName].frs
+          const newFRs = reVerification.verdicts[domainName].frs
+          const oldStats = srsVerificationResult.verdicts[domainName].stats
+
+          // For FRs that were re-verified, update their verdicts
+          // For FRs not in the new set (was CONFIRMED), keep old verdict
+          const updatedFRs = oldFRs.map(oldFR => {
+            const newFR = newFRs.find(n => n.fr_id === oldFR.fr_id)
+            return newFR || oldFR
+          })
+          // Add any new FRs created during retry
+          for (const newFR of newFRs) {
+            if (!updatedFRs.find(f => f.fr_id === newFR.fr_id)) {
+              updatedFRs.push(newFR)
+            }
+          }
+
+          // Recalculate stats for this domain
+          const newStats = { total: updatedFRs.length, confirmed: 0, uncertain: 0, rejected: 0 }
+          for (const fr of updatedFRs) {
+            if (fr.verdict === 'CONFIRMED') newStats.confirmed++
+            else if (fr.verdict === 'UNCERTAIN') newStats.uncertain++
+            else newStats.rejected++
+          }
+
+          srsVerificationResult.verdicts[domainName] = { frs: updatedFRs, stats: newStats }
+
+          // Update global stats
+          const deltaConfirmed = newStats.confirmed - oldStats.confirmed
+          const deltaUncertain = newStats.uncertain - oldStats.uncertain
+          const deltaRejected = newStats.rejected - oldStats.rejected
+          srsVerificationResult.stats.confirmed += deltaConfirmed
+          srsVerificationResult.stats.uncertain += deltaUncertain
+          srsVerificationResult.stats.rejected += deltaRejected
+        }
+      }
+    }
+
+    // Write back final verdicts to FR files (Issue #4: optimized — only includes sections domain needs)
+    await writebackVerificationVerdicts(srsVerificationResult)
+  } else if (successfulSRS === 0) {
+    log('SRS-Verify: No successful SRS results — skipping verification')
+  }
+
+  // Gate check (Issue #2: moved BEFORE synthesis so gate retry re-verifies before synthesis consumes stale results)
+  const srsGate = await gateCheck('srs', { services, domains },
+    async (fd) => {
+      srsResults = await rerunSRS(fd)
+      // After gate-induced SRS retry, re-verify the updated results
+      const liveCount = srsResults.filter(Boolean).length
+      if (liveCount > 0 && !skipRemaining) {
+        log('Re-verifying SRS after gate retry...')
+        srsVerificationResult = await verifySRSForDomains(domains, srsResults)
+        await writebackVerificationVerdicts(srsVerificationResult)
+      }
+    },
+    domains.map(d => foundationPath + 'features/FR-' + d.name.toUpperCase() + '-*.md')
+  )
+  srsGatePassed = srsGate.passed
+
+  // Cross-domain synthesis (after gate — only on verified, gated, quality-passed FRs)
+  if (successfulSRS > 1 && !skipRemaining) {
     log('Synthesizing cross-domain SRS...')
     const srsSummaries = srsResults.map((r, i) => extractSummary(r, `SRS:${domains[i]?.name || i}`))
-    srsSynthesisResult = await agent(srsSynthesisPrompt(srsSummaries), {
+    srsSynthesisResult = await agent(srsSynthesisPrompt(srsSummaries, srsVerificationResult), {
       label: 'SRS synthesis',
       phase: 'SRS',
       agentType: 'codebase-srs-synthesis',
     })
     log(`SRS synthesis complete — ${countIssues(srsSynthesisResult)} UNCERTAINTY flag(s)`)
-  } else if (successfulSRS === 1) {
-    log('SRS: Single domain — synthesis skipped (no cross-domain patterns to merge)')
+  } else if (successfulSRS === 1 && !skipRemaining) {
+    log('SRS: Single domain — synthesis skipped (domain-level README.md in features/ covers this domain, no cross-domain patterns to merge)')
+  } else if (skipRemaining) {
+    log('SRS: Synthesis skipped (gate exhaustion from SRS phase)')
   }
-
-  // Gate check
-  const srsGate = await gateCheck('srs', { services, domains },
-    async (fd) => { srsResults = await rerunSRS(fd); },
-    domains.map(d => foundationPath + 'features/FR-' + d.name.toUpperCase() + '-*.md')
-  )
-  srsGatePassed = srsGate.passed
 } else if (runSRS && !skipRemaining) {
   log('SRS: No domains detected — cannot infer requirements without domain grouping')
 } else if (skipRemaining) {
@@ -780,6 +1265,10 @@ log(`   ✅ IMP: ${impOk}/${domainCount} domains | Gate: ${impGatePassed ? 'PASS
 log(`   ✅ TST: ${tstOk}/${domainCount} domains | Gate: ${tstGatePassed ? 'PASS' : (tstOk > 0 ? 'FAIL' : 'N/A')}`)
 log(`   📄 Total outputs: ${allOutputs.size} files`)
 log(`   ⚠️ Total warnings: ${allWarnings.length}`)
+if (srsVerificationResult) {
+  const vs = srsVerificationResult.stats
+  log(`   🔍 SRS Verification: ${vs.total} FRs — ${vs.confirmed} CONFIRMED, ${vs.uncertain} UNCERTAIN, ${vs.rejected} REJECTED`)
+}
 log(`   🚦 Gate summary: ${gatePasses} passed, ${gateFails} failed${exhaustedGates.length > 0 ? ` (${exhaustedGates.length} exhausted at ${MAX_RETRIES} retries)` : ''}`)
 
 if (allWarnings.length > 0) {
@@ -855,6 +1344,11 @@ return {
   status: pipelineStatus,
   services: serviceCount,
   domains: domainCount,
+  adversarial: {
+    enabled: true,
+    stats: srsVerificationResult ? srsVerificationResult.stats : null,
+    perDomain: srsVerificationResult ? srsVerificationResult.verdicts : null,
+  },
   artifacts: {
     hld: hldOk,
     lld: { services: lldOk, synthesis: lldSynthOk },

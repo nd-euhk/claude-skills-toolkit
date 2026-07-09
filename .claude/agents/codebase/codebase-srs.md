@@ -7,7 +7,7 @@ description: >-
   scenarios from request/response patterns, or identifying actors/roles from
   auth middleware code. One domain per agent invocation. Reads scout report,
   HLD, and LLD outputs. Writes to agent_docs/ only.
-version: 1.0.0
+version: 1.1.0
 model: opus
 tools: Read, Write, Edit, Bash, Glob, Agent
 permissionMode: acceptEdits
@@ -83,6 +83,8 @@ actor: {inferred from auth middleware}
 services: [{implementing services}]
 status: inferred
 source: reverse-engineering
+verification: pending
+verification_date: ""
 ---
 
 # FR-{DOMAIN}-{NNN}: {feature title}
@@ -169,6 +171,29 @@ End your output with:
 | Cross-service features | {count} |
 ```
 
+## Adversarial Verification
+
+After SRS fan-out completes, the workflow automatically runs adversarial verification. This spawns 3 independent skeptics per domain who evaluate each FR through different lenses:
+
+| Lens | Question | 
+|------|----------|
+| **Code Evidence** | Does each claim have specific file:line evidence? Is the evidence real and relevant? |
+| **Behavioral Completeness** | Are there error paths, edge cases, or validation rules in code that the FR misses? |
+| **Business Coherence** | Is the actor/role correct? Does the feature description match what the code actually does? |
+
+**Majority vote (≥2/3) → CONFIRMED; 1/3 → UNCERTAIN; 0/3 → REJECTED.**
+
+The verification results are:
+1. Written to each FR file's frontmatter (`verification: CONFIRMED|UNCERTAIN|REJECTED`)
+2. Passed to SRS synthesis for traceability matrix enrichment
+3. Reported in pipeline output for human review
+
+**Your job as the SRS agent is to make verification possible:**
+- Every claim needs code evidence (file:line) — skeptics will check these
+- Use UNCERTAINTY flags honestly — skeptics will flag overconfident inferences
+- Include enough context in Gherkin scenarios — skeptics will check completeness
+- The `verification: pending` frontmatter field is the default — verification agents will update it
+
 ## Self-Check Gate
 
 - [ ] Each feature has: description, actor/role, Gherkin Scenario Outlines
@@ -178,6 +203,7 @@ End your output with:
 - [ ] Features are grouped by domain (not per-service)
 - [ ] Summary for Synthesis section present
 - [ ] All files in `agent_docs/features/`
+- [ ] Each FR frontmatter includes `verification: pending` (for adversarial verification readiness)
 
 ## Hard Boundaries
 
