@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# baseline — SDLC Harness: Test Suite Baseline Capture & Comparison
+#
+# Precheck wrapper: detects available runtime (node > python3 > python)
+# and delegates to the appropriate implementation.
+#
+# Usage:
+#   .claude/scripts/baseline parse --framework vitest-json --input /tmp/raw.json ...
+#   .claude/scripts/baseline list-tcs --baseline .work/baselines/20260709-FR-001-BE.json
+#   .claude/scripts/baseline compare --baseline BASE.json --current CUR.json ...
+#
+# Both baseline.js (Node) and baseline.py (Python) produce identical output.
+# Node is preferred for speed; Python is the fallback.
+
+set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+# ── Runtime Detection ───────────────────────────────────────────────────
+
+if command -v node &>/dev/null; then
+    exec node "${SCRIPT_DIR}/baseline.js" "$@"
+elif command -v python3 &>/dev/null; then
+    exec python3 "${SCRIPT_DIR}/baseline.py" "$@"
+elif command -v python &>/dev/null; then
+    exec python "${SCRIPT_DIR}/baseline.py" "$@"
+else
+    echo "ERROR: Neither Node.js nor Python found." >&2
+    echo "Install one to use the baseline harness:" >&2
+    echo "  - Node.js: https://nodejs.org/" >&2
+    echo "  - Python:  https://www.python.org/" >&2
+    exit 1
+fi

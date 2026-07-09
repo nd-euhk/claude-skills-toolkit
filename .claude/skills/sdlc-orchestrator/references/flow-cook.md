@@ -68,33 +68,79 @@ Dựa trên feature specs (FR layer):
 
 ### 4.3: Capture Baseline (trước TDD cycle)
 
-**Trước khi bắt đầu bất kỳ TC nào**, spawn gate agent ở baseline mode để chụp trạng thái test suite:
+**Dùng baseline.py harness script trực tiếp** — không spawn gate subagent. Harness script đảm bảo format nhất quán, không phụ thuộc vào agent tự parse.
 
+#### Bước 4.3a: Detect Framework + Run Tests
+
+```bash
+# Xác định framework và chạy test suite:
+# - Gradle:  ./gradlew :{service}:test
+# - Maven:   ./mvnw test
+# - Jest:    npx jest --json --outputFile=/tmp/baseline-{FR-ID}.json
+# - Vitest:  npx vitest run --reporter=json --outputFile=/tmp/baseline-{FR-ID}.json
+# - pytest:  python -m pytest --json-report --json-report-file=/tmp/baseline-{FR-ID}.json
+# - Go:      go test ./... -v -json > /tmp/baseline-{FR-ID}.json
+# - Rust:    cargo test 2>&1 | tee /tmp/baseline-{FR-ID}.txt
 ```
-Agent({
-  subagent_type: "sdlc-tdd-be-gate",
-  description: "BASELINE: {feature}",
-  permissionMode: "acceptEdits",
-  prompt: "
-    Mode: baseline
-    Feature: {feature}
-    Service: {service}
-    FR-ID: {FR-ID}
-    Date: {YYYYMMDD}
 
-    Capture the current test suite state before TDD cycle begins.
-    Run the full test suite and save baseline to:
-    .work/baselines/{YYYYMMDD}-FR-{ID}-BE.json
+#### Bước 4.3b: Parse bằng baseline.py
 
-    This baseline will be used by GATE light to detect cross-TC interference.
-  "
-})
+```bash
+# JUnit XML (Gradle/Maven — test reports auto-generated):
+.claude/scripts/baseline parse \
+  --framework junit-xml \
+  --test-output-dir {build/test-results/test/ hoặc target/surefire-reports/} \
+  --fr-id {FR-ID} --layer {be|fe} --service {service} --app {app} \
+  --test-command "{test_command}"
+
+# JSON-based frameworks:
+.claude/scripts/baseline parse \
+  --framework {jest-json|vitest-json|pytest-json|go-json|rust-text} \
+  --input /tmp/baseline-{FR-ID}.json \
+  --fr-id {FR-ID} --layer {be|fe} --service {service} --app {app} \
+  --test-command "{test_command}"
 ```
+
+Script tự động:
+- Gán TC IDs (1→N) tuần tự
+- Tạo `tc_index` — map TC ID → method name + status (cho RED agents tham chiếu)
+- Tạo `by_file` — group TCs theo file (cho INTERFERENCE-LIGHT)
+- Trích xuất `pre_existing_failures` — test đã fail trước TDD cycle
+- Ghi file chuẩn `.work/baselines/YYYYMMDD-FR-{ID}-{BE|FE}.json`
+
+#### Bước 4.3c: Verify + Báo cáo
+
+```bash
+.claude/scripts/baseline list-tcs \
+  --baseline .work/baselines/{YYYYMMDD}-FR-{ID}-{BE|FE}.json
+```
+
+Output của `list-tcs` hiển thị:
+- Summary: total / passed / failed / skipped
+- Pre-existing failures (nếu có)
+- Từng file + danh sách TC bên trong (có ID, status, duration)
+
+Sau khi baseline capture hoàn thành:
+- Nếu có pre-existing failures → báo cáo human: "⚠️ Có {N} tests đang fail trước TDD cycle. Đây là pre-existing, không phải interference."
+- Nếu không có pre-existing failures → "✅ Baseline captured: {N} tests, all pass."
 
 Sau khi baseline capture hoàn thành:
 - Verify baseline file đã được tạo: `ls .work/baselines/{YYYYMMDD}-FR-{ID}-BE.json`
 - Nếu có pre-existing failures → báo cáo human: "⚠️ Có {N} tests đang fail trước TDD cycle. Đây là pre-existing, không phải interference."
 - Nếu không có pre-existing failures → "✅ Baseline captured: {N} tests, all pass."
+
+**Baseline Lifecycle Rules:**
+
+| Trigger | Hành động | Lý do |
+|---|---|---|
+| **Cook flow khởi động** | Capture baseline MỚI (step 4.3) | Mỗi lần cook là một TDD cycle mới — cần snapshot pre-TDD state |
+| **Sau khi human fix interference** | KHÔNG re-capture | Baseline gốc vẫn là reference đúng. Nếu fix thành công, broken test pass trở lại → comparison pass. Nếu fix làm thay đổi test name → human xác nhận false positive. |
+| **Sau REFACTOR full** | KHÔNG re-capture | INTERFERENCE-FULL chỉ chạy trong GATE light (trước REFACTOR). GATE full skip INTERFERENCE-FULL vì test có thể đã bị rename/reorg. |
+| **Feature mới cook sau feature cũ** | Capture baseline MỚI (tự động) | Code của feature cũ đã được merge → test suite state mới → baseline mới phản ánh đúng |
+| **Cook lại cùng feature (review feedback)** | Capture baseline MỚI (tự động) | Mỗi lần orchestrator chạy flow-cook là tạo baseline mới với ngày hiện tại |
+| **Sau khi merge lên main** | KHÔNG cần | Baseline là file local `.work/baselines/`, không commit. Lần cook tiếp theo sẽ tự tạo mới. |
+
+**Nguyên tắc:** Baseline là **point-in-time snapshot** của test suite trước TDD cycle. Nó không được update giữa chu kỳ — mục đích duy nhất là để GATE light so sánh pre-TDD vs post-TDD. Mỗi lần cook flow chạy → baseline mới được tạo.
 
 ### 4.4: Per-TC RED Cycle
 
@@ -198,7 +244,7 @@ Agent({
     Tech stack hint: [từ RED agent reports]
 
     Chạy 4 critical gates (L1-L4):
-    - L1: Test Suite + INTERFERENCE-FULL (so sánh baseline, xác định test bị break + culprit TC)
+    - L1: Test Suite + INTERFERENCE-FULL (dùng baseline.py compare để so sánh baseline → current)
     - L2: Hard Boundaries (không cross-service DB access)
     - L3: Query Safety (không raw SQL concatenation)
     - L4: External Call Resilience (timeout + fallback)
@@ -272,13 +318,16 @@ Agent({
     - Files changed: [danh sách cập nhật]
 
     Chạy tất cả 10 gates (L1-L4 + F5-F10):
-    - L1-L4: critical checks (đã pass ở light mode, verify lại)
+    - L1: Test Suite (verify tất cả tests pass — KHÔNG chạy INTERFERENCE-FULL)
+    - L2-L4: critical checks (đã pass ở light mode, verify lại)
     - F5: Integration & Regression
     - F6: Lint & Formatting
     - F7: Coverage
     - F8: Input Validation
     - F9: Error Handling
     - F10: Framework-Specific Compliance
+    
+    ⚠️ INTERFERENCE-FULL bị skip trong GATE full — test có thể đã bị rename/reorg sau REFACTOR.
   "
 })
 ```
@@ -336,10 +385,10 @@ Bước 1: Readiness Check → Bước 2: Grilling → Bước 3: Move to In Pro
                                                           ▼
 Bước 4: TDD Orchestration ─────────────────────────────────────────────┐
 │                                                                       │
-│  ┌─ BASELINE Capture ─────────────────────────────────────────────┐ │
-│  │ sdlc-tdd-be-gate --mode=baseline                                │ │
-│  │   └─ Run test suite → .work/baselines/YYYYMMDD-FR-{ID}-BE.json │ │
-│  └─────────────────────────────────────────────────────────────────┘ │
+│  ┌─ BASELINE Capture (harness script — không spawn agent) ─────────┐ │
+│  │ .claude/scripts/baseline parse ...                                │ │
+│  │   └─ .work/baselines/YYYYMMDD-FR-{ID}-{BE|FE}.json               │ │
+│  └──────────────────────────────────────────────────────────────────┘ │
 │                                                                       │
 │  ┌─ TC-1 ──────────────────────────────────────────────────────────┐ │
 │  │ sdlc-tdd-be-red (mini-orchestrator)                              │ │
