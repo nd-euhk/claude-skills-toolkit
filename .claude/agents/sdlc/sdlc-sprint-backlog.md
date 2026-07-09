@@ -8,6 +8,7 @@ description: >-
   Backlog management only — independent from board and roadmap.
   Writes to .work/backlog.md only.
 model: sonnet
+maxTurn: 15
 tools: Read, Write, Edit, Bash, Glob
 permissionMode: acceptEdits
 hooks:

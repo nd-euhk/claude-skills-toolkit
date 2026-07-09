@@ -7,6 +7,7 @@ description: >-
   Sprint board management only — independent from backlog and roadmap.
   Writes to .work/board.md only.
 model: sonnet
+maxTurn: 15
 tools: Read, Write, Edit, Bash, Glob
 permissionMode: acceptEdits
 hooks:

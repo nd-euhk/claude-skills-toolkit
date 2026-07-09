@@ -8,6 +8,7 @@ description: >-
   Roadmap management only — independent from board and backlog.
   Writes to agent_docs/roadmap.md only.
 model: sonnet
+maxTurn: 15
 tools: Read, Write, Edit, Bash, Glob
 permissionMode: acceptEdits
 hooks:

@@ -9,6 +9,7 @@ description: >-
   for cross-validation. Output is validated against ARCH_OUTPUT_SCHEMA.
 version: 1.0.0
 model: sonnet
+maxTurn: 20
 tools: Read, Write, Glob, Bash
 permissionMode: acceptEdits
 ---

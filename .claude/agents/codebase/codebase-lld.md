@@ -9,6 +9,7 @@ description: >-
   agent_docs/ only. One service per agent invocation.
 version: 1.0.0
 model: opus
+maxTurn: 35
 tools: Read, Write, Edit, Bash, Glob, Agent
 permissionMode: acceptEdits
 ---

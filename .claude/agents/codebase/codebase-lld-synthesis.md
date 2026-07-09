@@ -8,6 +8,7 @@ description: >-
   Reads all per-service LLD outputs. Writes to agent_docs/ only.
 version: 1.0.0
 model: opus
+maxTurn: 30
 tools: Read, Write, Edit, Bash, Glob
 permissionMode: acceptEdits
 ---

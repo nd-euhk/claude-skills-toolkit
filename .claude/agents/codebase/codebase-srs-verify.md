@@ -11,6 +11,7 @@ description: >-
   code verification.
 version: 1.0.0
 model: opus
+maxTurn: 50
 tools: Read, Write, Edit, Bash, Glob, Agent
 permissionMode: acceptEdits
 ---

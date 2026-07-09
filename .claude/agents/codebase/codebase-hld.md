@@ -8,6 +8,7 @@ description: >-
   primary input. Writes to agent_docs/ only.
 version: 1.0.0
 model: opus
+maxTurn: 55
 tools: Read, Write, Edit, Bash, Glob, Agent
 permissionMode: acceptEdits
 ---

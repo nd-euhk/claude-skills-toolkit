@@ -10,6 +10,7 @@ description: >-
   for retry. Phase-aware — loads correct criteria set per phase.
 version: 1.0.0
 model: sonnet
+maxTurn: 15
 tools: Read, Bash
 permissionMode: acceptEdits
 ---

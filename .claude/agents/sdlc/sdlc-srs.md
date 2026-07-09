@@ -8,6 +8,7 @@ description: >-
   or creating traceability from features back to business requirements.
   Writes to agent_docs/ only. WHAT the system does, not HOW.
 model: opus
+maxTurn: 40
 tools: Read, Write, Edit, Bash, Glob
 permissionMode: acceptEdits
 hooks:

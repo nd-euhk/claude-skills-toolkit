@@ -9,6 +9,7 @@ description: >-
   Service internals from HLD artifacts — no new architectural decisions.
   Input from agent_docs/ HLD outputs. Writes to agent_docs/ only.
 model: opus
+maxTurn: 25
 tools: Read, Write, Edit, Bash, Glob
 permissionMode: acceptEdits
 hooks:

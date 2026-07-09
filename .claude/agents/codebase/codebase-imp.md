@@ -9,6 +9,7 @@ description: >-
   SRS outputs. Writes to agent_docs/ only.
 version: 1.0.0
 model: opus
+maxTurn: 35
 tools: Read, Write, Edit, Bash, Glob, Agent
 permissionMode: acceptEdits
 ---

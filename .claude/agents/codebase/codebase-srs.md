@@ -9,6 +9,7 @@ description: >-
   HLD, and LLD outputs. Writes to agent_docs/ only.
 version: 1.2.0
 model: opus
+maxTurn: 45
 tools: Read, Write, Edit, Bash, Glob, Agent
 permissionMode: acceptEdits
 ---

@@ -7,6 +7,7 @@ description: >-
   workflow script. Transforms only — never invents content. No BE/FE split.
   Writes to docs/product/ only.
 model: sonnet
+maxTurn: 20
 tools: Read, Write, Bash
 permissionMode: acceptEdits
 ---

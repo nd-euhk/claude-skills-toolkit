@@ -9,6 +9,7 @@ description: >-
   References IMP specs for feature behavior.
   Input from agent_docs/ IMP outputs. Writes to agent_docs/ only.
 model: opus
+maxTurn: 20
 tools: Read, Write, Edit, Bash, Glob
 permissionMode: acceptEdits
 hooks:

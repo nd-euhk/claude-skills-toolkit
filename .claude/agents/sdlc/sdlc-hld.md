@@ -9,6 +9,7 @@ description: >-
   Architecture only — no implementation details, no code, no per-service internals.
   Input from agent_docs/ SRS outputs. Writes to agent_docs/ only.
 model: opus
+maxTurn: 30
 tools: Read, Write, Edit, Bash, Glob
 permissionMode: acceptEdits
 hooks:

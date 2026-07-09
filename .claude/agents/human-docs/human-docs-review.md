@@ -6,6 +6,7 @@ description: >-
   stale, missing, orphan, diverged. Never modifies any files. Use when checking
   if human docs are up-to-date with agent SSOT.
 model: sonnet
+maxTurn: 15
 tools: Read, Glob, Bash
 permissionMode: acceptEdits
 ---
