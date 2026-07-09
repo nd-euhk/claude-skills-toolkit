@@ -3,14 +3,15 @@ name: sdlc-automation
 description: >-
   SDLC automation — điểm vào cho pipeline tự động hoàn toàn. Phỏng vấn human MỘT
   LẦN duy nhất, sau đó dispatch workflow script chạy autonomously toàn bộ pipeline
-  SRS → HLD → LLD → IMP∥TST hoặc TDD cook cycle (per-TC RED→GREEN→REFACTOR→GATE).
-  Dùng khi human muốn expedite SDLC không cần review từng phase: "tự động hoá task",
-  "auto task", "chạy tự động", "automation pipeline", "autonomous SDLC", "tự động
-  sinh specs", "auto pipeline", "tự động cook", "auto cook", "tự động code",
-  "auto implement", "tự động triển khai code". Khác với sdlc-orchestrator
-  (human-in-the-loop từng phase), skill này chỉ tương tác MỘT LẦN upfront rồi chạy
-  autonomously.
-version: 1.2.1
+  SRS → HLD → LLD → IMP∥TST hoặc TDD cook cycle (baseline → per-TC RED→GREEN→
+  INTERFERENCE-LIGHT→REFACTOR-light → GATE-light+INTERFERENCE-FULL → REFACTOR-full
+  → GATE-full). Dùng khi human muốn expedite SDLC không cần review từng phase:
+  "tự động hoá task", "auto task", "chạy tự động", "automation pipeline",
+  "autonomous SDLC", "tự động sinh specs", "auto pipeline", "tự động cook",
+  "auto cook", "tự động code", "auto implement", "tự động triển khai code".
+  Khác với sdlc-orchestrator (human-in-the-loop từng phase), skill này chỉ
+  tương tác MỘT LẦN upfront rồi chạy autonomously.
+version: 1.3.0
 allowed-tools: Read, Write, Edit, Bash, Glob, Skill, Agent, AskUserQuestion, Workflow
 ---
 
@@ -227,24 +228,27 @@ Dành cho change request trên code hiện có. Nhẹ hơn task flow — impact 
 
 ## Cook Automation Flow
 
-Dành cho code execution từ ready specs. TDD cycle chạy autonomously qua workflow script.
+Dành cho code execution từ ready specs. TDD cycle chạy autonomously qua workflow script với
+baseline capture, INTERFERENCE-LIGHT (per-TC same-file), và INTERFERENCE-FULL (GATE light
+cross-file baseline comparison).
 
-> **Chi tiết đầy đủ** (readiness check, per-TC orchestration, gate strategy, error handling):
+> **Chi tiết đầy đủ** (baseline capture, per-TC orchestration, interference detection, gate strategy, error handling):
 > → `references/cook-flow.md`
 
 **Tóm tắt quy trình:**
 
 1. **Readiness Check** — xác minh task status `ready`, specs đầy đủ (IMP + TST)
-2. **Grilling Cook** — xác nhận service, branch, dependencies, TC ordering
-3. **Move to In Progress** — update board qua `Skill(sprint, "--board")`
-4. **Dispatch TDD Workflow** — autonomous per-TC RED→GREEN→REFACTOR-light → GATE light → REFACTOR full → GATE full
-5. **Code Review** — `Skill(sdlc-review)` trên code mới
-6. **Git Push** — `Skill(git)` commit + push
-7. **Sprint Update** — move `in progress` → `in review` → `done`
+2. **Baseline Capture** — snapshot test suite pre-TDD qua `.claude/scripts/baseline` harness (cho INTERFERENCE detection)
+3. **Grilling Cook** — xác nhận service, branch, dependencies, TC ordering
+4. **Move to In Progress** — update board qua `Skill(sprint, "--board")`
+5. **Dispatch TDD Workflow** — autonomous: baseline → per-TC RED→GREEN→INTERFERENCE-LIGHT→REFACTOR-light → GATE light+INTERFERENCE-FULL → REFACTOR full → GATE full
+6. **Code Review** — `Skill(sdlc-review)` trên code mới
+7. **Git Push** — `Skill(git)` commit + push
+8. **Sprint Update** — move `in progress` → `in review` → `done`
 
 ### Dispatch Cook Workflow
 
-> **Code block + args schema đầy đủ** → `references/cook-flow.md#giai-đoạn-4-dispatch-tdd-workflow`.
+> **Code block + args schema đầy đủ** (bao gồm baseline object) → `references/cook-flow.md#giai-đoạn-4-dispatch-tdd-workflow`.
 > Dispatch fail → `references/error-handling.md#e3`.
 
 ### Monitor & Report
@@ -253,10 +257,11 @@ Workflow chạy autonomously. Khi complete, báo cáo:
 
 ```
 🏁 Cook Automation hoàn thành — [feature name]
-   ✅ TC-1: DONE — [test name] (RED→GREEN→REFACTOR-light)
-   ✅ TC-2: DONE — [test name]
+   📊 Baseline: [N] tests captured (.work/baselines/YYYYMMDD-FR-{ID}-{BE|FE}.json)
+   ✅ TC-1: DONE — [test name] (RED→GREEN→INTERFERENCE-LIGHT→REFACTOR-light)
+   ⚠️ TC-2: INTERFERENCE — [broken test] (cùng file: TC broke another test)
    ⏭️ TC-3: SKIPPED — accidental green
-   🚦 GATE light: PASS (4/4)
+   🚦 GATE light: PASS (4/4) + INTERFERENCE-FULL ✅ (no cross-file interference)
    🔧 REFACTOR full: [N] findings fixed, [M] flagged
    🚦 GATE full: PASS (10/10)
    👀 Code Review: [findings]
@@ -265,6 +270,8 @@ Workflow chạy autonomously. Khi complete, báo cáo:
    🔗 Next: [gợi ý]
 ```
 
+INTERFERENCE-LIGHT phát hiện → dừng pipeline, báo human (revert culprit hoặc fix broken test).
+GATE light L1i INTERFERENCE-FULL → dừng pipeline, báo cáo interference table.
 Gate fail → workflow báo cáo phase nào fail + lý do. Xem `references/error-handling.md#e4`.
 
 ---

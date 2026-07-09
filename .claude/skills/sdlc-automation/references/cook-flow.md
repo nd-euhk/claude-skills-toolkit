@@ -14,7 +14,7 @@ Flow tự động hóa code execution từ ready specs qua TDD cycle. Nhẹ hơn
 
 | Status | Hành động |
 |---|---|
-| **ready** | Tiếp tục Giai đoạn 2 |
+| **ready** | Tiếp tục Giai đoạn 1.5 (Baseline Capture) |
 | **TODO** | Từ chối: "Task chưa có specs đầy đủ. Chạy automation task flow trước." |
 | **in progress** | Cảnh báo: "Task đang được triển khai. Tiếp tục cook hay spawn thêm?" |
 | **review** | Cảnh báo: "Task đang review. Chạy cook lại từ đầu hay chỉ fix review findings?" |
@@ -49,6 +49,79 @@ ls agent_docs/tech-design/*-service.md 2>/dev/null && echo "✅ tech-design" || 
    Đề xuất: Chạy automation task flow để tạo specs trước, hoặc dùng
    sdlc-orchestrator task flow để có human review từng phase.
 ```
+
+---
+
+## Giai đoạn 1.5: Baseline Capture (trước TDD cycle)
+
+**Dùng `.claude/scripts/baseline` harness script trực tiếp** — không spawn gate subagent. Harness script đảm bảo format nhất quán, không phụ thuộc vào agent tự parse.
+
+### 1.5a: Detect Framework + Run Tests
+
+```bash
+# Xác định framework và chạy test suite:
+# - Gradle:  ./gradlew :{service}:test
+# - Maven:   ./mvnw test
+# - Jest:    npx jest --json --outputFile=/tmp/baseline-{FR-ID}.json
+# - Vitest:  npx vitest run --reporter=json --outputFile=/tmp/baseline-{FR-ID}.json
+# - pytest:  python3 -m pytest --json-report --json-report-file=/tmp/baseline-{FR-ID}.json
+# - Go:      go test ./... -v -json > /tmp/baseline-{FR-ID}.json
+# - Rust:    cargo test 2>&1 | tee /tmp/baseline-{FR-ID}.txt
+```
+
+### 1.5b: Parse bằng baseline harness
+
+```bash
+# JUnit XML (Gradle/Maven — test reports auto-generated):
+.claude/scripts/baseline parse \
+  --framework junit-xml \
+  --test-output-dir {build/test-results/test/ hoặc target/surefire-reports/} \
+  --fr-id {FR-ID} --layer {be|fe} --service {service} --app {app} \
+  --test-command "{test_command}"
+
+# JSON-based frameworks:
+.claude/scripts/baseline parse \
+  --framework {jest-json|vitest-json|pytest-json|go-json|rust-text} \
+  --input /tmp/baseline-{FR-ID}.json \
+  --fr-id {FR-ID} --layer {be|fe} --service {service} --app {app} \
+  --test-command "{test_command}"
+```
+
+Script tự động:
+- Gán TC IDs (1→N) tuần tự
+- Tạo `tc_index` — map TC ID → method name + status (cho RED agents tham chiếu)
+- Tạo `by_file` — group TCs theo file (cho INTERFERENCE-LIGHT)
+- Trích xuất `pre_existing_failures` — test đã fail trước TDD cycle
+- Ghi file chuẩn `.work/baselines/YYYYMMDD-FR-{ID}-{BE|FE}.json`
+
+### 1.5c: Verify + Báo cáo
+
+```bash
+.claude/scripts/baseline list-tcs \
+  --baseline .work/baselines/$(date +%Y%m%d)-FR-{ID}-{BE|FE}.json
+```
+
+Output của `list-tcs` hiển thị:
+- Summary: total / passed / failed / skipped
+- Pre-existing failures (nếu có)
+- Từng file + danh sách TC bên trong (có ID, status, duration)
+
+Sau khi baseline capture hoàn thành:
+- Nếu có pre-existing failures → báo cáo human: "⚠️ Có {N} tests đang fail trước TDD cycle. Đây là pre-existing, không phải interference."
+- Nếu không có pre-existing failures → "✅ Baseline captured: {N} tests, all pass."
+
+### Baseline Lifecycle Rules
+
+| Trigger | Hành động | Lý do |
+|---|---|---|
+| **Cook automation khởi động** | Capture baseline MỚI (step 1.5) | Mỗi lần cook là một TDD cycle mới — cần snapshot pre-TDD state |
+| **Sau khi human fix interference** | KHÔNG re-capture | Baseline gốc vẫn là reference đúng. Nếu fix thành công, broken test pass trở lại → comparison pass. |
+| **Sau REFACTOR full** | KHÔNG re-capture | INTERFERENCE-FULL chỉ chạy trong GATE light (trước REFACTOR). GATE full skip INTERFERENCE-FULL vì test có thể đã bị rename/reorg. |
+| **Feature mới cook sau feature cũ** | Capture baseline MỚI (tự động) | Code của feature cũ đã được merge → test suite state mới → baseline mới phản ánh đúng |
+| **Cook lại cùng feature (review feedback)** | Capture baseline MỚI (tự động) | Mỗi lần automation chạy cook flow là tạo baseline mới với ngày hiện tại |
+| **Sau khi merge lên main** | KHÔNG cần | Baseline là file local `.work/baselines/`, không commit. Lần cook tiếp theo sẽ tự tạo mới. |
+
+**Nguyên tắc:** Baseline là **point-in-time snapshot** của test suite trước TDD cycle. Nó không được update giữa chu kỳ — mục đích duy nhất là để GATE light so sánh pre-TDD vs post-TDD. Mỗi lần cook flow chạy → baseline mới được tạo.
 
 ---
 
@@ -132,6 +205,7 @@ Trước khi proceed, xác nhận đã có:
 - [ ] Dependencies đã resolved (không blocked)
 - [ ] TC order đã xác nhận (mặc định risk-priority: CRITICAL → HIGH → MEDIUM → LOW)
 - [ ] Push preference đã xác nhận
+- [ ] Baseline đã captured (Giai đoạn 1.5) — file `.work/baselines/YYYYMMDD-FR-{ID}-{BE|FE}.json` tồn tại
 
 ---
 
@@ -164,6 +238,12 @@ cat agent_docs/frontend/{app}/test-specs/{FR-ID}-test.md
 
 Parse để lấy: TC ID, tên, layer (unit/integration/e2e), risk (CRITICAL|HIGH|MEDIUM|LOW).
 
+Đọc baseline file để lấy TC index (map TC ID → test method name + status):
+
+```bash
+.claude/scripts/baseline list-tcs --baseline .work/baselines/$(date +%Y%m%d)-FR-{ID}-{BE|FE}.json
+```
+
 ### 4.2 Dispatch Workflow Script
 
 ```javascript
@@ -180,6 +260,12 @@ Workflow({
       { id: "TC-2", name: "[test case name]", layer: "integration", risk: "HIGH" },
       // ... tất cả TCs từ TST spec — chạy tuần tự theo thứ tự này
     ],
+    baseline: {
+      path: ".work/baselines/YYYYMMDD-FR-{ID}-{BE|FE}.json",
+      tcIndex: { "1": "TestClass.testMethod (pass)", "2": "...", ... },
+      preExistingFailures: ["TestClass.brokenTest (fail)", ...],
+      byFile: { "path/to/TestFile.java": ["1", "3"], ... },
+    },
     agents: {                                // optional — nếu không có, workflow suy diễn từ layer
       red: "sdlc-tdd-be-red",               // hoặc sdlc-tdd-fe-red cho frontend
       green: "sdlc-tdd-be-green",           // hoặc sdlc-tdd-fe-green
@@ -199,29 +285,45 @@ Workflow script xử lý autonomously toàn bộ TDD cycle — orchestrator ch�
 ### 4.3 Workflow Structure (bên trong script)
 
 ```
-┌─ TC-1 (sdlc-tdd-be-red — mini-orchestrator) ────────────────┐
-│  ├─ Write test → Verify RED → Accidental green?              │
-│  ├─ Spawn sdlc-tdd-be-green (implement tối thiểu)            │
-│  └─ Spawn sdlc-tdd-be-refactor --mode=light (cleanup)        │
-└──────────────────────────────────────────────────────────────┘
-┌─ TC-2 ... TC-N ─────────────────────────────────────────────┐
-│  ...tương tự...                                              │
-└──────────────────────────────────────────────────────────────┘
-┌─ GATE Light ────────────────────────────────────────────────┐
-│  sdlc-tdd-be-gate --mode=light (L1-L4: 4 critical checks)   │
-└──────────────────────────────────────────────────────────────┘
-┌─ REFACTOR Full ─────────────────────────────────────────────┐
-│  sdlc-tdd-be-refactor --mode=full (6 categories + framework) │
-└──────────────────────────────────────────────────────────────┘
-┌─ GATE Full ─────────────────────────────────────────────────┐
-│  sdlc-tdd-be-gate --mode=full (all 10 gates)                │
-└──────────────────────────────────────────────────────────────┘
-┌─ Code Review ───────────────────────────────────────────────┐
-│  Skill(sdlc-review) --code + --full                         │
-└──────────────────────────────────────────────────────────────┘
-┌─ Git Push ──────────────────────────────────────────────────┐
-│  Skill(git) commit + push                                   │
-└──────────────────────────────────────────────────────────────┘
+┌─ BASELINE (pre-captured by orchestrator) ────────────────────────────┐
+│ .work/baselines/YYYYMMDD-FR-{ID}-{BE|FE}.json                         │
+│   ├─ tc_index: map TC ID → method name + status                       │
+│   ├─ by_file: group TCs theo file (cho INTERFERENCE-LIGHT)            │
+│   └─ pre_existing_failures: danh sách test đã fail trước TDD          │
+└───────────────────────────────────────────────────────────────────────┘
+┌─ TC-1 (sdlc-tdd-be-red — mini-orchestrator) ───────────────────────┐
+│  ├─ Write test → Verify RED → Accidental green?                     │
+│  ├─ Spawn sdlc-tdd-be-green (implement tối thiểu)                   │
+│  ├─ INTERFERENCE-LIGHT: chạy test file → có test khác fail?         │
+│  └─ Spawn sdlc-tdd-be-refactor --mode=light (cleanup per-TC)        │
+└─────────────────────────────────────────────────────────────────────┘
+┌─ TC-2 ... TC-N ────────────────────────────────────────────────────┐
+│  ...tương tự...                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+┌─ GATE Light ───────────────────────────────────────────────────────┐
+│  sdlc-tdd-be-gate --mode=light (L1-L4: 4 critical checks)          │
+│    ├─ L1: Test Suite + INTERFERENCE-FULL (baseline comparison)     │
+│    │      Dùng .claude/scripts/baseline compare để so sánh          │
+│    │      baseline → current                                        │
+│    ├─ L2: Hard Boundaries                                           │
+│    ├─ L3: Query Safety                                              │
+│    └─ L4: External Call Resilience                                  │
+└─────────────────────────────────────────────────────────────────────┘
+┌─ REFACTOR Full ────────────────────────────────────────────────────┐
+│  sdlc-tdd-be-refactor --mode=full (6 categories + framework)       │
+└─────────────────────────────────────────────────────────────────────┘
+┌─ GATE Full ────────────────────────────────────────────────────────┐
+│  sdlc-tdd-be-gate --mode=full (all 10 gates)                       │
+│    ⚠️ INTERFERENCE-FULL bị skip — test có thể đã bị rename/reorg   │
+│       sau REFACTOR. L1 chỉ verify: all tests pass (exit code 0),    │
+│       no skipped critical tests.                                    │
+└─────────────────────────────────────────────────────────────────────┘
+┌─ Code Review ──────────────────────────────────────────────────────┐
+│  Skill(sdlc-review) --code + --full                                 │
+└─────────────────────────────────────────────────────────────────────┘
+┌─ Git Push ─────────────────────────────────────────────────────────┐
+│  Skill(git) commit + push                                           │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -264,13 +366,17 @@ README: cập nhật agent_docs/README.md routing table
 |---|---|
 | RED returns BLOCKED (3 sabotage attempts) | Dừng TDD cycle. Báo cáo human: TC nào, lý do. Đề xuất manual check. |
 | RED returns STALE (ambiguous spec) | Dừng TC đó. Báo cáo human. Option: skip TC, tiếp tục TCs khác. |
+| RED returns INTERFERENCE (TC này break test khác trong cùng file) | Dừng TDD cycle. Báo cáo human: broken test, culprit TC, files changed. Human quyết định: revert culprit TC hoặc fix broken test. |
 | GREEN returns STUCK (5 iterations) | Dừng TC đó. Báo cáo: test nào fail, hypothesis. |
-| GATE light FAIL | Báo cáo failures. Workflow tự spawn fix → retry GATE (max 2 lần). Nếu vẫn fail → dừng, báo human. |
+| GATE light L1i detects INTERFERENCE-FULL (cross-file baseline comparison) | Dừng pipeline. Báo cáo human với interference table (broken tests + culprit TCs). Không tự fix. |
+| GATE light FAIL (non-interference) | Báo cáo failures. Workflow tự spawn fix → retry GATE (max 2 lần). Nếu vẫn fail → dừng, báo human. |
 | GATE full FAIL | Tương tự GATE light: fix → retry (max 2). Fail → dừng. |
 | REFACTOR gây test failure | Workflow script tự undo + báo cáo. Orchestrator verify tests pass. |
 | Subagent crash / timeout | Báo cáo human. Option: retry (max 2), skip, hoặc abort pipeline. |
 | Specs thiếu → không thể cook | Từ chối cook. Đề xuất chạy automation task flow. |
 | Board status không phải ready | Route theo bảng readiness check (Giai đoạn 1). |
+| Baseline capture fails (không có test framework) | Báo cáo human: "Không thể capture baseline — kiểm tra test framework." Cook vẫn tiếp tục nhưng không có interference detection. |
+| Baseline file missing khi GATE light chạy | GATE light skip INTERFERENCE-FULL, ghi chú: "No baseline file — interference detection skipped." |
 
 ---
 

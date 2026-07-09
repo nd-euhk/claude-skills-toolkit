@@ -1,11 +1,11 @@
 export const meta = {
   name: 'workflow-sdlc-cook',
-  description: 'Autonomous TDD cook pipeline — per-TC RED→GREEN→REFACTOR-light → GATE light → REFACTOR full → GATE full',
+  description: 'Autonomous TDD cook pipeline — baseline → per-TC RED→GREEN→REFACTOR-light (with INTERFERENCE-LIGHT) → GATE light (with INTERFERENCE-FULL) → REFACTOR full → GATE full',
   phases: [
-    { title: 'TDD Cycle', detail: 'Per-testcase RED → GREEN → REFACTOR-light' },
-    { title: 'GATE Light', detail: '4 critical checks: test suite, boundaries, queries, resilience' },
+    { title: 'TDD Cycle', detail: 'Per-testcase RED → GREEN → INTERFERENCE-LIGHT → REFACTOR-light' },
+    { title: 'GATE Light', detail: '4 critical checks + INTERFERENCE-FULL (baseline comparison)' },
     { title: 'REFACTOR Full', detail: '6 categories: security, data, perf, resilience, observability, quality' },
-    { title: 'GATE Full', detail: 'All 10 gates: L1-L4 + F5-F10' },
+    { title: 'GATE Full', detail: 'All 10 gates: L1-L4 + F5-F10 (INTERFERENCE-FULL skipped)' },
     { title: 'Report', detail: 'Synthesize results, verify all gates, generate final report' },
   ],
 }
@@ -19,6 +19,7 @@ const {
   service = 'unknown-service',
   layer = 'backend',
   testCases = [],
+  baseline = null,
   repoPath = '',
   agents = {},
 } = _args
@@ -29,6 +30,12 @@ const GREEN = agents.green || (layer === 'frontend' ? 'sdlc-tdd-fe-green' : 'sdl
 const REFACTOR = agents.refactor || (layer === 'frontend' ? 'sdlc-tdd-fe-refactor' : 'sdlc-tdd-be-refactor')
 const GATE = agents.gate || (layer === 'frontend' ? 'sdlc-tdd-fe-gate' : 'sdlc-tdd-be-gate')
 
+// ── Baseline info (pre-captured by orchestrator / automation skill) ──
+const BASELINE_PATH = baseline?.path || null
+const BASELINE_TC_INDEX = baseline?.tcIndex || {}
+const BASELINE_PRE_EXISTING = baseline?.preExistingFailures || []
+const BASELINE_BY_FILE = baseline?.byFile || {}
+
 // ═══════════════════════════════════════════
 // SCHEMAS
 // ═══════════════════════════════════════════
@@ -38,7 +45,7 @@ const TC_RESULT = {
   properties: {
     tcId: { type: 'string' },
     tcName: { type: 'string' },
-    status: { type: 'string', enum: ['DONE', 'SKIPPED', 'BLOCKED', 'STALE', 'ERROR'] },
+    status: { type: 'string', enum: ['DONE', 'SKIPPED', 'BLOCKED', 'STALE', 'ERROR', 'INTERFERENCE'] },
     filesChanged: { type: 'array', items: { type: 'string' } },
     testFile: { type: 'string' },
     skipReason: { type: 'string' },
@@ -124,10 +131,30 @@ ${prevSummary}`
 // ═══════════════════════════════════════════
 
 function redAgentPrompt(tc, prevResults) {
-  return `You are the RED phase mini-orchestrator for ONE test case. Write the test, verify it fails, then spawn GREEN + REFACTOR-light.
+  // Baseline context: map test file → known TCs for INTERFERENCE-LIGHT
+  const tcFiles = Object.keys(BASELINE_BY_FILE)
+  const baselineTcList = Object.entries(BASELINE_TC_INDEX)
+    .map(([id, info]) => `  - TC-${id}: ${info}`)
+    .join('\n')
+  const preExistingList = BASELINE_PRE_EXISTING.length > 0
+    ? BASELINE_PRE_EXISTING.map(f => `  - ${f}`).join('\n')
+    : '  (none)'
+
+  return `You are the RED phase mini-orchestrator for ONE test case. Write the test, verify it fails, check for INTERFERENCE-LIGHT, then spawn GREEN + REFACTOR-light.
 
 ${featureContext()}
 ${tcContext(tc, prevResults)}
+
+## Baseline Snapshot (pre-TDD)
+- **Baseline file**: ${BASELINE_PATH || '(no baseline — interference detection unavailable)'}
+- **Pre-existing failures** (NOT caused by this feature):
+${preExistingList}
+
+## Baseline TC Index (all tests before TDD)
+${baselineTcList || '  (no baseline data)'}
+
+## Baseline by File (for INTERFERENCE-LIGHT)
+${tcFiles.map(f => `  - ${f}: TCs [${(BASELINE_BY_FILE[f] || []).join(', ')}]`).join('\n') || '  (no file groupings)'}
 
 ## Required Reading
 - **TST spec**: agent_docs/${layer === 'frontend' ? 'frontend' : 'backend'}/${service}/test-specs/${frId}-test.md
@@ -157,7 +184,22 @@ ${tcContext(tc, prevResults)}
    - Task: Implement MINIMAL code to pass this specific test case
    - Context: TST spec, IMP spec, tech-design, hard-boundaries, conventions
 
-4. **Spawn REFACTOR-light agent** (only if GREEN succeeded):
+4. **INTERFERENCE-LIGHT Check** (only if GREEN succeeded):
+   After GREEN implements code, run ALL tests in the SAME file as this TC to detect same-file interference:
+   - Identify the test file this TC belongs to (use baseline by_file map above)
+   - Run ONLY that test file (not the full suite): e.g. \`npx jest <test-file>\` or \`./gradlew :{service}:test --tests "*"\`
+   - Check results: does any OTHER test (not this TC, not pre-existing failures) now FAIL?
+   - If YES → **this TC's implementation broke another test in the same file**
+     → Return status: INTERFERENCE
+     → Include in errorDetail: which test broke, what assertion failed, what file/line
+   - If NO → proceed to step 5
+
+   **Important rules for INTERFERENCE-LIGHT:**
+   - Pre-existing failures (listed above) are NOT interference — they were already broken
+   - The TC's own test is NOT interference — only OTHER tests in the same file
+   - If no baseline data → run all tests in the same file, flag any unexpected failure as interference
+
+5. **Spawn REFACTOR-light agent** (only if GREEN succeeded + no interference):
    - Agent type: ${REFACTOR}
    - Mode: --mode=light
    - Task: Extract methods/functions, rename for clarity, inline trivial helpers ONLY
@@ -167,11 +209,11 @@ ${tcContext(tc, prevResults)}
 Return a TC_RESULT object with:
 - tcId: "${tc.id}"
 - tcName: "${tc.name}"
-- status: DONE | SKIPPED | BLOCKED | STALE | ERROR
+- status: DONE | SKIPPED | BLOCKED | STALE | ERROR | INTERFERENCE
 - filesChanged: list of all files modified/created
 - testFile: path to the test file created
 - skipReason: if SKIPPED, explain why (accidental green details)
-- errorDetail: if BLOCKED/STALE/ERROR, explain what went wrong`
+- errorDetail: if BLOCKED/STALE/ERROR/INTERFERENCE, explain what went wrong`
 }
 
 function gateAgentPrompt(mode, tcResults, techStackHint) {
@@ -180,6 +222,18 @@ function gateAgentPrompt(mode, tcResults, techStackHint) {
     .join('\n')
 
   const allFiles = [...new Set(tcResults.flatMap(r => r.filesChanged || []))]
+  const culpritInfo = tcResults
+    .filter(r => r.filesChanged && r.filesChanged.length > 0)
+    .map(r => `- ${r.tcId}: ${(r.filesChanged || []).join(', ')}`)
+    .join('\n')
+
+  const baselineSection = BASELINE_PATH
+    ? `## Baseline (for INTERFERENCE-FULL)
+- **Baseline file**: ${BASELINE_PATH}
+- **Pre-existing failures** (exclude from interference): ${BASELINE_PRE_EXISTING.length > 0 ? BASELINE_PRE_EXISTING.join(', ') : 'none'}
+- **Culprit TCs + files changed**:
+${culpritInfo || '  (none)'}`
+    : '## Baseline\n⚠️ No baseline file — INTERFERENCE-FULL will be skipped. Run baseline capture before TDD cycle.'
 
   return `You are a GATE verifier. Run ${mode} mode gate checks on the completed TDD cycle.
 
@@ -191,15 +245,33 @@ ${tcSummary}
 ## All Changed Files
 ${allFiles.map(f => `- ${f}`).join('\n')}
 
+${baselineSection}
+
 ## Tech Stack
 ${techStackHint || 'Detect from project conventions and framework'}
 
-## ${mode === 'light' ? 'LIGHT MODE — 4 Critical Checks' : 'FULL MODE — All 10 Gates'}
+## ${mode === 'light' ? 'LIGHT MODE — 4 Critical Checks + INTERFERENCE-FULL' : 'FULL MODE — All 10 Gates (INTERFERENCE-FULL skipped)'}
 
 ${mode === 'light' ? `
-### L1: Test Suite
-- All tests pass (no failures, no errors, no skipped)
-- Test suite runs to completion without hanging
+### L1: Test Suite + INTERFERENCE-FULL (baseline comparison)
+- Run the full test suite — all tests must pass (exit code 0)
+- All test files from the test spec exist and pass
+- No skipped/disabled tests that should run
+
+**INTERFERENCE-FULL: Cross-file Baseline Comparison**
+
+If baseline file exists (${BASELINE_PATH || 'MISSING'}), use the \`.claude/scripts/baseline compare\` harness:
+1. Re-run tests to get current state (same command as baseline capture)
+2. Run: \`.claude/scripts/baseline compare --baseline ${BASELINE_PATH} --current <current-output> --framework <detected> --culprit "${culpritInfo || 'unknown'}"\`
+3. The script cross-references: baseline pass → current fail = interference
+4. It auto-excludes: pre-existing failures, same-status skipped tests, feature's own new tests
+
+**Interference impact on L1 result:**
+- Tests pass + no interference → L1 PASS ✅
+- Tests pass + interference detected → L1 FAIL ❌ (interference is a hard failure)
+- Tests fail → L1 FAIL ❌
+
+If no baseline file → skip INTERFERENCE-FULL, only run normal L1 checks. Note: "No baseline file — interference detection skipped."
 
 ### L2: Hard Boundaries
 - No cross-service database access
@@ -218,6 +290,12 @@ ${mode === 'light' ? `
 ` : `
 ### L1-L4: Critical Checks (from light mode)
 Re-verify all 4 light gates still pass after refactoring.
+
+**⚠️ INTERFERENCE-FULL is SKIPPED in full mode.** By this point:
+- INTERFERENCE-LIGHT already caught same-file interference per TC
+- INTERFERENCE-FULL in GATE light already caught cross-file interference
+- REFACTOR full may have renamed/reorganized tests → baseline comparison would produce false positives
+- L1 in full mode only verifies: all tests pass (exit code 0), no skipped critical tests
 
 ### F5: Integration & Regression
 - No regressions in existing functionality
@@ -256,7 +334,8 @@ Re-verify all 4 light gates still pass after refactoring.
 - **Tech design**: agent_docs/tech-design/${service}-service.md
 
 ## Return Structured Output
-Return a GATE_RESULT with: mode, status (PASS/FAIL), passed, total, failures array, summary.`
+Return a GATE_RESULT with: mode, status (PASS/FAIL), passed, total, failures array, summary.
+Include INTERFERENCE-FULL details in the result if applicable (broken test table: test name, file:line, baseline, now, likely culprit, files changed by culprit).`
 }
 
 function refactorAgentPrompt(mode, tcResults, gateLightPassed) {
@@ -346,10 +425,15 @@ for (const tc of testCases) {
 
   if (result) {
     tcResults.push(result)
-    const emoji = result.status === 'DONE' ? '✅' : result.status === 'SKIPPED' ? '⏭️' : '❌'
+    const emoji = result.status === 'DONE' ? '✅' : result.status === 'SKIPPED' ? '⏭️' : result.status === 'INTERFERENCE' ? '⚠️' : '❌'
     log(`${emoji} ${result.tcId}: ${result.status} — ${result.tcName}`)
     if (result.filesChanged && result.filesChanged.length > 0) {
       log(`  📄 Files: ${result.filesChanged.join(', ')}`)
+    }
+    if (result.status === 'INTERFERENCE') {
+      allTestsPass = false
+      log(`  ⚠️ INTERFERENCE-LIGHT: ${result.errorDetail || 'TC broke another test in the same file'}`)
+      warnings.push(`${result.tcId} INTERFERENCE-LIGHT: ${result.errorDetail || 'TC broke another test in the same file'}`)
     }
     if (result.status === 'BLOCKED' || result.status === 'STALE' || result.status === 'ERROR') {
       allTestsPass = false
@@ -371,9 +455,10 @@ for (const tc of testCases) {
 // ── TC Summary ──
 const doneCount = tcResults.filter(r => r.status === 'DONE').length
 const skippedCount = tcResults.filter(r => r.status === 'SKIPPED').length
+const interferenceCount = tcResults.filter(r => r.status === 'INTERFERENCE').length
 const failedCount = tcResults.filter(r => ['BLOCKED', 'STALE', 'ERROR'].includes(r.status)).length
 
-log(`\n📊 TC Summary: ${doneCount} DONE, ${skippedCount} SKIPPED, ${failedCount} FAILED`)
+log(`\n📊 TC Summary: ${doneCount} DONE, ${skippedCount} SKIPPED, ${interferenceCount} INTERFERENCE, ${failedCount} FAILED`)
 
 // ═══════════════════════════════════════════
 // TECH STACK DETECTION
@@ -402,10 +487,16 @@ if (!allTestsPass && doneCount === 0) {
     service,
     status: 'failed',
     tcResults,
-    summary: `All ${testCases.length} TCs failed. No tests passed. Cannot proceed to GATE.`,
+    summary: `All ${testCases.length} TCs failed. ${interferenceCount} INTERFERENCE, ${failedCount} BLOCKED/STALE/ERROR. Cannot proceed to GATE.`,
     warnings,
-    nextStep: 'Review TC failures. Fix ambiguous specs or blocked TCs. Retry cook.',
+    nextStep: 'Review TC failures. Fix ambiguous specs, interference, or blocked TCs. Retry cook.',
   }
+}
+
+if (interferenceCount > 0) {
+  log(`⚠️ ${interferenceCount} TC(s) caused INTERFERENCE-LIGHT — pipeline cannot continue`)
+  log('  INTERFERENCE means a TC broke another test in the same file. Human must resolve.')
+  warnings.push(`${interferenceCount} TC(s) caused same-file interference. Review and fix before re-running.`)
 }
 
 if (failedCount > 0) {
@@ -413,14 +504,31 @@ if (failedCount > 0) {
   log('  BLOCKED/STALE TCs will be excluded from GATE checks')
 }
 
+// Stop if INTERFERENCE detected — human must resolve
+if (interferenceCount > 0) {
+  return {
+    flow,
+    featureName,
+    frId,
+    service,
+    status: 'failed',
+    tcResults,
+    summary: `${interferenceCount} TC(s) caused INTERFERENCE-LIGHT (same-file test breakage). Must be resolved by human.`,
+    warnings,
+    nextStep: 'Review INTERFERENCE TCs. Human decides: revert culprit TC or fix broken test. Re-run cook after resolution.',
+  }
+}
+
 // ── Phase 2: GATE Light ──
 phase('GATE Light')
 
-log('🔍 Running GATE light (4 critical checks)...')
+const lightTcFilter = r => r.status !== 'ERROR' && r.status !== 'INTERFERENCE'
+log(`🔍 Running GATE light (4 critical checks + INTERFERENCE-FULL baseline comparison)...`)
+log(`  Baseline: ${BASELINE_PATH || 'MISSING — interference detection skipped'}`)
 
 let gateLightResult = null
 try {
-  gateLightResult = await agent(gateAgentPrompt('light', tcResults.filter(r => r.status !== 'ERROR'), techStackHint), {
+  gateLightResult = await agent(gateAgentPrompt('light', tcResults.filter(lightTcFilter), techStackHint), {
     label: 'GATE-light',
     phase: 'GATE Light',
     agentType: GATE,
@@ -463,7 +571,7 @@ while (gateLightResult.status === 'FAIL' && gateLightRetries < MAX_GATE_RETRIES)
   }
 
   // Re-run GATE light
-  gateLightResult = await agent(gateAgentPrompt('light', tcResults.filter(r => r.status !== 'ERROR'), techStackHint), {
+  gateLightResult = await agent(gateAgentPrompt('light', tcResults.filter(lightTcFilter), techStackHint), {
     label: `GATE-light-retry${gateLightRetries}`,
     phase: 'GATE Light',
     agentType: GATE,
@@ -501,7 +609,7 @@ log('🔧 Running REFACTOR full (6 categories + framework-specific)...')
 
 let refactorResult = null
 try {
-  refactorResult = await agent(refactorAgentPrompt('full', tcResults.filter(r => r.status !== 'ERROR'), true), {
+  refactorResult = await agent(refactorAgentPrompt('full', tcResults.filter(lightTcFilter), true), {
     label: 'REFACTOR-full',
     phase: 'REFACTOR Full',
     agentType: REFACTOR,
@@ -535,7 +643,7 @@ log('🔍 Running GATE full (10 gates)...')
 
 let gateFullResult = null
 try {
-  gateFullResult = await agent(gateAgentPrompt('full', tcResults.filter(r => r.status !== 'ERROR'), techStackHint), {
+  gateFullResult = await agent(gateAgentPrompt('full', tcResults.filter(lightTcFilter), techStackHint), {
     label: 'GATE-full',
     phase: 'GATE Full',
     agentType: GATE,
@@ -575,7 +683,7 @@ while (gateFullResult.status === 'FAIL' && gateFullRetries < MAX_GATE_RETRIES) {
     ))
   }
 
-  gateFullResult = await agent(gateAgentPrompt('full', tcResults.filter(r => r.status !== 'ERROR'), techStackHint), {
+  gateFullResult = await agent(gateAgentPrompt('full', tcResults.filter(lightTcFilter), techStackHint), {
     label: `GATE-full-retry${gateFullRetries}`,
     phase: 'GATE Full',
     agentType: GATE,
@@ -622,8 +730,8 @@ log(`\n${'='.repeat(60)}`)
 log(`🏁 Cook Pipeline: ${overallStatus.toUpperCase()}`)
 log(`${'='.repeat(60)}`)
 log(`📋 ${featureName} (${frId})`)
-log(`🧪 TCs: ${doneCount} DONE, ${skippedCount} SKIPPED, ${failedCount} FAILED`)
-log(`🚦 GATE light: ${gateLightResult.status} (${gateLightResult.passed}/${gateLightResult.total})`)
+log(`🧪 TCs: ${doneCount} DONE, ${skippedCount} SKIPPED, ${interferenceCount} INTERFERENCE, ${failedCount} FAILED`)
+log(`🚦 GATE light: ${gateLightResult.status} (${gateLightResult.passed}/${gateLightResult.total})${BASELINE_PATH ? ' + INTERFERENCE-FULL' : ''}`)
 log(`🔧 REFACTOR: ${refactorResult.findingsFixed} fixed, ${refactorResult.findingsFlagged} flagged`)
 log(`🚦 GATE full: ${gateFullResult.status} (${gateFullResult.passed}/${gateFullResult.total})`)
 log(`📦 ${allFiles.length} files changed`)
@@ -643,14 +751,19 @@ function buildSummary() {
   const parts = []
   parts.push(`${featureName} (${frId}) — ${doneCount}/${testCases.length} TCs DONE`)
   if (skippedCount > 0) parts.push(`${skippedCount} SKIPPED (accidental green)`)
+  if (interferenceCount > 0) parts.push(`${interferenceCount} INTERFERENCE (same-file breakage)`)
   if (failedCount > 0) parts.push(`${failedCount} FAILED`)
-  parts.push(`GATE: ${gateFullResult.status === 'PASS' ? 'ALL PASS' : `${gateFullResult.passed}/${gateFullResult.total}`}`)
+  parts.push(`GATE light: ${gateLightResult.status === 'PASS' ? 'ALL PASS' : `${gateLightResult.passed}/${gateLightResult.total}`}`)
+  parts.push(`GATE full: ${gateFullResult.status === 'PASS' ? 'ALL PASS' : `${gateFullResult.passed}/${gateFullResult.total}`}`)
   return parts.join(' | ')
 }
 
 function buildNextStep(status) {
   if (status === 'completed') {
     return 'All gates PASS. Orchestrator: run code review, git push, sprint update.'
+  }
+  if (interferenceCount > 0) {
+    return `INTERFERENCE-LIGHT detected on ${interferenceCount} TC(s). Human must resolve (revert culprit or fix broken test), then re-run cook.`
   }
   if (status === 'partial') {
     return `GATE full FAIL with ${gateFullResult.passed}/${gateFullResult.total} passed. Review failures manually or re-run cook after fixes.`
