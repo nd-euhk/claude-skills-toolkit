@@ -1,13 +1,13 @@
 export const meta = {
   name: 'codebase-reverse',
-  description: 'Reverse engineer codebase → agent_docs/ with per-service and per-domain fan-out, inter-phase gates with retry (max 3), adversarial SRS verification (3 skeptics per domain), and skip-to-report on gate exhaustion.',
+  description: 'Reverse engineer codebase → agent_docs/ with per-service and per-domain fan-out, inter-phase gates with retry (max 3), adversarial SRS verification (codebase-srs-verify agent with 3-lens analysis per domain), and skip-to-report on gate exhaustion.',
   phases: [
     { title: 'HLD', detail: 'Extract architecture from code (single agent — cross-cutting)' },
     { title: 'Gate:HLD', detail: 'Validate HLD outputs against 6 criteria' },
     { title: 'LLD', detail: 'Fan-out per service + cross-service synthesis' },
     { title: 'Gate:LLD', detail: 'Validate LLD outputs against 5 criteria per service' },
     { title: 'SRS', detail: 'Fan-out per domain + cross-domain synthesis' },
-    { title: 'SRS-Verify', detail: 'Adversarially verify inferred FRs with 3 diverse-lens skeptics per domain' },
+    { title: 'SRS-Verify', detail: 'Adversarially verify inferred FRs with codebase-srs-verify agent (3-lens analysis + Explore subagents) per domain' },
     { title: 'Gate:SRS', detail: 'Validate SRS outputs against 4 criteria per domain' },
     { title: 'IMP+TST', detail: 'Fan-out per domain (IMP ∥ TST per domain concurrently)' },
     { title: 'Gate:IMP+TST', detail: 'Validate IMP (5 criteria) and TST (5 criteria) per domain' },
@@ -235,110 +235,37 @@ const SRS_VERIFY_SCHEMA = {
   required: ["domain", "fr_verdicts"],
 }
 
-// 3 skeptic lenses — different from review skeptics (correctness/security/repro)
-// because we are verifying REQUIREMENTS INFERENCE, not bug finding
-// Each skeptic discovers FR files themselves using Bash/Glob (avoids depending on extractOutputs)
-
-function skepticCodeEvidencePrompt(domain, frGlob) {
-  return `You are a CODE EVIDENCE SKEPTIC. Your job is to verify that each inferred FR has SUFFICIENT code evidence to support its claims.
-
-## Domain: ${domain.name}
-## FR File Pattern: ${frGlob}
-
-## Step 1: Discover FR Files
-Use Bash to list all FR files for this domain:
-  ls ${frGlob}
-Then READ each FR file fully before evaluating.
-
-## Your Lens: CODE EVIDENCE
-For EACH FR in the domain, evaluate:
-
-1. **Evidence Quality**: Does the Code Evidence table cite specific file:line references? Are those references real and verifiable?
-2. **Evidence Sufficiency**: Does each claim in the FR have corresponding evidence? Are there claims without any code reference?
-3. **Evidence Relevance**: Does the cited code actually support the claim, or is it a stretch? Check the code at the cited locations.
-4. **UNCERTAINTY Flag Appropriateness**: Are UNCERTAINTY flags used where evidence is weak? Are there cases where the agent claimed certainty but evidence is thin?
-
-## Verdict per FR:
-- **CONFIRMED**: Strong code evidence — file:line references are specific, relevant, and support all major claims. UNCERTAINTY flags used honestly where needed.
-- **UNCERTAIN**: Evidence exists but is incomplete — some claims lack evidence, or evidence is tangential. Needs human review.
-- **REJECTED**: Evidence is missing, fabricated, or contradicts the FR claims. The FR should be discarded or completely rewritten.
-
-## CRITICAL RULES
-1. READ each FR file fully before evaluating.
-2. Spot-check code at cited file:line references — verify they exist and say what the FR claims.
-3. Flag any FR where evidence looks fabricated (generic references without real code backing).
-4. Be strict but fair — reverse engineering is hard, UNCERTAINTY is a valid outcome.
-5. Return structured output with verdict for EVERY FR in the domain.`
-}
-
-function skepticBehavioralPrompt(domain, frGlob) {
-  return `You are a BEHAVIORAL COMPLETENESS SKEPTIC. Your job is to verify that each inferred FR covers all behavior visible in the code.
+// Single skeptic prompt — delegates to codebase-srs-verify agent which applies
+// all 3 lenses internally (Code Evidence, Behavioral Completeness, Business Coherence)
+// and spawns Explore subagents for deep code verification.
+function verifySRSPrompt(domain, frGlob) {
+  return `Verify all SRS outputs for domain "${domain.name}" using adversarial verification.
 
 ## Domain: ${domain.name}
 ## FR File Pattern: ${frGlob}
 
-## Step 1: Discover FR Files
-Use Bash to list all FR files for this domain:
-  ls ${frGlob}
-Then READ each FR file fully AND the code it references before evaluating.
+## Task
+1. Use \`ls ${frGlob}\` to discover all FR files for this domain
+2. Read every FR file fully
+3. Read scout report at agent_docs/scout-report.md, HLD at agent_docs/architecture.md, and relevant LLD sections
+4. Apply ALL 3 lenses (Code Evidence, Behavioral Completeness, Business Coherence) to EVERY FR
+5. Spawn Explore subagents to verify code evidence claims, find missing error paths, and check auth patterns
+6. Assign each FR a final verdict: CONFIRMED, UNCERTAIN, or REJECTED
+7. Return structured output with verdict for EVERY FR in the domain
 
-## Your Lens: BEHAVIORAL COMPLETENESS
-For EACH FR in the domain, evaluate:
-
-1. **Error Path Coverage**: Does the code have error handling (try/catch, error responses, validation failures) that is NOT reflected in the FR's Gherkin scenarios?
-2. **Edge Case Coverage**: Are there boundary conditions in the code (null checks, empty arrays, zero values, max limits) missing from the FR?
-3. **Happy Path Accuracy**: Does the happy path Gherkin scenario match what the code actually does? Check the endpoint/controller logic.
-4. **Missing Scenarios**: Are there code paths (different HTTP status codes, different business outcomes) that should have Gherkin scenarios but don't?
-
-## Verdict per FR:
-- **CONFIRMED**: FR covers the major code paths — happy path, key error cases, and edge cases visible in code. Gaps are minor or flagged with UNCERTAINTY.
-- **UNCERTAIN**: FR covers the happy path but misses important error/edge cases visible in the code. Needs supplementary scenarios.
-- **REJECTED**: FR fundamentally misrepresents what the code does — wrong behavior described, or critical code paths entirely missing.
-
-## CRITICAL RULES
-1. READ each FR file AND the code it references before evaluating.
-2. Check error responses, validation logic, and edge case handling in the actual code.
-3. The question is: "If a developer read only this FR, would they miss important behavior that exists in the code?"
-4. Return structured output with verdict for EVERY FR in the domain.`
-}
-
-function skepticBusinessPrompt(domain, frGlob) {
-  return `You are a BUSINESS COHERENCE SKEPTIC. Your job is to verify that each inferred FR makes business sense and correctly interprets the code's intent.
-
-## Domain: ${domain.name}
-## FR File Pattern: ${frGlob}
-
-## Step 1: Discover FR Files
-Use Bash to list all FR files for this domain:
-  ls ${frGlob}
-Then READ each FR file fully AND the code it references before evaluating.
-
-## Your Lens: BUSINESS COHERENCE
-For EACH FR in the domain, evaluate:
-
-1. **Actor/Role Accuracy**: Is the inferred actor consistent with auth middleware, permission checks, and guard logic in the code? Does the code suggest a different actor than what the FR claims?
-2. **Feature Description Accuracy**: Does the FR description match what the endpoints/controllers actually do? Or did the agent misinterpret the code's purpose?
-3. **Business Logic Interpretation**: Are business rules correctly inferred? Check: validation logic, workflow steps, state transitions — do they mean what the FR says they mean?
-4. **Plausibility**: Would this feature make sense in a real system? Is the inferred business intent plausible given the code patterns and domain context?
-
-## Verdict per FR:
-- **CONFIRMED**: Business interpretation is sound — actor, description, and business rules align with code behavior. Feature makes sense in this domain.
-- **UNCERTAIN**: Interpretation is plausible but ambiguous — code could support multiple interpretations. Flagged honestly with UNCERTAINTY.
-- **REJECTED**: Business interpretation is wrong — code clearly does something different than described. Wrong actor, wrong feature purpose, or nonsensical business logic inferred.
-
-## CRITICAL RULES
-1. READ each FR file AND the code it references before evaluating.
-2. Check auth middleware, permission annotations, role guards — verify the actor claim.
-3. Check endpoint paths, HTTP methods, request/response shapes — verify the feature description.
-4. The question is: "Would a domain expert agree with this FR, or would they say 'that's not what this code does'?"
-5. Return structured output with verdict for EVERY FR in the domain.`
+## CRITICAL
+- Do NOT skip any FR — every FR in the domain gets a verdict
+- Reasoning MUST reference all 3 lenses and EXPLAIN why the verdict was chosen
+- Concerns MUST be specific and actionable (file:line references, concrete missing scenarios)
+- Spawn Explore subagents strategically (max 5, batch related checks)
+- Be skeptical but fair — reverse engineering is hard, UNCERTAINTY is valid`
 }
 
 /**
  * Run adversarial verification on SRS outputs for all domains.
- * For each domain, 3 independent skeptics review ALL FRs through different lenses.
- * Results are consolidated: ≥2/3 CONFIRMED → CONFIRMED, 1/3 → UNCERTAIN, 0/3 → REJECTED.
- * Updates FR files with verification status in frontmatter.
+ * For each domain, 1 codebase-srs-verify agent applies all 3 skeptic lenses
+ * (Code Evidence, Behavioral Completeness, Business Coherence) and spawns
+ * Explore subagents for deep code verification.
  * Returns consolidated verdicts per domain, passed to SRS synthesis.
  */
 async function verifySRSForDomains(domains, srsResults) {
@@ -353,84 +280,51 @@ async function verifySRSForDomains(domains, srsResults) {
       continue
     }
 
-    log(`SRS-Verify: ${domain.name} — dispatching 3 skeptics...`)
+    log(`SRS-Verify: ${domain.name} — dispatching codebase-srs-verify agent...`)
 
     // Try to extract FR file paths from SRS output (for logging)
     const frFiles = extractOutputs(result).filter(f => f.match(new RegExp(`FR-${domain.name.toUpperCase()}-\\\\d+`)))
     const frGlob = `${foundationPath}features/FR-${domain.name.toUpperCase()}-*.md`
     log(`SRS-Verify: ${domain.name} — FR glob: ${frGlob} (${frFiles.length} path(s) extracted from SRS output)`)
 
-    // 3 independent skeptics, each reviewing ALL FRs for this domain
-    // Each skeptic discovers FR files themselves using the glob pattern
-    const votes = await parallel([
-      () => agent(skepticCodeEvidencePrompt(domain, frGlob), {
-        label: `verify:srs:evidence:${domain.name}`,
-        phase: 'SRS-Verify',
-        agentType: 'general-purpose',
-        schema: SRS_VERIFY_SCHEMA,
-      }),
-      () => agent(skepticBehavioralPrompt(domain, frGlob), {
-        label: `verify:srs:behavioral:${domain.name}`,
-        phase: 'SRS-Verify',
-        agentType: 'general-purpose',
-        schema: SRS_VERIFY_SCHEMA,
-      }),
-      () => agent(skepticBusinessPrompt(domain, frGlob), {
-        label: `verify:srs:business:${domain.name}`,
-        phase: 'SRS-Verify',
-        agentType: 'general-purpose',
-        schema: SRS_VERIFY_SCHEMA,
-      }),
-    ])
+    // Single codebase-srs-verify agent applies all 3 lenses + spawns Explore subagents
+    const verifyResult = await agent(verifySRSPrompt(domain, frGlob), {
+      label: `verify:srs:${domain.name}`,
+      phase: 'SRS-Verify',
+      agentType: 'codebase-srs-verify',
+      schema: SRS_VERIFY_SCHEMA,
+    })
 
-    const validVotes = votes.filter(Boolean)
-    if (validVotes.length < 2) {
-      log(`SRS-Verify: ${domain.name} — WARNING: only ${validVotes.length}/3 skeptics returned results`)
+    if (!verifyResult) {
+      log(`SRS-Verify: ${domain.name} — WARNING: codebase-srs-verify agent returned no results`)
+      continue
     }
 
-    // Consolidate: for each FR, count CONFIRMED votes
-    // Build a map of fr_id → { confirmed: N, verdicts: [...] }
-    const frVoteMap = {}
-    for (const vote of validVotes) {
-      for (const frv of (vote.fr_verdicts || [])) {
-        if (!frVoteMap[frv.fr_id]) {
-          frVoteMap[frv.fr_id] = { confirmed: 0, uncertain: 0, rejected: 0, reasonings: [], concerns: [] }
-        }
-        if (frv.verdict === 'CONFIRMED') frVoteMap[frv.fr_id].confirmed++
-        else if (frv.verdict === 'UNCERTAIN') frVoteMap[frv.fr_id].uncertain++
-        else if (frv.verdict === 'REJECTED') frVoteMap[frv.fr_id].rejected++
-        frVoteMap[frv.fr_id].reasonings.push(`[${frv.verdict}] ${frv.reasoning}`)
-        if (frv.concerns && frv.concerns.length > 0) {
-          frVoteMap[frv.fr_id].concerns.push(...frv.concerns)
-        }
-      }
-    }
+    // Agent produces final verdicts directly (all 3 lenses applied internally, no majority vote needed)
+    const consolidatedFRs = (verifyResult.fr_verdicts || []).map(frv => ({
+      fr_id: frv.fr_id,
+      verdict: frv.verdict,
+      reasonings: [frv.reasoning],
+      concerns: frv.concerns || [],
+    }))
 
-    // Apply majority vote rule
-    const consolidatedFRs = []
-    for (const [frId, counts] of Object.entries(frVoteMap)) {
-      let finalVerdict
-      if (counts.confirmed >= 2) finalVerdict = 'CONFIRMED'
-      else if (counts.confirmed === 1) finalVerdict = 'UNCERTAIN'
-      else finalVerdict = 'REJECTED'
-
-      consolidatedFRs.push({
-        fr_id: frId,
-        verdict: finalVerdict,
-        votes: { confirmed: counts.confirmed, uncertain: counts.uncertain, rejected: counts.rejected },
-        reasonings: counts.reasonings,
-        concerns: counts.concerns,
-      })
-
+    for (const fr of consolidatedFRs) {
       verificationStats.total++
-      if (finalVerdict === 'CONFIRMED') verificationStats.confirmed++
-      else if (finalVerdict === 'UNCERTAIN') verificationStats.uncertain++
+      if (fr.verdict === 'CONFIRMED') verificationStats.confirmed++
+      else if (fr.verdict === 'UNCERTAIN') verificationStats.uncertain++
       else verificationStats.rejected++
-
-      log(`  ${frId}: ${finalVerdict} (${counts.confirmed}/3 confirmed)`)
+      log(`  ${fr.fr_id}: ${fr.verdict}`)
     }
 
-    allVerdicts[domain.name] = { frs: consolidatedFRs, stats: { total: consolidatedFRs.length, confirmed: verificationStats.confirmed, uncertain: verificationStats.uncertain, rejected: verificationStats.rejected } }
+    allVerdicts[domain.name] = {
+      frs: consolidatedFRs,
+      stats: {
+        total: consolidatedFRs.length,
+        confirmed: consolidatedFRs.filter(f => f.verdict === 'CONFIRMED').length,
+        uncertain: consolidatedFRs.filter(f => f.verdict === 'UNCERTAIN').length,
+        rejected: consolidatedFRs.filter(f => f.verdict === 'REJECTED').length,
+      },
+    }
   }
 
   log(`SRS-Verify complete: ${verificationStats.total} FRs — ${verificationStats.confirmed} CONFIRMED, ${verificationStats.uncertain} UNCERTAIN, ${verificationStats.rejected} REJECTED`)
@@ -470,7 +364,7 @@ After the frontmatter, add this section at the END of each REJECTED FR file:
 \`\`\`markdown
 ## ⚠️ Verification Rejected
 
-This FR was **REJECTED** by adversarial verification (0/3 skeptics confirmed).
+This FR was **REJECTED** by adversarial verification.
 
 ### Skeptic Concerns
 ${rejectedEntries.map(([id, v]) => `**${id}**: ${(v.concerns || ['insufficient evidence']).join('; ')}`).join('\n')}
@@ -490,7 +384,7 @@ After the frontmatter, add this section at the END of each UNCERTAIN FR file:
 \`\`\`markdown
 ## ⚠️ Verification Uncertain
 
-This FR was flagged as **UNCERTAIN** by adversarial verification (1/3 skeptics confirmed).
+This FR was flagged as **UNCERTAIN** by adversarial verification.
 
 ### Skeptic Concerns
 ${uncertainEntries.map(([id, v]) => `**${id}**: ${(v.concerns || ['mixed verdict']).join('; ')}`).join('\n')}
@@ -679,15 +573,15 @@ function srsSynthesisPrompt(srsSummaries, verificationResult) {
     verificationContext = `
 
 ## Adversarial Verification Results
-${stats.total} FRs verified by 3 independent skeptics per domain:
-- **${stats.confirmed} CONFIRMED** (≥2/3 skeptics agree)
-- **${stats.uncertain} UNCERTAIN** (1/3 skeptics agree — needs human review)
-- **${stats.rejected} REJECTED** (0/3 skeptics agree — likely false inference)
+${stats.total} FRs verified by codebase-srs-verify agent per domain (3-lens analysis + Explore subagent deep-dive):
+- **${stats.confirmed} CONFIRMED** (all 3 lenses pass — strong evidence, complete behavior, coherent business logic)
+- **${stats.uncertain} UNCERTAIN** (one or more lenses found significant issues — needs human review)
+- **${stats.rejected} REJECTED** (critical failure — evidence missing/fabricated, behavior wrong, or business logic incorrect)
 
 ### Per-Domain Verification Details
 ${Object.entries(verdicts).map(([domain, data]) => {
   const frDetails = data.frs.map(fr =>
-    `  - ${fr.fr_id}: **${fr.verdict}** (${fr.votes.confirmed}/3) — concerns: ${fr.concerns.length > 0 ? fr.concerns.slice(0, 3).join('; ') : 'none'}`
+    `  - ${fr.fr_id}: **${fr.verdict}** — concerns: ${fr.concerns.length > 0 ? fr.concerns.slice(0, 3).join('; ') : 'none'}`
   ).join('\n')
   return `#### ${domain}\n${frDetails}`
 }).join('\n\n')}
@@ -986,7 +880,7 @@ if (runSRS && domainCount > 0 && !skipRemaining) {
   let srsVerificationResult = null
   if (successfulSRS > 0 && !skipRemaining) {
     phase('SRS-Verify')
-    log(`Adversarial SRS verification — 3 skeptics per domain (code-evidence, behavioral-completeness, business-coherence)`)
+    log(`Adversarial SRS verification — codebase-srs-verify agent per domain (3-lens: code-evidence, behavioral-completeness, business-coherence + Explore subagents)`)
 
     // Round 1: verify all domains
     srsVerificationResult = await verifySRSForDomains(domains, srsResults)
@@ -1017,7 +911,7 @@ if (runSRS && domainCount > 0 && !skipRemaining) {
         const allConcerns = []
         const frList = []
         for (const fr of rejectedFRs) {
-          frList.push(`- **${fr.fr_id}**: REJECTED (${fr.votes.confirmed}/3 confirmed). Concerns: ${fr.concerns.join('; ') || 'insufficient code evidence, weak business interpretation'}`)
+          frList.push(`- **${fr.fr_id}**: REJECTED. Concerns: ${fr.concerns.join('; ') || 'insufficient code evidence, weak business interpretation'}`)
           if (fr.concerns.length > 0) allConcerns.push(...fr.concerns)
         }
 
@@ -1025,7 +919,7 @@ if (runSRS && domainCount > 0 && !skipRemaining) {
 
 ## ⚠️ ADVERSARIAL VERIFICATION RETRY (${retry}/${MAX_VERIFY_RETRIES})
 
-The following FRs were **REJECTED** by 3 independent skeptics after adversarial review. You MUST fix these specific issues before re-verification:
+The following FRs were **REJECTED** by adversarial verification (3-lens analysis: Code Evidence, Behavioral Completeness, Business Coherence). You MUST fix these specific issues before re-verification:
 
 ${frList.join('\n')}
 
@@ -1037,7 +931,7 @@ ${[...new Set(allConcerns)].map(c => `- ${c}`).join('\n')}
 2. **Verify actor/role** — check auth middleware, permission annotations, role guards in the actual code.
 3. **Expand Gherkin scenarios** — cover error paths, edge cases, and validation failures visible in the code.
 4. **Flag remaining uncertainty** — if something truly cannot be determined from code alone, use UNCERTAINTY flag honestly.
-5. **Do NOT invent evidence** — skeptics will detect fabricated file:line references and reject again.`
+5. **Do NOT invent evidence** — the verification agent will detect fabricated file:line references and reject again.`
 
         // Re-run SRS agent with retry feedback
         log(`  Re-running SRS for ${domainName} with verification feedback...`)

@@ -7,7 +7,7 @@ description: >-
   scenarios from request/response patterns, or identifying actors/roles from
   auth middleware code. One domain per agent invocation. Reads scout report,
   HLD, and LLD outputs. Writes to agent_docs/ only.
-version: 1.1.0
+version: 1.2.0
 model: opus
 tools: Read, Write, Edit, Bash, Glob, Agent
 permissionMode: acceptEdits
@@ -173,7 +173,7 @@ End your output with:
 
 ## Adversarial Verification
 
-After SRS fan-out completes, the workflow automatically runs adversarial verification. This spawns 3 independent skeptics per domain who evaluate each FR through different lenses:
+After SRS fan-out completes, the workflow automatically runs adversarial verification via the `codebase-srs-verify` agent. This agent applies 3 lenses (Code Evidence, Behavioral Completeness, Business Coherence) to each FR and spawns Explore subagents for deep code verification:
 
 | Lens | Question | 
 |------|----------|
@@ -181,7 +181,7 @@ After SRS fan-out completes, the workflow automatically runs adversarial verific
 | **Behavioral Completeness** | Are there error paths, edge cases, or validation rules in code that the FR misses? |
 | **Business Coherence** | Is the actor/role correct? Does the feature description match what the code actually does? |
 
-**Majority vote (≥2/3) → CONFIRMED; 1/3 → UNCERTAIN; 0/3 → REJECTED.**
+The agent produces a final verdict per FR: CONFIRMED (all lenses pass), UNCERTAIN (some issues found), or REJECTED (critical failure).
 
 The verification results are:
 1. Written to each FR file's frontmatter (`verification: CONFIRMED|UNCERTAIN|REJECTED`)

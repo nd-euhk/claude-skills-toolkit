@@ -96,7 +96,7 @@ Xác nhận scope với human:
    Scope:     {scope}
    Focus:     {focus hoặc "Toàn bộ codebase"}
    Artifacts: {danh sách artifacts}
-   Verify:    Adversarial (3 skeptics per domain)
+   Verify:    Adversarial (codebase-srs-verify agent, 3-lens + Explore subagents)
    Mode:      {dry-run ? "Dry Run" : "Full Generation"}
 
    Pipeline:  Scout → HLD → LLD → SRS → Verify SRS → IMP ∥ TST
