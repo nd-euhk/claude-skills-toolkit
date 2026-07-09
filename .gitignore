@@ -4,6 +4,9 @@
 # Claude Code worktrees (embedded git repos)
 .claude/worktrees/
 
+# Telemetry logs
+.logs/
+
 # Python cache files
 __pycache__/
 *.pyc
