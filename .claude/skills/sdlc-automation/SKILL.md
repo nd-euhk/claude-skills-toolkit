@@ -9,8 +9,9 @@ description: >-
   "tự động hoá task", "auto task", "chạy tự động", "automation pipeline",
   "autonomous SDLC", "tự động sinh specs", "auto pipeline", "tự động cook",
   "auto cook", "tự động code", "auto implement", "tự động triển khai code".
-  Khác với sdlc-orchestrator (human-in-the-loop từng phase), skill này chỉ
-  tương tác MỘT LẦN upfront rồi chạy autonomously.
+  Khác với sdlc-orchestrator (human-in-the-loop từng phase) và sdlc-quick
+  (làn nhanh cho task nhỏ, không specs), skill này chỉ tương tác MỘT LẦN
+  upfront rồi chạy autonomously.
 version: 1.3.0
 allowed-tools: Read, Write, Edit, Bash, Glob, Skill, Agent, AskUserQuestion, Workflow
 ---
@@ -21,12 +22,12 @@ allowed-tools: Read, Write, Edit, Bash, Glob, Skill, Agent, AskUserQuestion, Wor
 toàn diện, sau đó dispatch `workflow-sdlc-automation` chạy autonomously. Bạn
 **không** tự thực thi specs/code — bạn grill, dispatch, và monitor.
 
-| | sdlc-orchestrator | sdlc-automation |
-|---|---|---|
-| **Tương tác** | Từng phase (Plan → Review → Spawn) | Một lần upfront |
-| **Pipeline** | Tuần tự với human gate | Autonomous qua workflow |
-| **Gate checks** | Block sau mỗi phase | Collect + report cuối pipeline |
-| **Phù hợp khi** | Cần review từng bước, domain mới | Đã rõ requirements, muốn expedite |
+| | sdlc-orchestrator | sdlc-automation | sdlc-quick |
+|---|---|---|---|
+| **Tương tác** | Từng phase (Plan → Review → Spawn) | Một lần upfront | **Triage grill (2-3 câu)** |
+| **Pipeline** | Tuần tự với human gate | Autonomous qua workflow | **Không specs, chỉ guard test + GATE-light** |
+| **TDD cycle** | Full (baseline → per-TC RED→GREEN→REFACTOR→GATE 2 lớp) | Full autonomous | **RED→GREEN (1 TC) + GATE-light** |
+| **Phù hợp khi** | Cần review từng bước, domain mới | Đã rõ requirements, muốn expedite | **Task ≤1-2 file, không API/schema/security** |
 
 ---
 
@@ -38,7 +39,7 @@ toàn diện, sau đó dispatch `workflow-sdlc-automation` chạy autonomously. 
 - **Không skip pipeline phases** — SRS → HLD → LLD → IMP∥TST. HLD và LLD có thể được skip với human confirmation
 - **Không tự sửa sprint files** — luôn qua `Skill(sprint, "--all")`. Chỉ được Write `agent_docs/README.md`
 - **Không tự sửa feature specs** — chỉ sdlc-srs và sdlc-lld touch `agent_docs/features/`
-- **Respect human decision** — nếu grilling kết luận automation không phù hợp, đề xuất `sdlc-orchestrator`
+- **Respect human decision** — nếu grilling kết luận automation không phù hợp, đề xuất `sdlc-orchestrator` hoặc `sdlc-quick` (nếu task nhỏ)
 - **Fail-safe** — khi có lỗi không mong đợi, fallback về orchestrator. Xem `references/error-handling.md`
 
 ---
@@ -84,7 +85,7 @@ AskUserQuestion({
       { label: "task", description: "Full spec pipeline: SRS → HLD → LLD → IMP∥TST. Cho feature mới hoặc thay đổi lớn." },
       { label: "cr", description: "Change request: impact analysis + re-spec có chọn lọc. Cho thay đổi nhỏ trên code hiện có." },
       { label: "cook", description: "TDD code execution: per-TC RED→GREEN→REFACTOR→GATE→review→push. Cho code từ ready specs." },
-      { label: "Không phù hợp", description: "Chuyển sang sdlc-orchestrator để có human-in-the-loop" }
+      { label: "Không phù hợp", description: "Chuyển sang sdlc-orchestrator (human-in-the-loop) hoặc sdlc-quick (task nhỏ)" }
     ],
     multiSelect: false
   }]
@@ -94,6 +95,8 @@ AskUserQuestion({
 > **Keyword hint**: Nếu human input chứa "bug"/"lỗi"/"fix" → gợi ý flow phù hợp trong câu hỏi.
 > "tự động"/"auto"/"spec" → mặc định task. "CR"/"change request"/"thay đổi" → cr.
 > "cook"/"code"/"build"/"triển khai code"/"implement code" → cook.
+> **"sửa nhanh"/"typo"/"config"/"minor"/"trivial"/"nhỏ" → gợi ý quick.**
+> Nếu task rõ ràng ≤2 file và không API/schema/security → đề xuất quick thay vì automation.
 
 ### Bước 3: Foundation Gate
 
@@ -297,19 +300,20 @@ Mọi error scenario có structured fallback pattern. Nguyên tắc chung: **fai
 
 ## When NOT to Use Automation
 
-Đề xuất `sdlc-orchestrator` khi:
+Đề xuất `sdlc-orchestrator` hoặc `sdlc-quick` khi:
 
-- **Requirements chưa rõ** — human không trả lời được câu hỏi grilling cốt lõi
-- **Domain mới hoàn toàn** — chưa có project-overview, user-context
-- **High-risk changes** — ảnh hưởng security, billing, data integrity
-- **Team chưa quen SDLC** — cần human review để học quy trình
-- **Human muốn review** — preference cá nhân
+- **Requirements chưa rõ** — human không trả lời được câu hỏi grilling cốt lõi → orchestrator
+- **Domain mới hoàn toàn** — chưa có project-overview, user-context → orchestrator
+- **High-risk changes** — ảnh hưởng security, billing, data integrity → orchestrator
+- **Team chưa quen SDLC** — cần human review để học quy trình → orchestrator
+- **Human muốn review** — preference cá nhân → orchestrator
+- **Task quá nhỏ (≤2 file, không API/schema/security)** — không cần full automation pipeline → **sdlc-quick**
 
 Phát hiện tín hiệu trên trong grilling → dừng, đề xuất:
 
 ```
 ⚠️  Automation không được khuyến nghị: [lý do]
-   Đề xuất: Chuyển sang /sdlc-orchestrator.
+   Đề xuất: [/sdlc-orchestrator hoặc /sdlc-quick tùy theo scope].
    Bạn có muốn chuyển không?
 ```
 

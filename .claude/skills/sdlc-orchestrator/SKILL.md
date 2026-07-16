@@ -1,11 +1,11 @@
 ---
 name: sdlc-orchestrator
 description: >-
-  SDLC orchestrator — điểm vào duy nhất cho mọi quy trình phát triển với
+  SDLC orchestrator — điểm vào chính cho quy trình phát triển với
   human-in-the-loop ở từng phase. Bốn flow: task (full spec pipeline từ
   SRS đến test specs), cr (change request với impact analysis và optional
   re-spec), fixbug (debug → document → fix → verify), cook (thực thi code
-  với review và git push). Dùng khi bắt đầu bất kỳ công việc SDLC nào:
+  với review và git push). Dùng khi bắt đầu công việc SDLC cần full pipeline:
   "triển khai task", "làm task", "implement feature", "thay đổi yêu cầu",
   "change request", "CR", "sửa bug", "fix bug", "debug lỗi", "code task",
   "cook task", "build feature", "triển khai code", hoặc bất kỳ yêu cầu
@@ -20,8 +20,11 @@ allowed-tools: Read, Write, Edit, Bash, Glob, Skill, Agent, EnterPlanMode, ExitP
 
 # SDLC Orchestrator
 
-Bạn là điểm vào DUY NHẤT cho mọi công việc SDLC. Bạn phát hiện intent, route đến
-flow phù hợp, quản lý human-in-the-loop pipeline, và điều phối subagents và skills.
+Bạn là điểm vào CHÍNH cho công việc SDLC cần full pipeline. Với task nhỏ (≤2 file,
+không API/schema/security) → đề xuất `sdlc-quick` — làn nhanh bỏ qua toàn bộ specs,
+chỉ giữ guard test tối thiểu + GATE-light. Với task đã rõ requirements và muốn
+autonomous → `sdlc-automation`. Bạn phát hiện intent, route đến flow phù hợp, quản
+lý human-in-the-loop pipeline, và điều phối subagents và skills.
 Bạn **không bao giờ** tự thực thi specs/code — bạn chỉ điều phối.
 
 Khi flow đã được xác nhận, load file `references/flow-{name}.md` tương ứng để có
@@ -78,20 +81,29 @@ Parse input của human để xác định flow. Match keywords theo thứ tự 
 | "bug", "lỗi", "fix", "sửa lỗi", "debug", "exception", "crash", "500", "400" | **fixbug** | 1 (cao nhất) |
 | "CR", "change request", "thay đổi", "sửa yêu cầu", "update requirement" | **cr** | 2 |
 | "code", "cook", "build", "triển khai code", "implement code", "viết code" | **cook** | 3 |
+| "sửa nhanh", "quick fix", "sửa nhỏ", "đơn giản", "nhỏ", "lặt vặt", "minor", "trivial", "typo", "config", "hotfix nhẹ", "chỉnh text", "đổi màu", "thêm field đơn giản", "sửa validation message" | **→ sdlc-quick** | 3.5 |
 | "task", "triển khai", "làm task", "implement", "spec", "tài liệu", "SRS", "HLD", "LLD" | **task** | 4 (default) |
+
+> **Quick detection rule:** Khi input khớp quick keywords VÀ không chứa dấu hiệu full pipeline
+> ("API", "schema", "migration", "auth", "billing", "service mới", "feature mới") →
+> route sang `sdlc-quick` thay vì chạy full orchestrator pipeline.
+> Hỏi xác nhận: "Task này có vẻ phù hợp với làn nhanh sdlc-quick (≤2 file, không API/schema/security).
+> Xác nhận dùng quick flow?"
 
 > **⚠️ Keyword Overlap Rule:** Match cụm dài nhất trước khi fallback xuống từ đơn.
 > - "triển khai **code**" → cook (không phải task)
 > - "**implement** chức năng" → task (không có "code"/"build")
 > - "**implement code**" → cook
 > - "**fix bug**" → fixbug (priority 1 thắng tất cả)
+> - "**sửa nhanh** lỗi typo" → quick (ưu tiên hơn task)
 >
 > Khi một input khớp nhiều flow, luôn ưu tiên flow có priority cao hơn.
 > Nếu không chắc chắn → `AskUserQuestion` (bên dưới).
 
 **Quyết định:**
 - Intent rõ ràng → thông báo flow đã phát hiện, xin xác nhận nhanh: "Phát hiện flow **{flow}**. Xác nhận để tiếp tục?"
-- Ambiguous (khớp nhiều flow hoặc không khớp flow nào) → `AskUserQuestion`:
+- Trivial task → đề xuất quick: "Task này có vẻ nhỏ. Dùng sdlc-quick (làn nhanh, không specs) hay orchestrator (full pipeline)?"
+- Ambiguous (khớp nhiều flow hoặc không khớp flow nào) → `AskUserQuestion` (4 options — quick đã được pre-filter qua keyword detection, nếu ambiguous thì task không phải quick):
 
 ```javascript
 AskUserQuestion({
@@ -179,6 +191,7 @@ Khi flow đã được xác nhận, load file flow tương ứng và thực thi 
 | **cr** | `references/flow-cr.md` | Change request — impact analysis, optional re-spec. |
 | **fixbug** | `references/flow-fixbug.md` | Debug → document → update specs → fix → verify. |
 | **cook** | `references/flow-cook.md` | Thực thi code từ ready specs qua per-TC TDD cycle (RED→GREEN→REFACTOR-light) → GATE light (4 checks) → REFACTOR full (6 categories) → GATE full (10 gates) → code review → git push. Cook flow là canonical source cho mọi TDD procedure. |
+| **quick** | → `Skill("sdlc-quick")` | Task ≤2 file, không API/schema/security. Bỏ qua specs pipeline, chỉ guard test + GATE-light. Xem `sdlc-quick` SKILL.md. |
 
 ---
 
