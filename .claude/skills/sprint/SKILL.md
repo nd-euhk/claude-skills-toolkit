@@ -213,7 +213,7 @@ Context từ skill gọi: {caller_context}
 Trigger: {new_milestone | sprint_planning | phase_change | timeline_adjustment}
 
 Yêu cầu:
-- Đọc agent_docs/roadmap.md (tạo mới nếu chưa có, dùng template .claude/templates/agt/roadmap-TEMPLATE.md)
+- Đọc agent_docs/roadmap.md (tạo mới nếu chưa có, dùng template .claude/templates/sprint/roadmap-TEMPLATE.md)
 - Đọc agent_docs/features/FR-*.md và agent_docs/features/README.md để biết dependency graph
 - Đọc .work/backlog.md và .work/board.md để tham khảo (không sửa)
 - {specific_action}
@@ -270,4 +270,4 @@ Skill(sprint)    # skill tự đọc file state và quyết định flag nào
 - **Skill này KHÔNG tự sửa file** — mọi Write/Edit là của subagent
 - **Không spawn trùng lặp** — kiểm tra agent đang chạy trước khi spawn
 - **Không merge logic** — mỗi agent giữ nguyên trách nhiệm. Skill này không tổng hợp, không biến đổi output
-- **Template luôn có sẵn** — agent dùng template trong `.claude/templates/sprint/` và `.claude/templates/agt/`
+- **Template luôn có sẵn** — agent dùng template trong `.claude/templates/sprint/` (và `.claude/templates/agt/` cho agent config templates)

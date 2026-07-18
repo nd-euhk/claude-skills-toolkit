@@ -1,89 +1,106 @@
 ---
-title: "Roadmap — {{project_name}}"
-status: draft
+title: "Project Roadmap — {{project_name}}"
+status: active
 created: {{date}}
 last_updated: {{date}}
-updated_by: "{{author}}"
+updated_by: "{{product_owner}}"
 depends_on:
-  - features/README.md
   - architecture.md
-  - ../docs/product/release-criteria.md
 referenced_by:
-  - ../.work/board.md
   - ../.work/backlog.md
+  - ../.work/board.md
 changelog:
-  - "1.0 | {{date}} | Created — {{short_description}}"
+  - "1.0 | {{date}} | Created Baseline Roadmap"
 ---
 
-# Roadmap — {{project_name}}
+# Project Roadmap — {{project_name}}
 
-> Single source of truth for timeline, phases, tasks.
-> `.work/backlog.md` → feature-level view (references this file).
-> `.work/board.md` → current sprint view (references this file).
-
----
-
-## Timeline
-
-```
-                  {{Period 1}}       {{Period 2}}       {{Period 3}}
-                  ┌─────────────────┬─────────────────┬─────────────────┐
-                  │  Sprint 1       │  Sprint 2       │  Sprint 3       │
-                  │  {{Theme}}      │  {{Theme}}      │  {{Theme}}      │
-                  └─────────────────┴─────────────────┴─────────────────┘
-                                                       ▲
-                                                Gate 1: {{name}}
-                                                {{DD/MM/YYYY}}
-```
-
-## Milestones
-
-| Milestone | Target | Gate Criteria | Details |
-|-----------|--------|--------------|---------|
-| **Gate 1: {{Name}}** | {{DD/MM/YYYY}} | {{criteria}} | `{{path}}` |
+> **Project Vision**: {{1-2 câu mô tả mục tiêu tối thượng của dự án, giúp Agent hiểu context sâu hơn để code đúng định hướng}}
+> **Current Phase**: Phase {{N}} - {{Tên Phase}}
 
 ---
 
-## Phase Overview
+## High-Level Phases / Milestones
 
-| Phase | Sprint | Period | Services | Features | Status |
-|-------|--------|--------|----------|----------|--------|
-| 1. {{Phase Name}} | Sprint 1 | {{Weeks X-Y}} | {{services}} | {{features}} | 🔲 Todo |
-| 2. {{Phase Name}} | Sprint 2 | {{Weeks X-Y}} | {{services}} | {{features}} | 🔲 Todo |
+| Phase | Milestone Name | Timeline Target | Key Objective | Status |
+|-------|----------------|-----------------|---------------|--------|
+| **Phase 1** | MVP Foundation | {{MM/YYYY}} | {{Setup base, Auth, Core API}} | 🚧 In Progress |
+| **Phase 2** | Core Features | {{MM/YYYY}} | {{Tích hợp luồng nghiệp vụ chính}} | 🔲 Todo |
+| **Phase 3** | Scale & Optimize| {{MM/YYYY}} | {{Performance, Cache, Analytics}} | 🔲 Todo |
 
 ---
 
-## Phase 1: {{Phase Name}} (Sprint 1 — {{Period}})
+## Epics Tracking (Map to Backlog Features)
 
-> **Goal**: {{Outcome description}}
-> **Verify**: {{Quick verification method}}
+> Epic quản lý các cụm tính năng lớn (Features). Các Features cụ thể sẽ được break down trong `backlog.md`.
 
-| # | Task | Service/Component | Spec | Assignee | Status |
-|---|------|-------------------|------|----------|--------|
-| 1.1 | {{Task}} | {{service}} | `{{spec}}` | {{assignee}} | 🔲 Todo |
-| 1.2 | {{Task}} | {{service}} | `{{spec}}` | {{assignee}} | 🔲 Todo |
+| Epic ID | Epic Name | Description | Phase | Lead / Owner | Status | Success Metrics |
+|---------|-----------|-------------|-------|--------------|--------|-----------------|
+| EPIC-001 | User Identity & Auth | {{Đăng nhập, đăng ký, JWT, RBAC}} | Phase 1 | {{name}} | 🚧 In Progress | User login < 2s |
+| EPIC-002 | {{Tên Epic}} | {{Mô tả}} | Phase {{N}}| {{name}} | 🔲 Todo | {{Metric}} |
+| EPIC-003 | {{Tên Epic}} | {{Mô tả}} | Phase {{N}}| {{name}} | ✅ Done | {{Metric}} |
+
+---
+
+## Core Tech Stack & Global Constraints
+
+> **Agent Instructions:** Các quy định kỹ thuật bất biến. Agent PHẢI tuân thủ các quy định này trong suốt quá trình triển khai Epics.
+
+*   **Frontend**: {{React/Next.js, TailwindCSS}}
+*   **Backend**: {{Node.js/NestJS, PostgreSQL}}
+*   **Infrastructure**: {{Docker, AWS}}
+*   **Code Style Constraints**:
+    *   {{Ví dụ: Luôn sử dụng TypeScript strict mode}}
+    *   {{Ví dụ: API Responses phải bọc trong chuẩn `{ data, message, status }`}}
+    *   {{Ví dụ: Không sử dụng thư viện X, thay vào đó dùng thư viện Y}}
+
+---
+
+## Dependencies & External Integrations
+
+| System / API | Provider | Purpose | Status | Documentation Link |
+|--------------|----------|---------|--------|--------------------|
+| Auth Provider | Auth0 | Quản lý Identity | ✅ Done | `https://auth0.com/docs` |
+| Payment Gateway| Stripe | Thanh toán đơn hàng | 🔲 Todo | `docs/stripe.md` |
 
 ---
 
 ## Feature → Phase Mapping
 
-| Feature ID | Phase | Sprint | Status |
-|-----------|-------|--------|--------|
-| FEAT-{{NNN}} | Phase {{N}} | Sprint {{N}} | 🔲 Todo |
-| FEAT-{{NNN}} | Phase {{N}} | Sprint {{N}} | 🚧 In Progress |
+> Map mỗi Feature ID về Phase/Sprint chứa nó. Giúp trace ngược từ feature → khi nào nó được implement.
+
+| Feature ID | Epic | Phase | Sprint | Status |
+|-----------|------|-------|--------|--------|
+| FEAT-{{NNN}} | EPIC-{{NNN}} | Phase {{N}} | Sprint {{N}} | 🔲 Todo |
+| FEAT-{{NNN}} | EPIC-{{NNN}} | Phase {{N}} | Sprint {{N}} | 🚧 In Progress |
+| FEAT-{{NNN}} | EPIC-{{NNN}} | Phase {{N}} | Sprint {{N}} | ✅ Done |
 
 ---
 
 ## Dependencies Between Phases
 
+> Vẽ dependency graph giữa các phase. Xác định critical path (chuỗi dài nhất không thể song song).
+
 ```
 Phase 1 ({{Name}})
   └──→ Phase 2 ({{Name}})
-         ├──→ Phase 3 ({{Name}})
-         └──→ Phase N ({{Name}})
+         ├──→ Phase 3 ({{Name}}) ← {{lý do phụ thuộc}}
+         │      └──→ Phase N ({{Name}})
+         └──→ Phase N ({{Name}}) ← {{lý do phụ thuộc}}
 ```
 
-**Critical path**: {{Phase 1}} → {{Phase 2}} → {{Phase N}}
+**Critical path**: {{Phase 1}} → {{Phase 2}} → {{...}} → {{Phase N}}
+
+---
+
+## Rollback Plan
+
+> Kịch bản rủi ro và action tương ứng. Mỗi scenario phải có action cụ thể + SLA.
+
+| Scenario | Impact | Action | SLA |
+|----------|--------|--------|-----|
+| {{Mô tả scenario}} | {{Mức độ ảnh hưởng}} | {{Action cụ thể}} | {{Thời gian xử lý}} |
+| {{Mô tả scenario}} | {{Mức độ ảnh hưởng}} | {{Action cụ thể}} | {{Thời gian xử lý}} |
 
 ---
 

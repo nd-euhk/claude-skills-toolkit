@@ -4,23 +4,17 @@ status: draft
 created: {{date}}
 last_updated: {{date}}
 updated_by: "{{author}}"
-
-# --- Traceability ---
 depends_on:
   - ../agent_docs/roadmap.md
-  - dod-dor.md
 referenced_by:
-  - ../.work/board.md
+  - board.md
 changelog:
   - "1.0 | {{date}} | Created — {{short_description}}"
 ---
 
 # Backlog — {{project_name}}
 
-> Single source of truth for feature-level planning — sits between roadmap (epic) and board (task).
-> `agent_docs/roadmap.md` → parent (epic/theme).
-> `.work/board.md` → child (task/story).
-> `dod-dor.md` → DoR criteria for backlog items.
+> Feature-level planning — giữa roadmap (epic) và board (task).
 
 ---
 
@@ -32,92 +26,46 @@ changelog:
 | **Should** | {{N}} | Within 2-3 sprints |
 | **Nice-to-have** | {{N}} | Future |
 
----
+## Feature Summary
 
-## Features: Must (Critical Path)
-
-<!--
-  Must features — cannot ship without these.
-  Each feature has standard format with traceability back to roadmap.
--->
-
-### FEAT-{{NNN}}: {{Feature Name}}
-
-- **Source**: {{Phase N, Task N.N — from roadmap.md}}
-- **Description**: {{1-2 sentences describing the feature — user/business value}}
-- **Priority**: Must
-- **Target Sprint**: Sprint {{N}}
-- **Services**: {{service, service}}
-- **Specs**:
-  - FR: `agent_docs/features/FR-{DOM}-{NNN}--{slug}.md`
-  - Impl: `agent_docs/backend/{svc}/implementation/FR-{DOMAIN}-{NNN}--{slug}-impl.md`
-  - Test: `agent_docs/backend/{svc}/test-specs/FR-{DOMAIN}-{NNN}--{slug}-test.md`
-- **Tasks**: {{N}} tasks (see board.md)
-- **Status**: 🔲 Backlog | 🚧 In Progress | ✅ Done
-- **CRs**: — | CR-{{NNN}}
-
-<!-- Repeat the pattern above for each Must feature -->
+| Status | Count |
+|--------|-------|
+| 🔲 Todo | {{N}} |
+| 🚧 In Progress | {{N}} |
+| ✅ Done | {{N}} |
+| ⛔ Blocked | {{N}} |
+| **Total** | **{{N}}** |
 
 ---
 
-## Features: Should (Important — not blocking)
+## Features: Must / Should
 
-<!--
-  Should features — important but can be deferred if capacity is tight.
-  Same format as Must section.
--->
-
-### FEAT-{{NNN}}: {{Feature Name}}
-
-- **Source**: {{Phase N, Task N.N}}
-- **Description**: {{1-2 sentences}}
-- **Priority**: Should
-- **Target Sprint**: Sprint {{N}}
-- **Services**: {{service}}
-- **Specs**:
-  - FR: `agent_docs/features/FR-{DOM}-{NNN}--{slug}.md`
-- **Tasks**: — (not yet broken down)
-- **Status**: 🔲 Backlog
-- **CRs**: —
+| Feature ID | Name | Priority | Description | Source (Roadmap) | Sprint | Services | Spec | Tasks | Status | CRs |
+|-----------|------|----------|--------------|-------------------|--------|----------|------|-------|--------|-----|
+| FEAT-{{NNN}} | {{Tên}} | Must | {{1 câu}} | Phase {{N}}, Task {{N.N}} | Sprint {{N}} | {{service}} | `FR-{DOM}-{NNN}` | {{N}} (board.md) | 🔲 Todo | — |
+| FEAT-{{NNN}} | {{Tên}} | Should | {{1 câu}} | Phase {{N}}, Task {{N.N}} | Sprint {{N}} | {{service}} | `FR-{DOM}-{NNN}` | — | 🔲 Todo | — |
 
 ---
 
-## Features: Nice-to-Have (Future — no commitment)
+## Features: Nice-to-Have (Future)
 
-<!--
-  Nice-to-have features. No specific target sprint.
-  Shorter format.
--->
-
-| # | Feature | Description | Epic (Roadmap) | Target |
-|---|---------|-------------|----------------|--------|
-| 1 | FEAT-{{NNN}}: {{Name}} | {{1 sentence}} | Phase {{N}} | Future |
-| 2 | FEAT-{{NNN}}: {{Name}} | {{1 sentence}} | Phase {{N}} | Future |
+| Feature ID | Name | Description | Epic (Roadmap) | Target |
+|-----------|------|--------------|-----------------|--------|
+| FEAT-{{NNN}} | {{Tên}} | {{1 câu}} | Phase {{N}} | Future |
 
 ---
 
-## Feature → Epic Mapping (Traceability)
-
-<!--
-  Map each feature back to its epic/theme in roadmap.
-  Used for bottom-up status sync.
--->
+## Feature → Epic Mapping
 
 | Feature ID | Epic (Roadmap) | Phase | Sprint | Status |
 |-----------|----------------|-------|--------|--------|
-| FEAT-{{NNN}} | {{Epic/Theme name}} | Phase {{N}} | Sprint {{N}} | 🔲 Todo |
-| FEAT-{{NNN}} | {{Epic/Theme name}} | Phase {{N}} | Sprint {{N}} | 🚧 In Progress |
-| FEAT-{{NNN}} | {{Epic/Theme name}} | Phase {{N}} | Sprint {{N}} | ✅ Done |
+| FEAT-{{NNN}} | {{Epic/Theme}} | Phase {{N}} | Sprint {{N}} | 🔲 Todo |
 
 ---
 
 ## CR Impact Tracking
 
-<!--
-  Features affected by Change Requests.
-  Update when CRs are approved.
--->
-
 | CR | Feature | Impact | Status |
 |----|---------|--------|--------|
-| CR-{{NNN}} | FEAT-{{NNN}} | {{Spec change, new edge case, etc.}} | 🔲 Pending |
+| CR-{{NNN}} | FEAT-{{NNN}} | {{Spec change, edge case...}} | 🔲 Todo |
+
