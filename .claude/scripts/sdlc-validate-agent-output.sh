@@ -47,6 +47,31 @@ check_path() {
         return 0
       fi
       ;;
+    sdlc-lld-error-handling)
+      if echo "$file_path" | grep -qE '^agent_docs/error-handling\.md$'; then
+        return 0
+      fi
+      ;;
+    sdlc-lld-caching-strategy)
+      if echo "$file_path" | grep -qE '^agent_docs/caching-strategy\.md$'; then
+        return 0
+      fi
+      ;;
+    sdlc-lld-performance-test)
+      if echo "$file_path" | grep -qE '^agent_docs/performance-test\.md$'; then
+        return 0
+      fi
+      ;;
+    sdlc-lld-frontend-architecture)
+      if echo "$file_path" | grep -qE '^agent_docs/frontend-architecture\.md$'; then
+        return 0
+      fi
+      ;;
+    sdlc-lld-frontend-test-strategy)
+      if echo "$file_path" | grep -qE '^agent_docs/frontend-test-strategy\.md$'; then
+        return 0
+      fi
+      ;;
     sdlc-imp)
       if echo "$file_path" | grep -qE '^agent_docs/(backend|frontend)/.*/implementation/'; then
         return 0
