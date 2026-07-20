@@ -77,7 +77,14 @@ Workflow({
     crTitle: "[từ grilling]",
     affectedFRs: ["FR-001", "FR-003"],
     changeDescription: "[tóm tắt thay đổi]",
-    phases: ["SRS", "IMP"],  // chỉ phase bị ảnh hưởng
+    phases: ["SRS", "CROSS-CUTTING", "IMP", "TST"],  // chỉ phase bị ảnh hưởng
+    crossCutting: {
+      errorHandling: true|false,        // CR thay đổi error flows?
+      cachingStrategy: true|false,      // CR thay đổi cache behavior?
+      performanceTest: true|false,      // CR ảnh hưởng NFR targets?
+      frontendArchitecture: true|false, // CR thay đổi frontend patterns?
+      frontendTestStrategy: true|false, // CR ảnh hưởng test strategy?
+    },
     requirements: {
       delta: "[thay đổi chính xác từ grilling]",
       impact: "[impact analysis results]"
@@ -92,5 +99,6 @@ Workflow({
 
 - **Không chạy phase không bị ảnh hưởng** — CR thường chỉ cần SRS delta + IMP delta
 - **HLD/LLD chỉ chạy nếu architecture thay đổi** — new service, new API contract, schema migration
+- **CROSS-CUTTING chạy nếu cross-cutting standards bị ảnh hưởng** — thay đổi error flows, cache strategy, frontend patterns, hoặc NFR targets
 - **TST luôn chạy nếu IMP chạy** — test specs phải reflect CR changes
 - **Impact report là critical artifact** — nó quyết định scope của toàn bộ pipeline

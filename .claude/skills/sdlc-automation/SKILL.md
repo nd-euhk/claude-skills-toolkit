@@ -3,17 +3,17 @@ name: sdlc-automation
 description: >-
   SDLC automation — điểm vào cho pipeline tự động hoàn toàn. Phỏng vấn human MỘT
   LẦN duy nhất, sau đó dispatch workflow script chạy autonomously toàn bộ pipeline
-  SRS → HLD → LLD → IMP∥TST hoặc TDD cook cycle (baseline → per-TC RED→GREEN→
-  INTERFERENCE-LIGHT→REFACTOR-light → GATE-light+INTERFERENCE-FULL → REFACTOR-full
-  → GATE-full). Dùng khi human muốn expedite SDLC không cần review từng phase:
-  "tự động hoá task", "auto task", "chạy tự động", "automation pipeline",
+  SRS → HLD → LLD → CROSS-CUTTING → IMP∥TST hoặc TDD cook cycle (baseline → per-TC
+  RED→GREEN→ INTERFERENCE-LIGHT→REFACTOR-light → GATE-light+INTERFERENCE-FULL →
+  REFACTOR-full → GATE-full). Dùng khi human muốn expedite SDLC không cần review từng
+  phase: "tự động hoá task", "auto task", "chạy tự động", "automation pipeline",
   "autonomous SDLC", "tự động sinh specs", "auto pipeline", "tự động cook",
   "auto cook", "tự động code", "auto implement", "tự động triển khai code".
   Khác với sdlc-orchestrator (human-in-the-loop từng phase) và sdlc-quick
   (làn nhanh cho task nhỏ, không specs), skill này chỉ tương tác MỘT LẦN
   upfront rồi chạy autonomously.
-version: 1.3.0
-allowed-tools: Read, Write, Edit, Bash, Glob, Skill, Agent, AskUserQuestion, Workflow
+version: 1.4.1
+allowed-tools: Read, Write, Edit, Bash, Skill, Agent, AskUserQuestion, Workflow
 ---
 
 # SDLC Automation
@@ -36,7 +36,7 @@ toàn diện, sau đó dispatch `workflow-sdlc-automation` chạy autonomously. 
 - **Bạn grill, không thực thi** — không viết spec content, test cases, hoặc code
 - **Grilling toàn diện bắt buộc** — không dispatch automation khi chưa đủ thông tin
 - **Workflow script là executor** — pipeline chạy trong `.claude/workflows/automation/workflow-sdlc-automation.js`
-- **Không skip pipeline phases** — SRS → HLD → LLD → IMP∥TST. HLD và LLD có thể được skip với human confirmation
+- **Không skip pipeline phases** — SRS → HLD → LLD → [CROSS-CUTTING] → IMP∥TST. HLD, LLD, và CROSS-CUTTING có thể được skip với human confirmation
 - **Không tự sửa sprint files** — luôn qua `Skill(sprint, "--all")`. Chỉ được Write `agent_docs/README.md`
 - **Không tự sửa feature specs** — chỉ sdlc-srs và sdlc-lld touch `agent_docs/features/`
 - **Respect human decision** — nếu grilling kết luận automation không phù hợp, đề xuất `sdlc-orchestrator` hoặc `sdlc-quick` (nếu task nhỏ)
@@ -143,9 +143,10 @@ Dựa trên grilling, xác định phase cần chạy:
 
 | Thay đổi | Phase |
 |---|---|
-| Business requirements mới | SRS → HLD → LLD → IMP∥TST |
-| Service/ADR/boundary mới | HLD → LLD → IMP∥TST |
-| API contract hoặc domain model | LLD → IMP∥TST |
+| Business requirements mới | SRS → HLD → LLD → CROSS-CUTTING → IMP∥TST |
+| Service/ADR/boundary mới | HLD → LLD → CROSS-CUTTING → IMP∥TST |
+| API contract hoặc domain model | LLD → CROSS-CUTTING → IMP∥TST |
+| Cross-cutting standards (error-handling, caching, frontend, performance) | CROSS-CUTTING (sau LLD) |
 | Chỉ implementation detail | IMP∥TST |
 | Chỉ test coverage | TST |
 
@@ -177,7 +178,14 @@ Workflow({
     flow: "task",
     featureName: "[từ grilling]",
     featureDescription: "[tóm tắt]",
-    phases: ["SRS", "HLD", "LLD", "IMP", "TST"],  // chỉ phase được chọn
+    phases: ["SRS", "HLD", "LLD", "CROSS-CUTTING", "IMP", "TST"],  // chỉ phase được chọn
+    crossCutting: {
+      errorHandling: true,           // từ architecture.md scope detection hoặc grilling
+      cachingStrategy: true|false,   // có Redis/Caffeine trong architecture.md §6?
+      performanceTest: true|false,   // có NFR-PERF-* targets trong SRS?
+      frontendArchitecture: true|false,  // có frontend service trong architecture.md?
+      frontendTestStrategy: true|false,  // frontend-architecture + FE test configured?
+    },
     requirements: {
       businessRequirements: "[từ Round 1]",
       nfrs: "[từ Round 2]",
@@ -201,6 +209,7 @@ Workflow chạy autonomously. Khi complete, báo cáo:
    ✅ SRS: [FR-IDs] — [file]
    ✅ HLD: [ADRs, diagrams] (nếu chạy)
    ✅ LLD: [work packages] (nếu chạy)
+   ✅ CROSS-CUTTING: [error-handling, caching, performance, frontend-arch, frontend-test] (nếu chạy)
    ✅ IMP: [spec files]
    ✅ TST: [spec files]
    🚦 Gates: [PASS/FAIL] ([N]/[M] criteria met)
