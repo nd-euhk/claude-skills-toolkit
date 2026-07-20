@@ -284,7 +284,7 @@ Each skill maintains its own independent semantic version (in `SKILL.md` frontma
 - **plugin-creator**: 1.7.0
 - **subagent-creator**: 1.4.0
 - **hook-creator**: 2.4.0
-- **Plugin**: 2.14.0
+- **Plugin**: 2.17.0
 
 These are independent tracking systems, NOT a hierarchy.
 
