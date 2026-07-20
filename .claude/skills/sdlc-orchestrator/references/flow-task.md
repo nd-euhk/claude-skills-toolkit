@@ -46,6 +46,7 @@ Dựa trên grilling, xác định phase cần chạy:
 | API contract hoặc domain model thay đổi | LLD → IMP∥TST |
 | Chỉ implementation detail thay đổi | IMP∥TST |
 | Chỉ test coverage bổ sung | TST |
+| Thêm/cập nhật cross-cutting standards (error-handling, caching, frontend, performance) | CROSS-CUTTING (sau LLD) |
 
 **Không chạy phase không bị ảnh hưởng.** Xác nhận scope với human trước khi proceed.
 
@@ -53,7 +54,7 @@ Dựa trên grilling, xác định phase cần chạy:
 
 Chạy các phase đã xác định theo Specs Pipeline trong SKILL.md.
 
-**Pipeline sequence:** SRS → (optional HLD) → (optional LLD) → IMP ∥ TST
+**Pipeline sequence:** SRS → (optional HLD) → (optional LLD) → [optional CROSS-CUTTING] → IMP ∥ TST
 
 ### 4.1: Human-in-the-Loop mỗi Phase
 
@@ -124,7 +125,71 @@ Agent({ subagent_type: "sdlc-tst", ... })  // Gate: Section 4.5
 // Đợi cả hai finish → verify gates độc lập
 ```
 
-### 4.3: Error Handling trong Pipeline
+### 4.3: Cross-Cutting Phase (sau LLD, trước IMP∥TST)
+
+Sau khi LLD hoàn thành, phát hiện và chạy cross-cutting phase để sinh các file chuẩn toàn hệ thống.
+
+#### Scope Detection Logic
+
+Tự động phát hiện file nào cần sinh dựa trên file thực tế:
+
+| File | Điều kiện chạy | Cách phát hiện |
+|---|---|---|
+| `error-handling.md` | Luôn nếu có ≥1 backend service | Đọc `architecture.md` §1 — nếu có backend service |
+| `caching-strategy.md` | Nếu cache infrastructure được khai báo | Đọc `architecture.md` §6 — nếu có Redis/Caffeine/CacheConfig |
+| `performance-test.md` | Nếu SRS có NFR performance targets | Đọc `features/FR-*.md` — tìm NFR-PERF-* với p95/QPS targets |
+| `frontend-architecture.md` | Nếu có frontend service | Đọc `architecture.md` §1 — nếu có frontend service |
+| `frontend-test-strategy.md` | Nếu frontend-architecture được chọn + FE test configured | Chỉ chạy nếu `frontend-architecture` được chọn ở scope detection |
+
+**Stage 2 trigger:** `frontend-test-strategy` chỉ chạy nếu cả `frontend-architecture` + `error-handling` được chọn ở Stage 1.
+
+#### Two-Stage Spawn
+
+Stage 1 (4 agent song song) — barrier — Stage 2 (1 agent):
+
+```
+Stage 1 (∥):
+  sdlc-lld-error-handling
+  sdlc-lld-caching-strategy     ← chỉ spawn nếu scope detection quyết định cần
+  sdlc-lld-performance-test      ← chỉ spawn nếu scope detection quyết định cần
+  sdlc-lld-frontend-architecture ← chỉ spawn nếu scope detection quyết định cần
+
+Barrier: đợi error-handling + frontend-architecture hoàn thành (nếu frontend-test-strategy được chọn)
+
+Stage 2:
+  sdlc-lld-frontend-test-strategy ← chỉ spawn nếu frontend-architecture + error-handling đã chọn
+```
+
+#### 8-Step Pattern (rút gọn)
+
+Vì scope được phát hiện tự động từ file, human chủ yếu xác nhận:
+
+1. **EnterPlanMode** — đề xuất scope: những file nào sẽ được sinh, dựa trên scope detection logic
+2. **Đọc context** — `architecture.md` §1+§6, `features/FR-*.md` (NFRs), `tech-design/*-service.md`
+3. **Spawn Plan agent** — mô tả scope đã phát hiện, expected outputs
+4. **Đợi human review** — approve/revise scope (thêm/bớt file)
+5. **ExitPlanMode**
+6. **Spawn agents** — Stage 1 (∥ 4 agent) → barrier → Stage 2 (1 agent nếu cần)
+7. **Verify gate** — `references/procedures.md` → Section 4.3b
+8. **Report progress** — dùng cross-cutting report template
+
+#### Spawn Templates
+
+**Stage 1 (song song):**
+```
+// Spawn đồng thời các agent được chọn
+Agent({ subagent_type: "sdlc-lld-error-handling", description: "Error handling standards", permissionMode: "acceptEdits" })
+Agent({ subagent_type: "sdlc-lld-caching-strategy", description: "Caching strategy", permissionMode: "acceptEdits" })
+Agent({ subagent_type: "sdlc-lld-performance-test", description: "Performance test plan", permissionMode: "acceptEdits" })
+Agent({ subagent_type: "sdlc-lld-frontend-architecture", description: "Frontend architecture", permissionMode: "acceptEdits" })
+```
+
+**Stage 2 (sau barrier, nếu cần):**
+```
+Agent({ subagent_type: "sdlc-lld-frontend-test-strategy", description: "Frontend test strategy", permissionMode: "acceptEdits" })
+```
+
+### 4.4: Error Handling trong Pipeline
 
 | Tình huống | Hành động |
 |---|---|
@@ -134,7 +199,7 @@ Agent({ subagent_type: "sdlc-tst", ... })  // Gate: Section 4.5
 | Ambiguous board status | Xem `references/procedures.md` → Section 5.4 |
 | Pipeline abort | Xem `references/procedures.md` → Section 5.5 |
 
-### 4.4: Retry Pattern
+### 4.5: Retry Pattern
 
 Khi subagent fail và human chọn retry:
 1. Giữ nguyên context — không xóa outputs hiện có
@@ -168,12 +233,15 @@ Orchestrator:
      - NFR: p95 < 500ms, availability 99.9%
      - Service mới: không (thêm vào auth service hiện có)
      → HLD optional (không có service mới)
-  3. Scope: SRS → (skip HLD) → LLD → IMP∥TST
+  3. Scope: SRS → (skip HLD) → LLD → CROSS-CUTTING → IMP∥TST
   4. Pipeline execution:
      - SRS: EnterPlanMode → Plan → Approve → sdlc-srs → Gate PASS
        → FR-AUTH-004: OAuth2 Login
      - LLD: EnterPlanMode → Plan → Approve → sdlc-lld → Gate PASS
        → auth-service.md updated (thêm OAuth2 section)
+     - CROSS-CUTTING: Scope detection → error-handling (backend exists) + caching-strategy (Redis declared)
+       → Stage 1 ∥ 2 agents → Gate PASS
+       → error-handling.md + caching-strategy.md
      - IMP∥TST: spawn song song → cả hai Gate PASS
      - Report: "✅ Pipeline hoàn thành. Next: flow cook để code."
   5. Sprint: board moved TODO → ready, backlog updated

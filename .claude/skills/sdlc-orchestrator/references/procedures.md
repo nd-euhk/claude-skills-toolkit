@@ -8,7 +8,7 @@ cho subagent, thực thi shared steps, kiểm tra gate pass/fail, hoặc debug f
 
 ## 1. Agent Spawn Templates
 
-### 1.1 Specs Pipeline (SRS/HLD/LLD/IMP/TST)
+### 1.1 Specs Pipeline (SRS/HLD/LLD/CROSS-CUTTING/IMP/TST)
 
 ```
 Agent({
@@ -26,6 +26,97 @@ Agent({
   "
 })
 ```
+
+#### Cross-Cutting Phase — Two-Stage Spawn
+
+Sau LLD, cross-cutting agents chạy theo 2 stage:
+
+**Stage 1 (∥ 4 agent song song):**
+```
+// Spawn đồng thời các agent được chọn từ scope detection
+Agent({
+  subagent_type: "sdlc-lld-error-handling",
+  description: "Error handling standards",
+  permissionMode: "acceptEdits",
+  prompt: "
+    [Approved plan từ human review]
+    Context: agent_docs/architecture.md §1+§6, agent_docs/contracts/api-conventions.md,
+             agent_docs/contracts/error-codes.md, agent_docs/tech-design/*-service.md §9
+    Expected output: agent_docs/error-handling.md
+    Template: templates/supporting/error-handling-TEMPLATE.md
+    Gate: Section 4.3b
+    Làm theo procedure của bạn. Self-check gate trước khi finish.
+  "
+})
+Agent({
+  subagent_type: "sdlc-lld-caching-strategy",
+  description: "Caching strategy",
+  permissionMode: "acceptEdits",
+  prompt: "
+    [Approved plan từ human review]
+    Context: agent_docs/architecture.md §1+§6, agent_docs/tech-design/*-service.md §7
+    Expected output: agent_docs/caching-strategy.md
+    Template: templates/supporting/caching-strategy-TEMPLATE.md
+    Gate: Section 4.3b
+    Làm theo procedure của bạn. Self-check gate trước khi finish.
+  "
+})
+Agent({
+  subagent_type: "sdlc-lld-performance-test",
+  description: "Performance test plan",
+  permissionMode: "acceptEdits",
+  prompt: "
+    [Approved plan từ human review]
+    Context: agent_docs/architecture.md §1, agent_docs/features/FR-*.md (NFR-PERF-*),
+             agent_docs/tech-design/*-service.md §8
+    Expected output: agent_docs/performance-test.md
+    Template: templates/supporting/performance-test-TEMPLATE.md
+    Gate: Section 4.3b
+    Làm theo procedure của bạn. Self-check gate trước khi finish.
+  "
+})
+Agent({
+  subagent_type: "sdlc-lld-frontend-architecture",
+  description: "Frontend architecture",
+  permissionMode: "acceptEdits",
+  prompt: "
+    [Approved plan từ human review]
+    Context: agent_docs/architecture.md §1 (frontend services),
+             agent_docs/frontend/{app}/api-routing.md, agent_docs/hard-boundaries.md
+    Expected output: agent_docs/frontend-architecture.md
+    Template: templates/supporting/frontend-architecture-TEMPLATE.md
+    Gate: Section 4.3b
+    Làm theo procedure của bạn. Self-check gate trước khi finish.
+  "
+})
+```
+
+**Barrier:** Đợi error-handling + frontend-architecture hoàn thành (nếu frontend-test-strategy được chọn).
+
+**Stage 2 (1 agent):**
+```
+Agent({
+  subagent_type: "sdlc-lld-frontend-test-strategy",
+  description: "Frontend test strategy",
+  permissionMode: "acceptEdits",
+  prompt: "
+    [Approved plan từ human review]
+    Context: agent_docs/frontend-architecture.md (required — defines patterns),
+             agent_docs/error-handling.md (error UX mappings),
+             agent_docs/frontend/{app}/api-routing.md
+    Expected output: agent_docs/frontend-test-strategy.md
+    Template: templates/supporting/frontend-test-strategy-TEMPLATE.md
+    Gate: Section 4.3b
+    Làm theo procedure của bạn. Self-check gate trước khi finish.
+  "
+})
+```
+
+**Quy tắc:**
+- Mỗi agent chỉ spawn nếu scope detection xác định cần
+- Stage 2 chỉ chạy nếu cả frontend-architecture + error-handling đã chọn ở Stage 1
+- Gate criteria: Section 4.3b
+- Retry: mỗi agent độc lập — nếu 1 agent fail, agent khác vẫn tiếp tục
 
 ### 1.2 TDD Fix Cycle — fixbug
 
@@ -149,16 +240,17 @@ pipeline: task | cr
 
 ## Active Features
 
-| FR-ID | Title | Status | SRS | HLD | LLD | IMP | TST | Sprint |
+| FR-ID | Title | Status | SRS | HLD | LLD | CROSS | IMP | TST | Sprint |
 |---|---|---|---|---|---|---|---|---|
-| FR-AUTH-001 | Login | specs-ready | ✅ | ✅ | ✅ | ✅ | ✅ | Sprint 2 |
-| FR-ORDER-003 | Payment | in-spec | ✅ | ✅ | ⬜ | ⬜ | ⬜ | Sprint 3 |
+| FR-AUTH-001 | Login | specs-ready | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | Sprint 2 |
+| FR-ORDER-003 | Payment | in-spec | ✅ | ✅ | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ | Sprint 3 |
 
 ## Pipeline Status
 
 - **Last SRS run**: YYYY-MM-DD (FR-xxx)
 - **Last HLD run**: YYYY-MM-DD
 - **Last LLD run**: YYYY-MM-DD
+- **Last Cross-Cutting run**: YYYY-MM-DD
 - **Last IMP run**: YYYY-MM-DD
 - **Last TST run**: YYYY-MM-DD
 - **Last cook**: YYYY-MM-DD (FR-xxx, commit abc123)
@@ -285,6 +377,15 @@ Orchestrator kiểm tra subagent self-check report sau mỗi phase. Nếu gate f
 - [ ] Không có architectural decisions mới (thuộc HLD)
 - [ ] Mỗi FR có work package với routing overlay
 
+### 4.3b Cross-Cutting Gate
+- [ ] `error-handling.md`: error taxonomy ≥8 categories, HTTP status mapping, security rules (nếu applicable)
+- [ ] `caching-strategy.md`: cache architecture L0-L3, inventory per service (nếu applicable)
+- [ ] `performance-test.md`: NFR targets quantified, 5 test types (nếu applicable)
+- [ ] `frontend-architecture.md`: rendering strategy, state management, data fetching (nếu applicable)
+- [ ] `frontend-test-strategy.md`: test pyramid, MSW patterns, coverage targets (nếu applicable)
+- [ ] Tất cả file YAML frontmatter có `depends_on` + `referenced_by`
+- [ ] File được chọn = file được sinh (không thiếu, không thừa)
+
 ### 4.4 IMP Gate
 - [ ] Execution flow cho mỗi feature (step-by-step)
 - [ ] Business rules mapped đến code paths
@@ -384,6 +485,19 @@ Sau MỖI phase completion, báo cáo cho human:
    ⚠️  Issues: [list issues hoặc "Không có"]
 ```
 
+#### Cross-Cutting After-Phase Report
+
+```
+✅ Cross-Cutting hoàn thành
+   📄 error-handling.md: [taxonomy count] categories, [N] services covered
+   📄 caching-strategy.md: [architecture tier], [N] cache entries (nếu applicable)
+   📄 frontend-architecture.md: [rendering strategy] (nếu applicable)
+   📄 performance-test.md: [N] test types, [N] endpoints (nếu applicable)
+   📄 frontend-test-strategy.md: [test pyramid ratio] (nếu applicable)
+   🚦 Gate: PASS ([N]/[M] criteria met)
+   ⚠️  Issues: [list hoặc "Không có"]
+```
+
 ### 6.2 Pipeline Summary
 
 Sau khi pipeline hoàn thành (tất cả phases):
@@ -419,7 +533,7 @@ Sau mỗi flow completion, orchestrator tự kiểm tra:
 
 ### 7.1 Pipeline Integrity
 
-- [ ] Tất cả phases đã chạy theo đúng thứ tự (SRS → HLD → LLD → IMP∥TST)
+- [ ] Tất cả phases đã chạy theo đúng thứ tự (SRS → HLD → LLD → CROSS-CUTTING → IMP∥TST)
 - [ ] Không phase nào bị skip mà không có human approval
 - [ ] Mỗi phase đều có gate check
 - [ ] IMP và TST được spawn song song (nếu cả hai đều chạy)

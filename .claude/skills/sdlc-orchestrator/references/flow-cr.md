@@ -39,7 +39,7 @@ Dựa trên grilling, xác định blast radius. Đây là bước QUAN TRỌNG 
 2. Đọc `agent_docs/features/FR-*.md` — affected feature specs
 3. Đọc `agent_docs/architecture.md` — service topology + ADRs
 4. Đọc `agent_docs/hard-boundaries.md` — cross-service constraints
-5. Đọc `agent_docs/cross-cutting.md` — shared patterns (nếu có)
+5. Đọc cross-cutting files (nếu có): `agent_docs/error-handling.md`, `agent_docs/caching-strategy.md`, `agent_docs/performance-test.md`, `agent_docs/frontend-architecture.md`, `agent_docs/frontend-test-strategy.md`
 6. Đọc IMP specs: `agent_docs/{backend,frontend}/*/implementation/FR-*-impl.md`
 7. Đọc TST specs: `agent_docs/{backend,frontend}/*/test-specs/FR-*-test.md`
 
@@ -80,6 +80,7 @@ Tạo impact report có cấu trúc:
 | SRS | ✅ Có | Business requirement thay đổi |
 | HLD | ✅ Có | Thêm OAuth2 ADR |
 | LLD | ✅ Có | API contract thay đổi |
+| CROSS-CUTTING | ✅ Có / ❌ Không | Cross-cutting standards bị ảnh hưởng (error-handling, caching, frontend, performance) |
 | IMP | ✅ Có | Execution flow thay đổi |
 | TST | ✅ Có | Test cases mới cho OAuth2 |
 
@@ -102,6 +103,7 @@ Chạy **Specs Pipeline**, nhưng CHỈ cho phase bị ảnh hưởng:
 - Architecture thay đổi → chạy HLD (và mọi thứ sau đó)
 - API contract thay đổi → chạy LLD (và mọi thứ sau đó)
 - Feature behavior thay đổi → chạy SRS (và mọi thứ sau đó)
+- Cross-cutting standards thay đổi → chạy CROSS-CUTTING (error-handling, caching strategy, frontend patterns, hoặc NFR targets bị ảnh hưởng)
 - Chỉ implementation detail thay đổi → chỉ chạy IMP ∥ TST
 
 **Đừng chạy lại phase không bị ảnh hưởng.** Xác nhận với human trong Plan step.
@@ -157,12 +159,13 @@ Orchestrator:
      - Affected: FR-AUTH-001 (Login), FR-AUTH-002 (Registration — optional OAuth2 link)
      - Services: auth (HIGH), gateway (LOW)
      - APIs: POST /auth/login (additive), GET /auth/me (additive)
-     - Phases cần chạy: SRS → HLD → LLD → IMP∥TST
+     - Phases cần chạy: SRS → HLD → LLD → CROSS-CUTTING → IMP∥TST
      - Rollback: revert specs + OAuth2 code; password login không bị ảnh hưởng
   5. Pipeline:
      - SRS → update FR-AUTH-001 thêm OAuth2 scenarios
      - HLD → thêm ADR: OAuth2 Provider Strategy
      - LLD → update auth-service.md (OAuth2 section)
+     - CROSS-CUTTING → update error-handling.md (OAuth2 error flows), caching-strategy.md (nếu có cache thay đổi)
      - IMP∥TST → update implementation + test specs
   6. Rollback plan documented trong README
   7. Sprint: board updated, CR note added

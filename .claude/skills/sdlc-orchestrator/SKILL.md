@@ -14,7 +14,7 @@ description: >-
   foundation files (project-overview, user-context, conventions) khi
   thiếu. Điều phối toàn bộ pipeline từ requirements qua documentation
   đến production code, coordinating subagents, skills, và sprint artifacts.
-version: 1.8.0
+version: 1.9.2
 allowed-tools: Read, Write, Edit, Bash, Glob, Skill, Agent, EnterPlanMode, ExitPlanMode
 ---
 
@@ -38,7 +38,7 @@ không hợp lệ.
 
 - **Bạn điều phối, không thực thi** — không viết spec content, test cases, hoặc code
 - **Human-in-the-loop bắt buộc** — mỗi phase: EnterPlanMode → Plan → Review → Spawn. Không skip
-- **Không skip pipeline phases** — SRS → HLD → LLD → IMP∥TST. Chỉ HLD và LLD được optional với human confirmation
+- **Không skip pipeline phases** — SRS → HLD → LLD → [CROSS-CUTTING] → IMP∥TST. Chỉ HLD, LLD, và CROSS-CUTTING được optional với human confirmation
 - **Không tự sửa sprint files** — luôn qua `Skill(sprint, "--all")`. Orchestrator chỉ được Write `agent_docs/README.md`
 - **Không tự sửa feature specs** — chỉ sdlc-srs và sdlc-lld touch `agent_docs/features/`. Bạn chỉ đọc
 - **Gate check sau MỖI agent** — verify gate pass trước phase tiếp theo (criteria: `references/procedures.md` → "Gate Criteria"). Fail → dừng, báo cáo human
@@ -200,19 +200,20 @@ Khi flow đã được xác nhận, load file flow tương ứng và thực thi 
 Khi flow task hoặc cr cần documentation pipeline, thực thi các phase theo thứ tự:
 
 ```
-SRS ──→ HLD ──→ LLD ──→ IMP ∥ TST
-                            └── song song
+SRS ──→ HLD ──→ LLD ──→ CROSS-CUTTING ──→ IMP ∥ TST
+                                          └── song song
 ```
 
 **Quy tắc:**
-- **Tuần tự** — SRS trước HLD, HLD trước LLD, LLD trước IMP+TST. Không skip phase.
-- **IMP ∥ TST** — spawn cả hai agent đồng thời sau LLD, đợi cả hai finish. Verify gate từng agent độc lập.
+- **Tuần tự** — SRS trước HLD, HLD trước LLD, LLD trước CROSS-CUTTING, CROSS-CUTTING trước IMP+TST. Không skip phase.
+- **IMP ∥ TST** — spawn cả hai agent đồng thời sau CROSS-CUTTING, đợi cả hai finish. Verify gate từng agent độc lập.
 - **HLD optional** — bỏ qua nếu không có service mới, ADR mới, hoặc boundary thay đổi. Hỏi human.
 - **LLD optional** — bỏ qua nếu không có API mới, domain model mới, hoặc error flow mới. Hỏi human.
+- **CROSS-CUTTING optional** — tự động phát hiện scope từ file thực tế (`architecture.md`, SRS NFRs, frontend existence). Hỏi human xác nhận scope.
 
 ### Human-in-the-Loop mỗi Phase
 
-Cho MỖI phase (SRS, HLD, LLD, IMP, TST), thực hiện:
+Cho MỖI phase (SRS, HLD, LLD, CROSS-CUTTING, IMP, TST), thực hiện:
 
 1. **EnterPlanMode**
 2. **Đọc context** — tất cả file `agent_docs/` liên quan: feature specs, output phase trước, contracts
@@ -225,7 +226,7 @@ Cho MỖI phase (SRS, HLD, LLD, IMP, TST), thực hiện:
 
 ### IMP + TST Song Song
 
-Sau LLD: một plan bao phủ cả IMP và TST → human approve → spawn `sdlc-imp` và `sdlc-tst` đồng thời → đợi cả hai → verify gates độc lập.
+Sau CROSS-CUTTING (hoặc LLD nếu CROSS-CUTTING bị skip): một plan bao phủ cả IMP và TST → human approve → spawn `sdlc-imp` và `sdlc-tst` đồng thời → đợi cả hai → verify gates độc lập.
 
 ### Sau mỗi Phase
 
@@ -267,6 +268,16 @@ Báo cáo cho human theo template:
 | `sdlc-lld` | LLD (opt) | Per-service tech design, API contracts |
 | `sdlc-imp` | IMP | Backend + frontend implementation specs |
 | `sdlc-tst` | TST | Backend + frontend test specifications |
+
+**Cross-Cutting (sau LLD):**
+
+| Agent | Phase | Mục đích |
+|---|---|---|
+| `sdlc-lld-error-handling` | CROSS-CUTTING | System-wide error handling standards |
+| `sdlc-lld-caching-strategy` | CROSS-CUTTING | System-wide caching strategy |
+| `sdlc-lld-performance-test` | CROSS-CUTTING | Performance test plan from NFRs |
+| `sdlc-lld-frontend-architecture` | CROSS-CUTTING | Frontend architecture decisions |
+| `sdlc-lld-frontend-test-strategy` | CROSS-CUTTING (Stage 2) | Frontend test strategy |
 
 **TDD Cycle (cook flow) — Backend:**
 
