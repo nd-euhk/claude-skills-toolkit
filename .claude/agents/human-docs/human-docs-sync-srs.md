@@ -6,7 +6,7 @@ description: >-
   (foundation, traceability, contracts, per-domain FR details) via the
   workflow script. Transforms only — never invents content. No BE/FE split.
   Writes to docs/product/ only.
-version: 1.1.0
+version: 1.1.1
 model: sonnet
 maxTurn: 20
 tools: Read, Write, Bash
@@ -64,7 +64,7 @@ If critical data is missing → report "Incomplete input: missing {block}" and s
 
 From `fr_index.features`, build the master FR overview table sorted by priority (Must → Should → Could → Won't), then by domain:
 
-| FR ID | Feature | Priority | Sprint | Layer | Source |
+| FR ID | Feature | Priority | Sprint | Layer |
 
 Layer is displayed as metadata only — NEVER used to split files.
 
@@ -165,4 +165,4 @@ Ensure `docs/product/` and `docs/product/features/` exist before writing.
 - NEVER copy individual FR files to docs/ — only index README
 - ALWAYS preserve the `layer` field as metadata for display, never use it to split files
 - ALL output files get `> **Source**: agent_docs/features/ (N FRs) | **Last synced**: {timestamp}` header
-- If foundation data is present but thin, still generate the section with what's available (marked "Limited — see agent_docs/project-overview.md for details")
+- If foundation data is present but thin, still generate the section with what's available (mark "Limited — details not available" if needed)

@@ -38,10 +38,10 @@
 
 ## 2. Functional Requirements Overview
 
-| FR ID | Feature | Domain | Priority | Sprint | Layer | Source |
-|-------|---------|--------|----------|--------|-------|--------|
+| FR ID | Feature | Domain | Priority | Sprint | Layer |
+|-------|---------|--------|----------|--------|-------|
 {{#fr_overview}}
-| {{fr_id}} | {{title}} | {{domain}} | {{priority}} | {{sprint}} | {{layer}} | [→](../../agent_docs/features/{{fr_filename}}) |
+| {{fr_id}} | {{title}} | {{domain}} | {{priority}} | {{sprint}} | {{layer}} |
 {{/fr_overview}}
 
 ## 3. Feature Details
@@ -127,8 +127,6 @@ _No NFR references._
 | {{nfr_id}} | {{requirement}} | {{owasp_ref}} | {{priority}} |
 {{/nfr_security}}
 
-> Chi tiết: [`agent_docs/error-handling.md`](../../agent_docs/error-handling.md) — error taxonomy, HTTP mapping, frontend contract
-
 ### 4.4 Scalability
 
 | NFR ID | Requirement | Target | Priority |
@@ -136,8 +134,6 @@ _No NFR references._
 {{#nfr_scalability}}
 | {{nfr_id}} | {{requirement}} | {{target}} | {{priority}} |
 {{/nfr_scalability}}
-
-> Chi tiết: [`agent_docs/caching-strategy.md`](../../agent_docs/caching-strategy.md) — L0-L3 cache layers, invalidation, Redis config
 
 ## 5. Traceability Matrix
 
@@ -207,5 +203,5 @@ _No assumptions documented._
 ---
 {{/user_journeys}}
 {{^user_journeys}}
-_No user journeys documented — see `agent_docs/user-context.md` for persona details._
+_No user journeys documented._
 {{/user_journeys}}
