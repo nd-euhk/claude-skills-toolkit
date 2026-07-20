@@ -6,6 +6,7 @@ description: >-
   (foundation, traceability, contracts, per-domain FR details) via the
   workflow script. Transforms only — never invents content. No BE/FE split.
   Writes to docs/product/ only.
+version: 1.1.0
 model: sonnet
 maxTurn: 20
 tools: Read, Write, Bash
@@ -91,67 +92,46 @@ From `traceability.matrix`, build:
 
 ### Step 6: Write SRS.md
 
-Write `docs/product/SRS.md` with this exact structure:
+1. **Read the template**: `.claude/skills/human-docs/templates/SRS-TEMPLATE.md`
+2. **Fill placeholders** using data from Steps 2-5:
+   - `{{project_name}}` → from foundation.system_purpose context
+   - `{{sync_timestamp}}` → current UTC timestamp (ISO 8601)
+   - `{{fr_count}}`, `{{domain_count}}` → from fr_index + domainFeatures
+   - `{{system_purpose}}` → from foundation.system_purpose
+   - `{{#in_scope}}`/`{{#out_of_scope}}` → from foundation.scope
+   - `{{#glossary_terms}}` → from foundation.glossary
+   - `{{#personas}}` → from foundation.personas
+   - `{{#fr_overview}}` → FR overview table from Step 2
+   - `{{#domains}}`/`{{#features}}` → per-domain feature details from Step 3 (with gherkin, constraints, NFR refs)
+   - `{{#nfr_perf_backend}}`/`{{#nfr_perf_frontend}}`/`{{#nfr_availability}}`/`{{#nfr_security}}`/`{{#nfr_scalability}}` → categorized NFRs from Step 4
+   - `{{#traceability}}` → traceability matrix from Step 5
+   - `{{api_style}}`, `{{api_auth}}`, etc. → from contracts.api_conventions
+   - `{{#error_codes}}` → from contracts.error_code_catalog
+   - `{{#events}}` → from contracts.event_catalog
+   - `{{#constraints_table}}` → from foundation.constraints
+   - `{{#assumptions}}` → from foundation.assumptions
+   - `{{#user_journeys}}` → from foundation.user_journeys
+3. **Write** filled template to `docs/product/SRS.md`
 
-```
-> **Source**: agent_docs/ (N FRs, M domains) | **Last synced**: {timestamp}
-
-# Software Requirements Specification — {project_name}
-
-## 1. Introduction
-### 1.1 System Purpose
-{from foundation.system_purpose}
-
-### 1.2 Scope
-{from foundation.scope}
-
-### 1.3 Glossary
-{from foundation.glossary}
-
-### 1.4 User Personas
-{from foundation.personas}
-
-## 2. Functional Requirements Overview
-{FR overview table from Step 2}
-
-## 3. Feature Details
-### 3.x {Domain Name}
-{per-feature details from Step 3}
-
-## 4. Non-Functional Requirements
-{NFR table from Step 4}
-
-## 5. Traceability Matrix
-{traceability table from Step 5}
-
-## 6. External Interfaces
-### 6.1 API Conventions
-{from contracts.api_conventions}
-
-### 6.2 Error Code Catalog
-{from contracts.error_code_catalog}
-
-### 6.3 Event Catalog
-{from contracts.event_catalog}
-
-## 7. Constraints & Assumptions
-### 7.1 Constraints
-{from foundation.constraints}
-
-### 7.2 Assumptions
-{from foundation.assumptions}
-
-## 8. User Journeys
-{from foundation.user_journeys}
-```
+The template uses Mustache-style sections: `{{#array}}` iterates, `{{^array}}` shows fallback when empty. Preserve the template's section ordering, NFR sub-categories, and fallback messages exactly.
 
 ### Step 7: Write features/README.md
 
-Write `docs/product/features/README.md` — simple index table:
+Write `docs/product/features/README.md` — simple index table routing to agent_docs:
+
+```
+> **Source**: agent_docs/features/README.md | **Last synced**: {timestamp}
+
+# Feature Index
 
 | FR ID | Feature | Priority | Sprint | Layer | Full Spec |
 |-------|---------|----------|--------|-------|-----------|
-| FR-AUTH-001 | User Login | Must | Sprint 1 | BE+FE | [→](../../agent_docs/features/FR-AUTH-001--user-login.md) |
+{rows from fr_index}
+
+**Total**: {total_count} FRs across {domain_count} domains
+```
+
+Each row links to agent_docs: `[→](../../agent_docs/features/{fr_filename})`. This is a routing index — no feature content is duplicated here.
 
 ### Step 8: Create directories
 

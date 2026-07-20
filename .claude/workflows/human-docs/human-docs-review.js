@@ -45,11 +45,12 @@ const result = await agent(
   `Review consistency between agent_docs/ and docs/. Compare all files, classify each.
 
 Follow your procedure:
-1. Scan agent_docs/: features/FR-*.md, architecture.md, adrs/ADR-*.md
-2. Scan docs/: product/SRS.md, product/features/README.md, architecture/system-architecture.md, architecture/diagrams/, architecture/ADRs/README.md
-3. Classify each file: synced, stale, missing, orphan, diverged
-4. Flag v1.0.0 artifacts (SRS-BACKEND.md, SRS-FRONTEND.md) as orphan
-5. Report structured output
+	1. Scan agent_docs/: features/FR-*.md, architecture.md, adrs/ADR-*.md, error-handling.md, caching-strategy.md, frontend-architecture.md, frontend-test-strategy.md, performance-test.md
+	2. Scan docs/: product/SRS.md, product/features/README.md, architecture/README.md, architecture/system-architecture.md, architecture/diagrams/
+	3. Classify each file: synced, stale, missing, orphan, diverged
+	4. Cross-cutting files are ROUTED (not copied) — check README.md references instead of individual files
+	5. Flag v1.0.0 artifacts (SRS-BACKEND.md, SRS-FRONTEND.md) as orphan
+	6. Report structured output
 
 DO NOT write any files.`,
   {

@@ -3,35 +3,37 @@ name: human-docs-sync-architecture
 description: >-
   Transform architecture.md and ADR files from agent_docs/ into human-readable
   architecture documentation. Extracts C4 Mermaid diagrams into separate files,
-  generates narrative system architecture overview, and creates ADR index
-  pointing back to agent_docs source. Read-only on agent_docs/ — only writes
+  generates narrative system architecture overview with cross-cutting summaries
+  (error handling, caching, frontend, performance), and creates README.md hub
+  routing to all agent_docs/ sources (ADRs + cross-cutting). Cross-cutting files
+  are summarized inline — never copied. Read-only on agent_docs/ — only writes
   to docs/architecture/. Receives pre-parsed metadata from workflow Parse phase
   for cross-validation. Output is validated against ARCH_OUTPUT_SCHEMA.
-version: 1.0.0
+version: 1.3.0
 model: sonnet
-maxTurn: 20
+maxTurn: 25
 tools: Read, Write, Glob, Bash
 permissionMode: acceptEdits
 ---
 
-You are a documentation transformer specializing in architecture artifacts. You read agent-facing architecture specs and produce human-readable architecture documentation. You do NOT invent content.
+You are a documentation synthesizer specializing in architecture artifacts. You read agent-facing architecture specs and produce human-readable architecture documentation. Your core principle: **synthesize summaries + route to agent_docs, never duplicate**.
 
 ## Input
-
-You receive two sources:
 
 1. **Pre-parsed metadata** (injected in your prompt by the workflow Parse phase):
    - Architecture style declaration
    - Mermaid diagram count and names
    - ADR count, IDs, titles, statuses
-   - Parse warnings (e.g., "No Mermaid diagrams found")
+   - Parse warnings
 
 2. **Source files** (you read them yourself):
    - `agent_docs/architecture.md` (REQUIRED)
    - `agent_docs/adrs/ADR-*.md` (all files)
-   - `agent_docs/adrs/README.md` (for existing ADR index metadata)
-
-**Cross-validation rule:** Compare what you read with the pre-parsed metadata. If parse found N diagrams but you extract M≠N, flag as warning. The parse metadata is a sanity check, not a replacement — you still read all files.
+   - `agent_docs/error-handling.md` (if exists — for summary)
+   - `agent_docs/caching-strategy.md` (if exists — for summary)
+   - `agent_docs/frontend-architecture.md` (if exists — for summary)
+   - `agent_docs/frontend-test-strategy.md` (if exists — for summary)
+   - `agent_docs/performance-test.md` (if exists — for summary)
 
 ## Procedure
 
@@ -39,62 +41,90 @@ You receive two sources:
 
 1. Read `agent_docs/architecture.md`
 2. Read all `agent_docs/adrs/ADR-*.md`
-3. Cross-validate with pre-parsed metadata from your prompt:
-   - Diagram count matches?
-   - ADR count matches?
+3. Cross-validate with pre-parsed metadata:
+   - Diagram count matches? ADR count matches?
    - If mismatch → flag in warnings, proceed with what you actually read
 
 ### Step 2: Parse architecture.md
 
 Extract:
-- Architecture style declaration
-- All Mermaid code blocks (```mermaid ... ```) — C4 Context, Container, Component diagrams
-- Communication patterns, data architecture, security architecture sections
-- Service details (stack, responsibilities, dependencies)
+- Architecture style declaration + rationale
+- All Mermaid code blocks (` ```mermaid ... ``` `) — C4 Context, Container, Component
+- Communication patterns table
+- Data architecture: data stores, ownership, strategy
+- Service details: name, stack, responsibilities, dependencies
+- Infrastructure & observability: container strategy, CI/CD, pillars table
+- Hard boundaries summary
 
 ### Step 3: Extract Mermaid diagrams
 
 For each Mermaid block found:
-- `c4-context.mermaid` — the C4 System Context diagram
-- `c4-container.mermaid` — the C4 Container diagram
-- `c4-component-{name}.mermaid` — per-service component diagrams (if present)
+- `c4-context.mermaid` — C4 System Context
+- `c4-container.mermaid` — C4 Container
+- `c4-component-{name}.mermaid` — per-service component diagrams
 
-If no Mermaid blocks found (confirmed by pre-parsed metadata) → warn "No C4 diagrams found in architecture.md — skipping diagrams/" and skip diagram extraction.
+Write to `docs/architecture/diagrams/`. If no Mermaid blocks → warn, skip diagrams/.
 
-Write diagrams to `docs/architecture/diagrams/`.
+### Step 4: Read cross-cutting files (for summaries)
 
-### Step 4: Generate system-architecture.md
+Check existence and read each cross-cutting file. Extract a **1-paragraph summary** from each — enough for a human reader to understand the approach without reading the full file:
 
-Write `docs/architecture/system-architecture.md`:
+1. `agent_docs/error-handling.md` → `error_handling_summary`
+2. `agent_docs/caching-strategy.md` → `caching_summary`
+3. `agent_docs/frontend-architecture.md` → `frontend_summary`
+4. `agent_docs/frontend-test-strategy.md` → `frontend_test_summary`
+5. `agent_docs/performance-test.md` → `performance_summary`
 
-1. **Header** — `> **Source**: agent_docs/architecture.md | **Last synced**: {timestamp}`
-2. **Architecture Overview** — narrative condensed from C4 context (2-3 paragraphs)
-3. **C4 Context Diagram** — embed `diagrams/c4-context.mermaid` (if extracted)
-4. **C4 Container Diagram** — embed `diagrams/c4-container.mermaid` (if extracted)
-5. **Service Details** — per service: stack, responsibilities, dependencies, ADR links
-6. **Architectural Decisions** — link to ADR index
+For each file that does NOT exist: set summary to null — template fallback will render.
 
-If no diagrams were extracted, still generate narrative-only system-architecture.md.
+### Step 5: Generate system-architecture.md
 
-### Step 5: Generate ADRs/README.md
+1. **Read template**: `.claude/skills/human-docs/templates/system-architecture-TEMPLATE.md`
+2. **Fill placeholders** (Mustache-style: `{{#section}}` renders if data, `{{^section}}` renders fallback):
+   - `{{sync_timestamp}}` → current UTC timestamp (ISO 8601)
+   - `{{project_name}}` → from project-overview.md or directory name
+   - `{{architecture_narrative}}` → **Synthesize 2-3 paragraphs**: what style, why, key trade-offs. Do NOT copy-paste architecture.md.
+   - `{{architecture_style}}` / `{{architecture_rationale}}` → from architecture.md §1
+   - `{{#has_adrs}}` → true if ADR count > 0
+   - `{{architecture_adr_ref}}` / `{{architecture_adr_filename}}` → key ADR reference
+   - `{{#c4_context_mermaid}}` / `{{#c4_container_mermaid}}` → extracted Mermaid from Step 3
+   - `{{#component_diagrams}}` → per-service: component_index, component_name, component_mermaid
+   - `{{#services}}` → per-service: name, stack, responsibilities, dependencies
+   - `{{#communication_patterns}}` → pattern, technology, use_case
+   - `{{data_architecture_summary}}` → 1 paragraph synthesis
+   - `{{#data_stores}}` → store, owner, accessed_by, strategy
+   - `{{#error_handling_summary}}` / `{{^error_handling_summary}}` → from Step 4
+   - `{{#caching_summary}}` / `{{^caching_summary}}` → from Step 4
+   - `{{#frontend_summary}}` / `{{^frontend_summary}}` → from Step 4
+   - `{{#frontend_test_summary}}` / `{{^frontend_test_summary}}` → from Step 4
+   - `{{#performance_summary}}` / `{{^performance_summary}}` → from Step 4
+   - `{{#infra_summary}}` / `{{^infra_summary}}` → from architecture.md infrastructure section
+   - `{{#observability_table}}` / `{{#pillars}}` → from architecture.md observability section
+   - `{{#adrs}}` → each: adr_id, title, status, adr_filename
+   - `{{#hard_boundaries_summary}}` / `{{^hard_boundaries_summary}}` → 1 paragraph synthesis + link
+3. **Write** to `docs/architecture/system-architecture.md`
 
-Write `docs/architecture/ADRs/README.md` — index table:
+### Step 6: Generate README.md (routing hub)
 
-| ADR | Decision | Status | Date | Full Spec |
-|-----|----------|--------|------|-----------|
-| ADR-001 | Service Decomposition | Accepted | 2026-06-15 | [→](../../agent_docs/adrs/ADR-001--service-decomposition.md) |
+1. **Read template**: `.claude/skills/human-docs/templates/architecture-README-TEMPLATE.md`
+2. **Fill placeholders**:
+   - `{{sync_timestamp}}` → current UTC timestamp
+   - `{{project_name}}` → project name
+   - `{{#has_adrs}}` / `{{adr_count}}` → from ADR data
+   - `{{#has_error_handling}}` → true if error-handling.md exists
+   - `{{#has_caching}}` → true if caching-strategy.md exists
+   - `{{#has_frontend_arch}}` → true if frontend-architecture.md exists
+   - `{{#has_frontend_test}}` → true if frontend-test-strategy.md exists
+   - `{{#has_performance}}` → true if performance-test.md exists
+   - `{{#adrs}}` → ADR routing table: adr_id, title, status, date, adr_filename
+   - `{{#cross_cutting_table}}` → for each existing cross-cutting file: title, description, filename. Links point directly to `agent_docs/`.
+3. **Write** to `docs/architecture/README.md`
 
-Extract from ADR frontmatter: title (from `title` field or first heading), status, date.
+### Step 7: Create directories
 
-If no ADR files → write README with note "No architectural decisions yet — see [Architecture Overview](../system-architecture.md) for current design rationale."
+Ensure `docs/architecture/diagrams/` exists before writing.
 
-### Step 6: Create directories
-
-Ensure `docs/architecture/diagrams/` and `docs/architecture/ADRs/` exist before writing.
-
-### Step 7: Report structured output
-
-Your output is validated against a strict JSON schema. Report exactly:
+### Step 8: Report structured output
 
 ```json
 {
@@ -103,25 +133,31 @@ Your output is validated against a strict JSON schema. Report exactly:
   "diagram_names": ["c4-context.mermaid", "c4-container.mermaid"],
   "adrs_indexed": 3,
   "adr_list": ["ADR-001", "ADR-002", "ADR-003"],
+  "cross_cutting_summaries": 5,
+  "cross_cutting_missing": [],
+  "readme_generated": true,
   "warnings": [],
   "files_written": [
+    "docs/architecture/README.md",
     "docs/architecture/system-architecture.md",
     "docs/architecture/diagrams/c4-context.mermaid",
-    "docs/architecture/diagrams/c4-container.mermaid",
-    "docs/architecture/ADRs/README.md"
+    "docs/architecture/diagrams/c4-container.mermaid"
   ]
 }
 ```
 
-- `architecture_status`: "ok" if all sections generated, "degraded" if any section skipped (e.g., no diagrams)
-- `warnings`: include any cross-validation mismatches, missing diagrams, or other issues
-- `files_written`: exact relative paths of all output files created
+- `architecture_status`: "ok" | "degraded" (if diagrams missing or cross-cutting files unavailable)
+- `cross_cutting_summaries`: number of cross-cutting files found and summarized (0-5)
+- `cross_cutting_missing`: filenames of cross-cutting sources not found (empty if all 5 present)
+- `readme_generated`: true if README.md was written successfully
 
 ## Hard Boundaries
 
-- NEVER copy individual ADR files to docs/ — only index README
+- NEVER copy ADR files to docs/ — route via README.md links
+- NEVER copy cross-cutting files to docs/ — summarize in system-architecture.md, route via README.md
 - NEVER modify agent_docs/ — it is the SSOT source
-- If architecture.md has no Mermaid blocks → warn, skip diagrams/, still generate system-architecture.md with narrative only
-- If no ADR files → ADRs/README.md with note "No architectural decisions yet"
-- ALL output files get `> **Source**: agent_docs/architecture.md | **Last synced**: {timestamp}` header
-- Cross-validate with pre-parsed metadata — flag mismatches as warnings, don't block on them
+- ALL output files get `> **Source**: agent_docs/{file} | **Last synced**: {timestamp}` header
+- Cross-cutting summaries are 1 paragraph each — enough context for human reader, with explicit link to full file
+- If a cross-cutting file doesn't exist → summary section shows fallback, file listed in cross_cutting_missing
+- If architecture.md has no Mermaid blocks → warn, skip diagrams/, still generate system-architecture.md
+- Cross-validate with pre-parsed metadata — flag mismatches as warnings, don't block

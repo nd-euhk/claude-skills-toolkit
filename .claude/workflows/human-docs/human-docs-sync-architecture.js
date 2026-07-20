@@ -56,6 +56,12 @@ const ARCH_OUTPUT_SCHEMA = {
       type: 'array',
       items: { type: 'string' },
     },
+    cross_cutting_summaries: { type: 'integer' },
+    cross_cutting_missing: {
+      type: 'array',
+      items: { type: 'string' },
+    },
+    readme_generated: { type: 'boolean' },
     warnings: {
       type: 'array',
       items: { type: 'string' },
@@ -65,7 +71,7 @@ const ARCH_OUTPUT_SCHEMA = {
       items: { type: 'string' },
     },
   },
-  required: ['architecture_status', 'files_written'],
+  required: ['architecture_status', 'files_written', 'readme_generated'],
 }
 
 // ── Phase 1: Parse ───────────────────────────────────────────────────────
@@ -117,7 +123,7 @@ if (!parseResult.has_mermaid) {
 }
 
 if (parseResult.adr_count === 0) {
-  log('ℹ️ No ADR files — ADRs/README.md will note "No architectural decisions yet"')
+  log('ℹ️ No ADR files — README.md will note "No architectural decisions yet"')
 }
 
 log(`Architecture inputs: style="${parseResult.architecture_style || 'unknown'}", Mermaid=${parseResult.mermaid_count}, ADRs=${parseResult.adr_count}`)
@@ -139,16 +145,18 @@ const generateResult = await agent(
 
 **Execution context:**
 ${!parseResult.has_mermaid ? '- ⚠️ No Mermaid diagrams → skip diagrams/ extraction, still generate system-architecture.md with narrative only' : ''}
-${parseResult.adr_count === 0 ? '- ℹ️ No ADRs → ADRs/README.md with note "No architectural decisions yet"' : ''}
+${parseResult.adr_count === 0 ? '- ℹ️ No ADRs → README.md will note "No architectural decisions yet"' : ''}
 
 Follow your standard procedure:
-1. Read agent_docs/architecture.md (the full file, for narrative content)
+1. Read agent_docs/architecture.md (full file)
 2. Extract C4 Mermaid diagrams → docs/architecture/diagrams/*.mermaid
-3. Generate docs/architecture/system-architecture.md with narrative + embedded diagrams
-4. Generate docs/architecture/ADRs/README.md index (point back to agent_docs/adrs/, no copy)
-5. Create directories if needed
+3. Read cross-cutting files from agent_docs/ (each may or may not exist): error-handling.md, caching-strategy.md, frontend-architecture.md, frontend-test-strategy.md, performance-test.md
+4. For each cross-cutting file that exists → extract 1-paragraph summary + link to agent_docs
+5. Generate docs/architecture/system-architecture.md — fill template with architecture narrative + C4 diagrams + service summary + cross-cutting summaries
+6. Generate docs/architecture/README.md — routing hub with ADR index + cross-cutting links (all point to agent_docs/)
+7. Create directories if needed
 
-IMPORTANT: Report structured output matching the schema. Cross-validate with parse metadata — if parse found 2 diagrams but you extract 0, flag as warning.`,
+IMPORTANT: Cross-cutting files are summarized inline in system-architecture.md and routed via README.md links to agent_docs/. They are NEVER copied to docs/architecture/. ADRs are routed via README.md links to agent_docs/adrs/, never copied. Report structured output matching the schema.`,
   {
     label: 'sync-architecture',
     phase: 'Generate',
@@ -166,9 +174,14 @@ if (!generateResult) {
 
 const diagCount = generateResult.diagrams_extracted || 0
 const adrCount = generateResult.adrs_indexed || 0
+const ccSummaryCount = generateResult.cross_cutting_summaries || 0
+const ccMissing = generateResult.cross_cutting_missing || []
 const warnings = [...(parseResult.warnings || []), ...(generateResult.warnings || [])]
 
-log(`✅ sync:architecture complete — ${diagCount} diagrams + ${adrCount} ADRs indexed`)
+log(`✅ sync:architecture complete — README.md hub + ${diagCount} diagrams + ${adrCount} ADRs indexed + ${ccSummaryCount} cross-cutting summaries`)
+if (ccMissing.length) {
+  log(`   Cross-cutting not found: ${ccMissing.join(', ')} (summaries skipped)`)
+}
 if (warnings.length) {
   warnings.forEach(w => log(`  ⚠️ ${w}`))
 }
