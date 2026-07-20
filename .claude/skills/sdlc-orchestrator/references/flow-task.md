@@ -111,7 +111,7 @@ Agent({
   prompt: "
     [Approved plan]
     Context: agent_docs/architecture.md, agent_docs/adrs/
-    Expected outputs: agent_docs/backend/{svc}/tech-design/{svc}-service.md
+    Expected outputs: agent_docs/tech-design/{name}-service.md (per service), contracts/, features/ (enriched), frontend/{app}/api-routing.md (if FE)
     Gate: references/procedures.md → Section 4.3
   "
 })

@@ -1,10 +1,11 @@
 export const meta = {
   name: 'workflow-sdlc-automation',
-  description: 'Autonomous SDLC pipeline — runs SRS → HLD → LLD → IMP∥TST without human interruption after upfront grilling',
+  description: 'Autonomous SDLC pipeline — runs SRS → HLD → LLD → CROSS-CUTTING → IMP∥TST without human interruption after upfront grilling',
   phases: [
     { title: 'SRS', detail: 'Software requirements specification with Gherkin scenarios' },
     { title: 'HLD', detail: 'High-level design — architecture, ADRs, C4 diagrams (optional)' },
     { title: 'LLD', detail: 'Low-level design — per-service tech design, API contracts (optional)' },
+    { title: 'CROSS-CUTTING', detail: 'System-wide standards — error handling, caching, performance, frontend' },
     { title: 'IMP+TST', detail: 'Implementation + test specifications in parallel' },
     { title: 'Report', detail: 'Synthesize results, verify gates, generate final report' },
   ],
@@ -71,6 +72,16 @@ const GATE_CRITERIA = {
     ],
     criticalIfMissing: [],
   },
+  CROSS_CUTTING: {
+    required: 1,  // per-agent — mỗi agent tự gate check
+    criteria: [
+      'Output file exists and follows template structure',
+      'All template sections populated (no "TODO" placeholders)',
+      'Cross-references to architecture.md, tech-design, and hard-boundaries',
+      'Consistent with per-service LLD outputs (no contradictions)',
+    ],
+    criticalIfMissing: [],
+  },
 }
 
 // ── Safe-parse args (MANDATORY) ──
@@ -83,14 +94,27 @@ const {
   requirements = {},
   repoPath = process.env.HOME + '/projects/AI/Kit/toolkit',
   sprintUpdate = true,
+  crossCutting = {},
 } = _args
 
 // ── Phase Selection ──
 const runSRS = phases.includes('SRS')
 const runHLD = phases.includes('HLD')
 const runLLD = phases.includes('LLD')
+const runCROSS_CUTTING = phases.includes('CROSS-CUTTING')
 const runIMP = phases.includes('IMP')
 const runTST = phases.includes('TST')
+
+// ── Cross-Cutting Scope Detection ──
+// Dựa trên crossCutting flags từ grilling (ưu tiên) hoặc auto-detect từ phase context
+const ccScope = {
+  errorHandling: crossCutting.errorHandling !== false,       // default true nếu có backend
+  cachingStrategy: crossCutting.cachingStrategy === true,    // default false — cần explicit opt-in
+  performanceTest: crossCutting.performanceTest === true,    // default false — cần NFR-PERF targets
+  frontendArchitecture: crossCutting.frontendArchitecture === true,  // default false — cần FE service
+  frontendTestStrategy: crossCutting.frontendTestStrategy === true,  // default false — cần FE arch + error-handling
+}
+const ccEnabled = Object.values(ccScope).some(v => v === true)
 
 // ═══════════════════════════════════════════
 // SCHEMAS
@@ -235,32 +259,43 @@ ${requirements.architecture || 'Derive from SRS feature specs and HLD architectu
 ${contextParts.join('\n\n')}`)}
 
 ## Expected Outputs
-For EACH affected service, create:
-1. agent_docs/{backend,frontend}/{service,app}/tech-design/FR-{DOMAIN}-{NNN}-design.md
-2. agent_docs/contracts/api-{domain}.yaml — OpenAPI 3.0 contracts
+1. **agent_docs/tech-design/{name}-service.md** — one per service, all 9 sections (step 1)
+2. **agent_docs/tech-design/cross-cutting.md** — shared concerns: auth, logging, tracing, correlation IDs (step 2)
+3. **agent_docs/contracts/api-{domain}.yaml** — OpenAPI 3.0 contracts per domain (step 3)
+4. **agent_docs/contracts/error-codes.md** — error code catalog organized by domain (step 3)
+5. **agent_docs/features/FR-*.md** — enriched with routing overlay: backend_service, api_endpoints, frontend_pages, scope (step 4)
+6. **agent_docs/features/README.md** — feature index with priority list + dependency graph in Mermaid (step 5)
+7. **agent_docs/frontend/{app}/api-routing.md** — page-to-API mapping, data requirements per page (step 6, if frontend exists)
 
-## 9 Required Sections per Tech Design
-1. **Domain Model** — entities, value objects, aggregates, domain events
-2. **API Contracts** — endpoints, request/response schemas, status codes
-3. **REST Clients** — external service calls with circuit breaker configs
-4. **Caching Strategy** — cache keys, TTL, invalidation patterns
-5. **Transaction Boundaries** — unit of work scope, saga patterns for distributed tx
-6. **Error Flows** — exception hierarchy, error responses, retry policies
-7. **Degraded Modes** — fallback behavior khi dependencies không available
-8. **Work Packages** — mỗi FR một work package với estimated effort
-9. **Routing Overlay** — API gateway routes, path prefixes, middleware
+## 9 Required Sections per Tech Design (step 1)
+1. **Service Boundary** — what this service owns: aggregates, data, responsibilities
+2. **Internal Architecture** — layered/hexagonal/clean: controllers → services → repositories
+3. **Domain Model** — aggregates, entities, value objects, enums, state machines, invariants
+4. **REST Clients** — external service calls: timeout, retry, circuit breaker (threshold, half-open, fallback)
+5. **Transaction Boundaries** — unit of work scope, rollback triggers, compensating actions
+6. **Integration Points** — inbound APIs, outbound calls, event publishers/consumers
+7. **Caching Strategy** — what to cache, TTL, invalidation, cache-aside vs write-through
+8. **Performance & Scale** — expected QPS, bottleneck analysis, scaling strategy
+9. **Error Flows & Degraded Mode** — error taxonomy, retry policies, graceful degradation, user-facing messages
 
 ## CRITICAL RULES
 - Service internals ONLY — no new architectural decisions (those belong in HLD)
-- Every FR from SRS must have at least one work package
-- API contracts phải là OpenAPI 3.0 hợp lệ
-- Circuit breaker configs: specific thresholds (failureRate ≥ 50%, waitDuration ≥ 30s)
+- Every FR from SRS must be enriched with routing overlay (step 4)
+- API contracts must be valid OpenAPI 3.0
+- Circuit breaker configs: concrete thresholds (failureRate ≥ 50%, waitDuration ≥ 30s)
+- All .md files MUST have YAML frontmatter
 
 ## Gate Self-Check
 Before finishing, verify:
-- [ ] All 9 sections present
-- [ ] No new architectural decisions
-- [ ] Each FR has work package with routing overlay
+- [ ] Every service has tech-design with all 9 sections
+- [ ] Circuit breaker configs have concrete thresholds
+- [ ] Error flows cover degraded mode behavior
+- [ ] Every FR enriched with routing overlay (backend_service, api_endpoints)
+- [ ] API contracts are valid OpenAPI 3.0
+- [ ] error-codes.md catalogs all error states from FRs
+- [ ] features/README.md has dependency graph
+- [ ] No new architectural decisions — HLD is authoritative
+- [ ] All files in agent_docs/ only, with YAML frontmatter
 
 Report: "Gate: [PASS/FAIL] ([N]/[M] criteria met)". Return structured output.`
 }
@@ -353,6 +388,51 @@ Before finishing, verify:
 - [ ] Performance test thresholds (p95, p99)
 - [ ] Test fixtures and mock definitions
 - [ ] References IMP specs
+
+Report: "Gate: [PASS/FAIL] ([N]/[M] criteria met)". Return structured output.`
+}
+
+function crossCuttingPrompt(agentType, srsOutputs, hldOutputs, lldOutputs) {
+  const contextParts = []
+  if (srsOutputs) {
+    contextParts.push(`## SRS Outputs\nFR-IDs: ${(srsOutputs.frIds || []).join(', ')}\nFiles: ${(srsOutputs.outputs || []).join(', ')}`)
+  }
+  if (hldOutputs) {
+    contextParts.push(`## HLD Outputs\nADRs: ${(hldOutputs.outputs || []).join(', ')}`)
+  }
+  if (lldOutputs) {
+    contextParts.push(`## LLD Outputs\nFiles: ${(lldOutputs.outputs || []).join(', ')}`)
+  }
+
+  const agentDescriptions = {
+    'sdlc-lld-error-handling': 'synthesize system-wide error handling standards from per-service LLD error flows',
+    'sdlc-lld-caching-strategy': 'synthesize system-wide caching strategy from per-service LLD cache plans and HLD architecture',
+    'sdlc-lld-performance-test': 'create performance test plan from SRS NFRs and per-service LLD performance targets',
+    'sdlc-lld-frontend-architecture': 'synthesize frontend architecture decisions from HLD architecture and LLD routing',
+    'sdlc-lld-frontend-test-strategy': 'synthesize frontend test strategy from frontend-architecture decisions and error handling standards',
+  }
+
+  return `You are a cross-cutting synthesis agent. This is AUTOMATION MODE — no human review will follow. Your task: ${agentDescriptions[agentType] || 'synthesize system-wide standards from per-service outputs'}.
+
+${featureContext(`## Cross-Cutting Context
+${requirements.architecture || 'Derive from SRS + HLD + LLD outputs.'}
+
+${contextParts.join('\n\n')}`)}
+
+## CRITICAL RULES
+- Read ALL relevant per-service files before synthesizing
+- Never invent standards not present in source files
+- Cross-reference architecture.md, tech-design files, and hard-boundaries.md
+- Follow the template structure exactly (load from .claude/templates/supporting/)
+- All sections must be populated — no "TODO" or placeholder text
+- Be consistent with per-service LLD outputs — no contradictions
+
+## Gate Self-Check
+Before finishing, verify:
+- [ ] Output file exists and follows template structure
+- [ ] All template sections populated (no "TODO" placeholders)
+- [ ] Cross-references to architecture.md, tech-design, and hard-boundaries
+- [ ] Consistent with per-service LLD outputs (no contradictions)
 
 Report: "Gate: [PASS/FAIL] ([N]/[M] criteria met)". Return structured output.`
 }
@@ -498,6 +578,10 @@ async function runPhase(phaseName, agentType, prompt, dependsOn = null) {
 
 log(`🏁 Automation pipeline started: ${featureName}`)
 log(`📋 Flow: ${flow} | Phases: ${phases.join(' → ')}`)
+if (runCROSS_CUTTING) {
+  const ccList = Object.entries(ccScope).filter(([, v]) => v).map(([k]) => k).join(', ')
+  log(`🔀 Cross-cutting: ${ccList}`)
+}
 log(`📂 Repo: ${repoPath}`)
 
 const results = {}
@@ -546,7 +630,131 @@ if (runLLD) {
   results.LLD = { phase: 'LLD', status: 'skipped', gate: 'PASS', outputs: [], frIds: [], issues: [] }
 }
 
-// ── Phase 4: IMP ∥ TST ──
+// ── Phase 4: CROSS-CUTTING ──
+let ccResults = {}
+if (runCROSS_CUTTING && ccEnabled) {
+  phase('CROSS-CUTTING')
+
+  // ── Scope Detection & Validation ──
+  // Nếu LLD bị skip nhưng CROSS-CUTTING được yêu cầu, cảnh báo
+  if (!runLLD && ccScope.errorHandling) {
+    warnings.push('CROSS-CUTTING: error-handling được yêu cầu nhưng LLD bị skip — agent sẽ thiếu per-service error flows')
+  }
+  if (!runLLD && ccScope.cachingStrategy) {
+    warnings.push('CROSS-CUTTING: caching-strategy được yêu cầu nhưng LLD bị skip — agent sẽ thiếu per-service cache plans')
+  }
+  if (!runSRS && ccScope.performanceTest) {
+    warnings.push('CROSS-CUTTING: performance-test được yêu cầu nhưng SRS bị skip — agent sẽ thiếu NFR-PERF targets')
+  }
+
+  // ── Stage 1: Spawn 4 agents song song (chỉ spawn những agent được chọn) ──
+  const stage1Tasks = []
+  const stage1AgentTypes = []
+
+  if (ccScope.errorHandling) {
+    stage1AgentTypes.push('sdlc-lld-error-handling')
+    stage1Tasks.push(async () => {
+      const result = await runPhase('CC-error-handling', 'sdlc-lld-error-handling',
+        crossCuttingPrompt('sdlc-lld-error-handling', srsResult, hldResult, lldResult))
+      ccResults.errorHandling = result
+    })
+  } else {
+    ccResults.errorHandling = { phase: 'CC-error-handling', status: 'skipped', gate: 'PASS', outputs: [], frIds: [], issues: [] }
+  }
+
+  if (ccScope.cachingStrategy) {
+    stage1AgentTypes.push('sdlc-lld-caching-strategy')
+    stage1Tasks.push(async () => {
+      const result = await runPhase('CC-caching-strategy', 'sdlc-lld-caching-strategy',
+        crossCuttingPrompt('sdlc-lld-caching-strategy', srsResult, hldResult, lldResult))
+      ccResults.cachingStrategy = result
+    })
+  } else {
+    ccResults.cachingStrategy = { phase: 'CC-caching-strategy', status: 'skipped', gate: 'PASS', outputs: [], frIds: [], issues: [] }
+  }
+
+  if (ccScope.performanceTest) {
+    stage1AgentTypes.push('sdlc-lld-performance-test')
+    stage1Tasks.push(async () => {
+      const result = await runPhase('CC-performance-test', 'sdlc-lld-performance-test',
+        crossCuttingPrompt('sdlc-lld-performance-test', srsResult, hldResult, lldResult))
+      ccResults.performanceTest = result
+    })
+  } else {
+    ccResults.performanceTest = { phase: 'CC-performance-test', status: 'skipped', gate: 'PASS', outputs: [], frIds: [], issues: [] }
+  }
+
+  if (ccScope.frontendArchitecture) {
+    stage1AgentTypes.push('sdlc-lld-frontend-architecture')
+    stage1Tasks.push(async () => {
+      const result = await runPhase('CC-frontend-architecture', 'sdlc-lld-frontend-architecture',
+        crossCuttingPrompt('sdlc-lld-frontend-architecture', srsResult, hldResult, lldResult))
+      ccResults.frontendArchitecture = result
+    })
+  } else {
+    ccResults.frontendArchitecture = { phase: 'CC-frontend-architecture', status: 'skipped', gate: 'PASS', outputs: [], frIds: [], issues: [] }
+  }
+
+  if (stage1Tasks.length > 0) {
+    log(`Spawning ${stage1Tasks.length} cross-cutting agent(s) in parallel (Stage 1): ${stage1AgentTypes.join(' + ')}`)
+    await parallel(stage1Tasks)
+  }
+
+  // ── Stage 2: frontend-test-strategy (phụ thuộc frontend-architecture + error-handling) ──
+  const feArchDone = ccResults.frontendArchitecture && ccResults.frontendArchitecture.status === 'completed'
+  const errHandlingDone = ccResults.errorHandling && ccResults.errorHandling.status === 'completed'
+
+  if (ccScope.frontendTestStrategy) {
+    if (!feArchDone) {
+      warnings.push('CROSS-CUTTING: frontend-test-strategy bị skip — frontend-architecture chưa hoàn thành')
+      ccResults.frontendTestStrategy = {
+        phase: 'CC-frontend-test-strategy', status: 'skipped', gate: 'FAIL',
+        outputs: [], frIds: [], issues: ['Dependency not met: frontend-architecture.md missing']
+      }
+    } else if (!errHandlingDone) {
+      warnings.push('CROSS-CUTTING: frontend-test-strategy bị skip — error-handling chưa hoàn thành')
+      ccResults.frontendTestStrategy = {
+        phase: 'CC-frontend-test-strategy', status: 'skipped', gate: 'FAIL',
+        outputs: [], frIds: [], issues: ['Dependency not met: error-handling.md missing']
+      }
+    } else {
+      log('Spawning frontend-test-strategy (Stage 2 — depends on frontend-architecture + error-handling)')
+      const result = await runPhase('CC-frontend-test-strategy', 'sdlc-lld-frontend-test-strategy',
+        crossCuttingPrompt('sdlc-lld-frontend-test-strategy', srsResult, hldResult, lldResult))
+      ccResults.frontendTestStrategy = result
+    }
+  } else {
+    ccResults.frontendTestStrategy = { phase: 'CC-frontend-test-strategy', status: 'skipped', gate: 'PASS', outputs: [], frIds: [], issues: [] }
+  }
+
+  // ── Aggregate CROSS-CUTTING results ──
+  const ccValues = Object.values(ccResults)
+  const ccGateChecked = ccValues.reduce((sum, r) => sum + (r.gateChecked || 0), 0)
+  const ccGatePassed = ccValues.reduce((sum, r) => sum + (r.gatePassed || 0), 0)
+  results.CROSS_CUTTING = {
+    phase: 'CROSS-CUTTING',
+    status: ccValues.some(r => r.status === 'failed') ? 'failed'
+      : ccValues.some(r => r.status === 'completed') ? 'completed' : 'skipped',
+    gate: ccValues.some(r => r.gate === 'FAIL' || r.gate === 'CRITICAL_FAIL') ? 'FAIL' : 'PASS',
+    gateChecked: ccGateChecked,
+    gatePassed: ccGatePassed,
+    outputs: ccValues.flatMap(r => r.outputs || []),
+    frIds: [],
+    issues: ccValues.flatMap(r => r.issues || []),
+    subPhases: ccResults,
+  }
+
+  // Log CROSS-CUTTING summary
+  for (const [name, r] of Object.entries(ccResults)) {
+    if (r.status !== 'skipped') {
+      log(`  ${r.status === 'completed' ? '✅' : '⚠️'} CC-${name}: ${r.status} (gate: ${r.gate})`)
+    }
+  }
+} else {
+  results.CROSS_CUTTING = { phase: 'CROSS-CUTTING', status: 'skipped', gate: 'PASS', outputs: [], frIds: [], issues: [] }
+}
+
+// ── Phase 5: IMP ∥ TST ──
 if (runIMP || runTST) {
   phase('IMP+TST')
 
@@ -576,7 +784,7 @@ if (runIMP || runTST) {
   }
 }
 
-// ── Phase 5: Synthesize Report ──
+// ── Phase 6: Synthesize Report ──
 phase('Report')
 
 return buildReport('completed', results, warnings)
