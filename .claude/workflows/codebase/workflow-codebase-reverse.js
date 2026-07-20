@@ -1,6 +1,6 @@
 export const meta = {
   name: 'codebase-reverse',
-  description: 'Reverse engineer codebase → agent_docs/ with per-service and per-domain fan-out, inter-phase gates with retry (max 3), adversarial SRS verification (codebase-srs-verify agent with 3-lens analysis per domain), and skip-to-report on gate exhaustion.',
+  description: 'Reverse engineer codebase → agent_docs/ with per-service and per-domain fan-out, inter-phase gates with retry (max 3), adversarial SRS verification (codebase-srs-verify agent with 3-lens analysis per domain), cross-cutting synthesis (5 dedicated agents after SRS), and skip-to-report on gate exhaustion.',
   phases: [
     { title: 'HLD', detail: 'Extract architecture from code (single agent — cross-cutting)' },
     { title: 'Gate:HLD', detail: 'Validate HLD outputs against 6 criteria' },
@@ -9,6 +9,8 @@ export const meta = {
     { title: 'SRS', detail: 'Fan-out per domain + cross-domain synthesis' },
     { title: 'SRS-Verify', detail: 'Adversarially verify inferred FRs with codebase-srs-verify agent (3-lens analysis + Explore subagents) per domain' },
     { title: 'Gate:SRS', detail: 'Validate SRS outputs against 4 criteria per domain' },
+    { title: 'Cross-Cutting', detail: 'Cross-cutting synthesis (5 dedicated agents): error-handling, caching-strategy, performance-test, frontend-architecture (Stage 1 ∥), then frontend-test-strategy (Stage 2)' },
+    { title: 'Gate:Cross-Cutting', detail: 'Validate cross-cutting outputs against phase-specific criteria' },
     { title: 'IMP+TST', detail: 'Fan-out per domain (IMP ∥ TST per domain concurrently)' },
     { title: 'Gate:IMP+TST', detail: 'Validate IMP (5 criteria) and TST (5 criteria) per domain' },
     { title: 'Report', detail: 'Cross-reference validation + completeness critic + gate failure summary' },
@@ -703,6 +705,166 @@ Output: ${foundationPath}backend/{svc}/test-specs/FR-${domain.name.toUpperCase()
 }
 
 
+// === CROSS-CUTTING PROMPT BUILDERS ===
+// Each reads reverse-engineered agent_docs/ artifacts. All use OBSERVE mode —
+// extract patterns from code artifacts, flag inconsistencies, never DESIGN standards.
+
+function ccErrorHandlingPrompt(failureFeedback) {
+  let p = `## MODE: REVERSE ENGINEERING — Cross-Cutting Error Handling
+
+Extract observed error handling patterns from reverse-engineered code artifacts into unified system-wide documentation.
+
+## Context
+- **HLD**: ${foundationPath}architecture.md
+- **Per-service LLD**: ${foundationPath}backend/*/tech-design/*-service.md
+- **API conventions**: ${foundationPath}contracts/api-conventions.md
+- **Error codes**: ${foundationPath}contracts/error-codes.md
+- **Hard boundaries**: ${foundationPath}hard-boundaries.md
+- **SRS NFRs**: ${foundationPath}features/FR-*.md (error handling requirements)
+
+## Task
+Read ALL per-service LLD §9 (Error Flows & Degraded Mode) and synthesize ${foundationPath}error-handling.md:
+1. Document observed response format(s) per service with file:line evidence
+2. Build error taxonomy from observed codes (9 canonical categories)
+3. Document observed HTTP mapping patterns
+4. Extract security patterns (stacktrace exposure, PII sanitization, traceId presence)
+5. Document observed logging patterns
+6. Flag inconsistencies, gaps, and NOT OBSERVED sections
+
+## CRITICAL
+- OBSERVE, don't DESIGN — every claim needs code evidence (file:line)
+- Sections without observed patterns → "⚠️ NOT OBSERVED"
+- Flag inconsistencies: "Service A uses X (file:line), Service B uses Y (file:line)"
+- Use template: .claude/templates/supporting/error-handling-TEMPLATE.md
+- Include "Summary for Synthesis" section`
+  if (failureFeedback) p += failureFeedback
+  return p
+}
+
+function ccCachingStrategyPrompt(failureFeedback) {
+  const cacheInfra = true  // scope detection already verified architecture.md §6
+  let p = `## MODE: REVERSE ENGINEERING — Cross-Cutting Caching Strategy
+
+Extract observed cache patterns from reverse-engineered code artifacts into unified system-wide documentation.
+
+## Context
+- **HLD**: ${foundationPath}architecture.md §6 (cache infrastructure type)
+- **Per-service LLD**: ${foundationPath}backend/*/tech-design/*-service.md §7 (Caching Strategy)
+- **Hard boundaries**: ${foundationPath}hard-boundaries.md
+
+## Task
+Read ALL per-service LLD §7 and synthesize ${foundationPath}caching-strategy.md:
+1. Document observed cache architecture (L0-L3 layers)
+2. Catalog observed cache patterns (Cache-Aside, Write-Through, etc.)
+3. Build cache inventory from observed keys with TTL/pattern/eviction
+4. Document observed invalidation strategies
+5. Extract stampede prevention mechanisms
+6. Document Redis config if observed
+7. Document observed monitoring metrics
+
+## CRITICAL
+- OBSERVE, don't DESIGN — every claim needs code evidence (file:line)
+- Sections without observed patterns → "⚠️ NOT OBSERVED"
+- Flag cross-service REST invalidation as "⚠️ ANTI-PATTERN OBSERVED"
+- Use template: .claude/templates/supporting/caching-strategy-TEMPLATE.md
+- Include "Summary for Synthesis" section`
+  if (failureFeedback) p += failureFeedback
+  return p
+}
+
+function ccPerformanceTestPrompt(failureFeedback) {
+  let p = `## MODE: REVERSE ENGINEERING — Cross-Cutting Performance Test
+
+Create performance test plan from reverse-engineered SRS NFRs and per-service LLD performance characteristics.
+
+## Context
+- **HLD**: ${foundationPath}architecture.md §1 (service topology)
+- **SRS NFRs**: ${foundationPath}features/FR-*.md (NFR-PERF-* targets)
+- **Per-service LLD**: ${foundationPath}backend/*/tech-design/*-service.md §8 (Performance & Scale)
+- **Hard boundaries**: ${foundationPath}hard-boundaries.md
+
+## Task
+Read SRS NFRs and per-service LLD §8 to synthesize ${foundationPath}performance-test.md:
+1. Extract NFR-PERF-* targets (quantified or flag NOT QUANTIFIED)
+2. Define 5 test types with concrete parameters from NFR targets
+3. Document test environment requirements
+4. Define pass-fail criteria from NFR targets
+5. Bottleneck investigation guide
+6. Report template
+
+## CRITICAL
+- Targets come from SRS/LLD, not invented — flag "NOT QUANTIFIED" for placeholders
+- Use template: .claude/templates/supporting/performance-test-TEMPLATE.md
+- NEVER write test scripts (k6/JMeter configs)
+- Include "Summary for Synthesis" section`
+  if (failureFeedback) p += failureFeedback
+  return p
+}
+
+function ccFrontendArchitecturePrompt(failureFeedback) {
+  let p = `## MODE: REVERSE ENGINEERING — Cross-Cutting Frontend Architecture
+
+Extract observed frontend architecture patterns from reverse-engineered code artifacts.
+
+## Context
+- **HLD**: ${foundationPath}architecture.md §1 (frontend services)
+- **API routing**: ${foundationPath}frontend/{app}/api-routing.md (if exists)
+- **Hard boundaries**: ${foundationPath}hard-boundaries.md
+- **API conventions**: ${foundationPath}contracts/api-conventions.md
+- **SRS features**: ${foundationPath}features/FR-*.md (frontend-scope features)
+
+## Task
+Read architecture.md and frontend artifacts to synthesize ${foundationPath}frontend-architecture.md:
+1. Document observed rendering strategy (SSG/ISR/SSR/CSR) per page type
+2. Extract middleware patterns (auth guard, redirects, matchers)
+3. Document observed state management (TanStack Query, Zustand, etc.)
+4. Document observed data fetching patterns with staleTime values
+5. Extract auth & security patterns (token storage, CSRF, CSP)
+6. Document observed error boundary hierarchy
+7. i18n, Image optimization, SEO, Web Vitals, Responsive, Design System
+
+## CRITICAL
+- OBSERVE, don't DESIGN — every claim needs code evidence (file:line)
+- Flag mismatches: "architecture.md declares X but code shows Y at file:line"
+- Flag security risks prominently
+- Use template: .claude/templates/supporting/frontend-architecture-TEMPLATE.md
+- Include "Summary for Synthesis" section`
+  if (failureFeedback) p += failureFeedback
+  return p
+}
+
+function ccFrontendTestStrategyPrompt(failureFeedback) {
+  let p = `## MODE: REVERSE ENGINEERING — Cross-Cutting Frontend Test Strategy
+
+Extract observed frontend test patterns from reverse-engineered frontend architecture and error handling artifacts.
+
+## Context
+- **Frontend architecture**: ${foundationPath}frontend-architecture.md (from Stage 1)
+- **Error handling**: ${foundationPath}error-handling.md §7 (frontend UX contract, from Stage 1)
+- **API routing**: ${foundationPath}frontend/{app}/api-routing.md (if exists)
+- **Hard boundaries**: ${foundationPath}hard-boundaries.md
+
+## Task
+Read frontend-architecture.md + error-handling.md to synthesize ${foundationPath}frontend-test-strategy.md:
+1. Document observed test pyramid (unit/integration/E2E ratio)
+2. Extract project setup (Vitest, Playwright, MSW configs)
+3. Document observed MSW mocking conventions
+4. Extract unit test patterns (hooks, utils, stores, formatters)
+5. Document integration test patterns (component+API, form, error states)
+6. Document E2E patterns (Page Object Model, auth setup, locators)
+7. What's NOT tested (7 categories)
+8. File conventions and coverage targets
+
+## CRITICAL
+- Document what EXISTS, not what should be
+- Check ALL 9 error UX treatments from error-handling.md §7 for test coverage
+- Use template: .claude/templates/supporting/frontend-test-strategy-TEMPLATE.md
+- Include "Summary for Synthesis" section`
+  if (failureFeedback) p += failureFeedback
+  return p
+}
+
+
 // === RERUN FUNCTIONS (called by gate engine on retry) ===
 // Each rerun function receives failureDetails and re-runs the phase
 // with targeted feedback. Returns the new result(s).
@@ -769,6 +931,52 @@ async function rerunTST(failureDetails) {
       agentType: 'codebase-tst',
     }).then(result => ({ type: 'tst', domain: dom.name, result }))
   )
+  return await parallel(tasks)
+}
+
+// -- Cross-Cutting rerun (all 5 agents re-run with feedback, respecting scope detection) --
+
+async function rerunCrossCutting(failureDetails, ccScope) {
+  const feedback = failureFeedbackForAgent('cross-cutting', failureDetails)
+  log(`  Re-running cross-cutting agents with targeted feedback...`)
+  const tasks = []
+
+  if (ccScope.errorHandling) {
+    tasks.push(() => agent(ccErrorHandlingPrompt(feedback), {
+      label: 'CC: error-handling (retry)',
+      phase: 'Cross-Cutting',
+      agentType: 'codebase-cross-cutting-error-handling',
+    }).then(r => ({ type: 'error-handling', result: r })))
+  }
+  if (ccScope.cachingStrategy) {
+    tasks.push(() => agent(ccCachingStrategyPrompt(feedback), {
+      label: 'CC: caching-strategy (retry)',
+      phase: 'Cross-Cutting',
+      agentType: 'codebase-cross-cutting-caching-strategy',
+    }).then(r => ({ type: 'caching-strategy', result: r })))
+  }
+  if (ccScope.performanceTest) {
+    tasks.push(() => agent(ccPerformanceTestPrompt(feedback), {
+      label: 'CC: performance-test (retry)',
+      phase: 'Cross-Cutting',
+      agentType: 'codebase-cross-cutting-performance-test',
+    }).then(r => ({ type: 'performance-test', result: r })))
+  }
+  if (ccScope.frontendArchitecture) {
+    tasks.push(() => agent(ccFrontendArchitecturePrompt(feedback), {
+      label: 'CC: frontend-architecture (retry)',
+      phase: 'Cross-Cutting',
+      agentType: 'codebase-cross-cutting-frontend-architecture',
+    }).then(r => ({ type: 'frontend-architecture', result: r })))
+  }
+  if (ccScope.frontendTestStrategy) {
+    tasks.push(() => agent(ccFrontendTestStrategyPrompt(feedback), {
+      label: 'CC: frontend-test-strategy (retry)',
+      phase: 'Cross-Cutting',
+      agentType: 'codebase-cross-cutting-frontend-test-strategy',
+    }).then(r => ({ type: 'frontend-test-strategy', result: r })))
+  }
+
   return await parallel(tasks)
 }
 
@@ -1032,7 +1240,141 @@ ${[...new Set(allConcerns)].map(c => `- ${c}`).join('\n')}
   log('SRS: Skipped (gate exhaustion from previous phase)')
 }
 
-// -- Phase 4: IMP+TST (fan-out per domain + gate) --
+// -- Phase 4: Cross-Cutting (scope detection → Stage 1 ∥ → barrier → Stage 2 → gate) --
+
+let ccResults = { 'error-handling': null, 'caching-strategy': null, 'performance-test': null, 'frontend-architecture': null, 'frontend-test-strategy': null }
+let ccGatePassed = false
+
+if (!skipRemaining) {
+
+  // --- Scope Detection ---
+  // Determine which cross-cutting agents to run based on available artifacts
+
+  const hasBackendService = services.some(s => s.type === 'backend' || s.type === 'node' || s.type === 'go' || s.type === 'java')
+  const hasFrontendService = services.some(s => s.type === 'frontend' || s.type === 'nextjs' || s.type === 'react')
+
+  // error-handling: always if ≥1 backend service (error patterns exist even without synthesis)
+  const ccErrorHandling = hasBackendService
+
+  // caching-strategy: only if architecture.md §6 declares cache infrastructure
+  // We check at runtime — default to true, agent self-detects and exits early if N/A
+  const ccCachingStrategy = hasBackendService  // agent checks architecture.md §6 internally
+
+  // performance-test: only if SRS has NFR-PERF-* targets
+  // We check at runtime — default to true, agent self-detects and exits early if N/A
+  const ccPerformanceTest = srsResults.filter(Boolean).length > 0  // need SRS outputs
+
+  // frontend-architecture: only if architecture.md §1 declares frontend services
+  const ccFrontendArchitecture = hasFrontendService
+
+  // frontend-test-strategy: only if frontend-architecture runs in Stage 1
+  const ccFrontendTestStrategy = ccFrontendArchitecture
+
+  const ccScope = {
+    errorHandling: ccErrorHandling,
+    cachingStrategy: ccCachingStrategy,
+    performanceTest: ccPerformanceTest,
+    frontendArchitecture: ccFrontendArchitecture,
+    frontendTestStrategy: ccFrontendTestStrategy,
+  }
+
+  const ccAgentCount = [ccErrorHandling, ccCachingStrategy, ccPerformanceTest, ccFrontendArchitecture, ccFrontendTestStrategy].filter(Boolean).length
+
+  if (ccAgentCount > 0) {
+    phase('Cross-Cutting')
+    log(`Cross-Cutting: scope detection — ${ccAgentCount} agent(s) applicable`)
+    log(`  error-handling: ${ccErrorHandling ? 'YES' : 'no (no backend)'}`)
+    log(`  caching-strategy: ${ccCachingStrategy ? 'YES' : 'no (no backend)'}`)
+    log(`  performance-test: ${ccPerformanceTest ? 'YES' : 'no (no SRS NFRs)'}`)
+    log(`  frontend-architecture: ${ccFrontendArchitecture ? 'YES' : 'no (no frontend service)'}`)
+    log(`  frontend-test-strategy: ${ccFrontendTestStrategy ? 'YES (Stage 2)' : 'no (no frontend-architecture)'}`)
+
+    // --- Stage 1: 4 agents in parallel ---
+
+    const stage1Tasks = []
+    if (ccErrorHandling) {
+      stage1Tasks.push(() => agent(ccErrorHandlingPrompt(), {
+        label: 'CC: error-handling',
+        phase: 'Cross-Cutting',
+        agentType: 'codebase-cross-cutting-error-handling',
+      }).then(r => ({ type: 'error-handling', result: r })))
+    }
+    if (ccCachingStrategy) {
+      stage1Tasks.push(() => agent(ccCachingStrategyPrompt(), {
+        label: 'CC: caching-strategy',
+        phase: 'Cross-Cutting',
+        agentType: 'codebase-cross-cutting-caching-strategy',
+      }).then(r => ({ type: 'caching-strategy', result: r })))
+    }
+    if (ccPerformanceTest) {
+      stage1Tasks.push(() => agent(ccPerformanceTestPrompt(), {
+        label: 'CC: performance-test',
+        phase: 'Cross-Cutting',
+        agentType: 'codebase-cross-cutting-performance-test',
+      }).then(r => ({ type: 'performance-test', result: r })))
+    }
+    if (ccFrontendArchitecture) {
+      stage1Tasks.push(() => agent(ccFrontendArchitecturePrompt(), {
+        label: 'CC: frontend-architecture',
+        phase: 'Cross-Cutting',
+        agentType: 'codebase-cross-cutting-frontend-architecture',
+      }).then(r => ({ type: 'frontend-architecture', result: r })))
+    }
+
+    log(`Cross-Cutting Stage 1: spawning ${stage1Tasks.length} agent(s) in parallel...`)
+    const stage1Results = await parallel(stage1Tasks)
+
+    // Collect Stage 1 results
+    for (const r of stage1Results.filter(Boolean)) {
+      ccResults[r.type] = r.result
+      const issues = countIssues(r.result)
+      log(`  CC ${r.type}: ${r.result ? 'complete' : 'FAILED'} — ${issues} UNCERTAINTY flag(s)`)
+    }
+
+    // --- Barrier: wait for error-handling + frontend-architecture ---
+    // frontend-test-strategy needs both as input
+
+    if (ccFrontendTestStrategy && ccResults['frontend-architecture']) {
+      log('Cross-Cutting Stage 2: spawning frontend-test-strategy (depends on error-handling + frontend-architecture)...')
+      const stage2Result = await agent(ccFrontendTestStrategyPrompt(), {
+        label: 'CC: frontend-test-strategy',
+        phase: 'Cross-Cutting',
+        agentType: 'codebase-cross-cutting-frontend-test-strategy',
+      })
+      ccResults['frontend-test-strategy'] = stage2Result
+      log(`  CC frontend-test-strategy: ${stage2Result ? 'complete' : 'FAILED'} — ${countIssues(stage2Result)} UNCERTAINTY flag(s)`)
+    } else if (ccFrontendTestStrategy && !ccResults['frontend-architecture']) {
+      log('  CC frontend-test-strategy: SKIPPED — frontend-architecture failed in Stage 1')
+    }
+
+    // --- Cross-Cutting Gate ---
+
+    const ccExpectedOutputs = []
+    if (ccErrorHandling) ccExpectedOutputs.push(foundationPath + 'error-handling.md')
+    if (ccCachingStrategy) ccExpectedOutputs.push(foundationPath + 'caching-strategy.md')
+    if (ccPerformanceTest) ccExpectedOutputs.push(foundationPath + 'performance-test.md')
+    if (ccFrontendArchitecture) ccExpectedOutputs.push(foundationPath + 'frontend-architecture.md')
+    if (ccFrontendTestStrategy) ccExpectedOutputs.push(foundationPath + 'frontend-test-strategy.md')
+
+    const ccGate = await gateCheck('cross-cutting', { services, domains },
+      async (fd) => {
+        const retried = await rerunCrossCutting(fd, ccScope)
+        for (const r of (retried || []).filter(Boolean)) {
+          ccResults[r.type] = r.result
+        }
+      },
+      ccExpectedOutputs
+    )
+    ccGatePassed = ccGate.passed
+  } else {
+    log('Cross-Cutting: No agents applicable — skipping')
+    ccGatePassed = true  // no-op gate passes
+  }
+} else {
+  log('Cross-Cutting: Skipped (gate exhaustion from previous phase)')
+}
+
+// -- Phase 5: IMP+TST (fan-out per domain + gate) --
 
 let impResults = []
 let tstResults = []
@@ -1110,12 +1452,23 @@ const allOutputs = new Set()
 const allWarnings = []
 
 // Collect outputs from all phases
+const ccErrorHandlingResult = ccResults['error-handling']
+const ccCachingStrategyResult = ccResults['caching-strategy']
+const ccPerformanceTestResult = ccResults['performance-test']
+const ccFrontendArchitectureResult = ccResults['frontend-architecture']
+const ccFrontendTestStrategyResult = ccResults['frontend-test-strategy']
+
 const phaseResults = [
   { name: 'HLD', result: hldResult },
   ...lldResults.filter(Boolean).map((r, i) => ({ name: `LLD:${services[i]?.name || i}`, result: r })),
   { name: 'LLD-Synthesis', result: lldSynthesisResult },
   ...srsResults.filter(Boolean).map((r, i) => ({ name: `SRS:${domains[i]?.name || i}`, result: r })),
   { name: 'SRS-Synthesis', result: srsSynthesisResult },
+  { name: 'CC:error-handling', result: ccErrorHandlingResult },
+  { name: 'CC:caching-strategy', result: ccCachingStrategyResult },
+  { name: 'CC:performance-test', result: ccPerformanceTestResult },
+  { name: 'CC:frontend-architecture', result: ccFrontendArchitectureResult },
+  { name: 'CC:frontend-test-strategy', result: ccFrontendTestStrategyResult },
   ...impResults.filter(r => r.result).map(r => ({ name: `IMP:${r.domain}`, result: r.result })),
   ...tstResults.filter(r => r.result).map(r => ({ name: `TST:${r.domain}`, result: r.result })),
 ]
@@ -1136,6 +1489,7 @@ const lldOk = lldResults.filter(Boolean).length
 const lldSynthOk = lldSynthesisResult != null
 const srsOk = srsResults.filter(Boolean).length
 const srsSynthOk = srsSynthesisResult != null
+const ccOk = [ccErrorHandlingResult, ccCachingStrategyResult, ccPerformanceTestResult, ccFrontendArchitectureResult, ccFrontendTestStrategyResult].filter(Boolean).length
 const impOk = impResults.length
 const tstOk = tstResults.length
 
@@ -1146,7 +1500,7 @@ const exhaustedGates = gateResults.filter(g => !g.passed && g.attempt === MAX_RE
 
 const pipelineStatus = skipRemaining
   ? 'partial (gate exhaustion)'
-  : (hldOk || lldOk > 0 || srsOk > 0 || impOk > 0 || tstOk > 0)
+  : (hldOk || lldOk > 0 || srsOk > 0 || ccOk > 0 || impOk > 0 || tstOk > 0)
     ? 'completed'
     : 'failed'
 
@@ -1155,6 +1509,7 @@ log(`🏁 Pipeline ${pipelineStatus}`)
 log(`   ✅ HLD: ${hldOk ? 'complete' : 'skipped'} | Gate: ${hldGatePassed ? 'PASS' : (hldOk ? 'FAIL' : 'N/A')}`)
 log(`   ✅ LLD: ${lldOk}/${serviceCount} services | Synthesis: ${lldSynthOk ? 'done' : 'skipped'} | Gate: ${lldGatePassed ? 'PASS' : (lldOk > 0 ? 'FAIL' : 'N/A')}`)
 log(`   ✅ SRS: ${srsOk}/${domainCount} domains | Synthesis: ${srsSynthOk ? 'done' : 'skipped'} | Gate: ${srsGatePassed ? 'PASS' : (srsOk > 0 ? 'FAIL' : 'N/A')}`)
+log(`   ✅ CC: ${ccOk}/5 cross-cutting agents | Gate: ${ccGatePassed ? 'PASS' : (ccOk > 0 ? 'FAIL' : 'N/A')}`)
 log(`   ✅ IMP: ${impOk}/${domainCount} domains | Gate: ${impGatePassed ? 'PASS' : (impOk > 0 ? 'FAIL' : 'N/A')}`)
 log(`   ✅ TST: ${tstOk}/${domainCount} domains | Gate: ${tstGatePassed ? 'PASS' : (tstOk > 0 ? 'FAIL' : 'N/A')}`)
 log(`   📄 Total outputs: ${allOutputs.size} files`)
@@ -1202,6 +1557,7 @@ Review the completed reverse engineering pipeline and identify gaps.
 - **HLD**: ${hldOk ? 'complete' : 'skipped'} | Gate: ${hldGatePassed ? 'PASS' : (hldOk ? 'FAIL' : 'N/A')}
 - **LLD**: ${lldOk}/${serviceCount} services | Synthesis: ${lldSynthOk ? 'done' : 'skipped'} | Gate: ${lldGatePassed ? 'PASS' : (lldOk > 0 ? 'FAIL' : 'N/A')}
 - **SRS**: ${srsOk}/${domainCount} domains | Synthesis: ${srsSynthOk ? 'done' : 'skipped'} | Gate: ${srsGatePassed ? 'PASS' : (srsOk > 0 ? 'FAIL' : 'N/A')}
+- **Cross-Cutting**: ${ccOk}/5 agents | Gate: ${ccGatePassed ? 'PASS' : (ccOk > 0 ? 'FAIL' : 'N/A')}
 - **IMP**: ${impOk}/${domainCount} domains | Gate: ${impGatePassed ? 'PASS' : (impOk > 0 ? 'FAIL' : 'N/A')}
 - **TST**: ${tstOk}/${domainCount} domains | Gate: ${tstGatePassed ? 'PASS' : (tstOk > 0 ? 'FAIL' : 'N/A')}
 - **Total outputs**: ${allOutputs.size} files
@@ -1247,6 +1603,14 @@ return {
     hld: hldOk,
     lld: { services: lldOk, synthesis: lldSynthOk },
     srs: { domains: srsOk, synthesis: srsSynthOk },
+    crossCutting: {
+      errorHandling: ccErrorHandlingResult != null,
+      cachingStrategy: ccCachingStrategyResult != null,
+      performanceTest: ccPerformanceTestResult != null,
+      frontendArchitecture: ccFrontendArchitectureResult != null,
+      frontendTestStrategy: ccFrontendTestStrategyResult != null,
+      total: ccOk,
+    },
     imp: impOk,
     tst: tstOk,
   },
@@ -1265,5 +1629,5 @@ return {
   outputs: [...allOutputs],
   warnings: allWarnings,
   criticFindings: criticResult ? extractSummary(criticResult, 'critic') : null,
-  summary: `Reverse engineered ${serviceCount} service(s) across ${domainCount} domain(s). ${allOutputs.size} files generated. ${gatePasses}/${gateResults.length} gates passed${exhaustedGates.length > 0 ? `, ${exhaustedGates.length} gates exhausted (remaining phases skipped)` : ''}. ${allWarnings.length} warnings.`,
+  summary: `Reverse engineered ${serviceCount} service(s) across ${domainCount} domain(s) with ${ccOk}/5 cross-cutting agent(s). ${allOutputs.size} files generated. ${gatePasses}/${gateResults.length} gates passed${exhaustedGates.length > 0 ? `, ${exhaustedGates.length} gates exhausted (remaining phases skipped)` : ''}. ${allWarnings.length} warnings.`,
 }

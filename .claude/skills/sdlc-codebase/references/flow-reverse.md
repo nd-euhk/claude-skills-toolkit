@@ -3,7 +3,7 @@
 Procedure chi tiết cho Bước 5 của sdlc-codebase: package args → invoke workflow →
 reverse engineer codebase → agent_docs/ artifacts.
 
-Pipeline: **Scout Report → HLD → LLD → SRS → IMP ∥ TST**
+Pipeline: **Scout Report → HLD → LLD → SRS → CROSS-CUTTING → IMP ∥ TST**
 
 Workflow script: `.claude/workflows/codebase/workflow-codebase-reverse.js`
 
@@ -209,6 +209,73 @@ const srsSynthesisResult = await agent(srsSynthesisPrompt(srsResults), {
 |--------|-------|
 | `agent_docs/features/README.md` | Unified feature index (all domains) |
 | `agent_docs/traceability/requirements-matrix.md` | FR → code module mapping with evidence quality |
+
+---
+
+## Phase 3.5: Cross-Cutting (Synthesize Cross-Cutting Standards from Code)
+
+### Mục tiêu
+
+Sau SRS (đã có NFRs), tổng hợp 5 cross-cutting documents từ reverse-engineered artifacts.
+Dùng dedicated `codebase-cross-cutting-*` agents — OBSERVE patterns từ code, không DESIGN standards.
+
+### Workflow Execution — Scope Detection → Stage 1 ∥ → Barrier → Stage 2
+
+Workflow tự động detect scope và spawn agents theo 2 giai đoạn:
+
+```js
+// --- Scope Detection ---
+// Xác định agents cần chạy dựa trên artifacts có sẵn:
+//   error-handling: luôn nếu có ≥1 backend service
+//   caching-strategy: nếu architecture.md §6 khai báo cache infrastructure
+//   performance-test: nếu SRS có NFR-PERF-* quantified
+//   frontend-architecture: nếu architecture.md §1 có frontend service
+//   frontend-test-strategy: nếu frontend-architecture được chọn ở Stage 1
+
+// --- Stage 1: 4 agents song song ---
+const stage1Tasks = []
+if (ccErrorHandling) stage1Tasks.push(agent(ccErrorHandlingPrompt(), { agentType: 'codebase-cross-cutting-error-handling' }))
+if (ccCachingStrategy) stage1Tasks.push(agent(ccCachingStrategyPrompt(), { agentType: 'codebase-cross-cutting-caching-strategy' }))
+if (ccPerformanceTest) stage1Tasks.push(agent(ccPerformanceTestPrompt(), { agentType: 'codebase-cross-cutting-performance-test' }))
+if (ccFrontendArchitecture) stage1Tasks.push(agent(ccFrontendArchitecturePrompt(), { agentType: 'codebase-cross-cutting-frontend-architecture' }))
+const stage1Results = await parallel(stage1Tasks)
+
+// --- Barrier: đợi error-handling + frontend-architecture ---
+// --- Stage 2: frontend-test-strategy (cần cả 2 input trên) ---
+if (ccFrontendTestStrategy && ccResults['frontend-architecture']) {
+  agent(ccFrontendTestStrategyPrompt(), { agentType: 'codebase-cross-cutting-frontend-test-strategy' })
+}
+```
+
+### Mode: REVERSE (OBSERVE, not DESIGN)
+
+Tất cả `codebase-cross-cutting-*` agents dùng mindset quan sát:
+- **Forward**: "Hệ thống PHẢI dùng pattern X" (authoritative)
+- **Reverse**: "Service A dùng pattern X tại file:line, Service B dùng pattern Y tại file:line → INCONSISTENT" (observational)
+- Mỗi claim cần code evidence (file:line) từ reverse-engineered artifacts
+- Sections không observe được → "⚠️ NOT OBSERVED — no pattern found in code artifacts"
+- Dùng chung template với forward agents, nhưng cho phép NOT OBSERVED
+
+### Expected Outputs
+
+| Agent | Output | Khi nào chạy |
+|-------|--------|-------------|
+| `codebase-cross-cutting-error-handling` | `agent_docs/error-handling.md` | Luôn nếu có ≥1 backend service |
+| `codebase-cross-cutting-caching-strategy` | `agent_docs/caching-strategy.md` | `architecture.md` §6 khai báo cache |
+| `codebase-cross-cutting-performance-test` | `agent_docs/performance-test.md` | SRS có NFR-PERF-* quantified |
+| `codebase-cross-cutting-frontend-architecture` | `agent_docs/frontend-architecture.md` | `architecture.md` §1 có frontend |
+| `codebase-cross-cutting-frontend-test-strategy` | `agent_docs/frontend-test-strategy.md` | frontend-architecture ở Stage 1 |
+
+### Cross-Cutting Gate (Reverse Mode)
+
+| # | Criteria | Check |
+|---|----------|-------|
+| 1 | Mỗi agent output có mode indicator `observed_from: codebase_reverse` trong frontmatter | Verify frontmatter |
+| 2 | Mỗi claim có code evidence (file:line) hoặc UNCERTAINTY flag | Spot-check 5 claims |
+| 3 | Sections không observe được → NOT OBSERVED flag (không bịa) | Scan for NOT OBSERVED |
+| 4 | Inconsistencies giữa các service được flag rõ ràng | Đếm INCONSISTENT flags |
+| 5 | Template section structure được giữ nguyên (không thêm/bớt) | Compare vs template |
+| 6 | Summary for Synthesis section có đủ key metrics | Verify section exists |
 
 ---
 

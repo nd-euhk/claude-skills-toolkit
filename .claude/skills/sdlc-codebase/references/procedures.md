@@ -164,6 +164,46 @@ Mỗi agent type có pattern Explore khác nhau tùy theo loại thông tin cầ
 - "Find all mock/stub configs and WireMock/MSW setups in {service_paths}"
 ```
 
+**codebase-cross-cutting-error-handling:**
+```
+- "Find all exception handler classes and @ControllerAdvice in {service_paths}"
+- "Find all error response DTOs and builders in {service_paths}"
+- "Find all logging configuration and patterns in {service_paths}"
+- "Find all i18n/message bundle files for error messages in {service_paths}"
+```
+
+**codebase-cross-cutting-caching-strategy:**
+```
+- "Find all cache configuration files (Redis, Caffeine) in {service_paths}"
+- "Find all @Cacheable/@CacheEvict annotations in {service_paths}"
+- "Find all cache key patterns and TTL configs in {service_paths}"
+- "Find all cache invalidation triggers (events, direct eviction) in {service_paths}"
+```
+
+**codebase-cross-cutting-performance-test:**
+```
+- "Find all performance config files (connection pools, thread pools) in {service_paths}"
+- "Find all rate limiter configs and thresholds in {service_paths}"
+- "Find all timeout configs (HTTP client, DB, circuit breaker) in {service_paths}"
+- "Find all existing benchmark/k6/JMeter scripts in the codebase"
+```
+
+**codebase-cross-cutting-frontend-architecture:**
+```
+- "Find all Next.js page files with getStaticProps/getServerSideProps in {frontend_path}"
+- "Find all middleware.ts files and their route matchers in {frontend_path}"
+- "Find all state management imports (Zustand, Redux, TanStack Query) in package.json"
+- "Find all security header configs (CSP, HSTS) in next.config.js or middleware"
+```
+
+**codebase-cross-cutting-frontend-test-strategy:**
+```
+- "Find all vitest.config.ts and playwright.config.ts files in {frontend_path}"
+- "Find all MSW handler files and mock server setups in {frontend_path}"
+- "Find all test files with error simulation patterns in {frontend_path}"
+- "Find all Page Object Model / E2E helper files in {frontend_path}"
+```
+
 ### Explore Constraints
 
 - Mỗi agent spawn tối đa 4 Explore subagents cho 1 nhiệm vụ
@@ -235,6 +275,18 @@ Skill đọc kết quả workflow và kiểm tra gate trước khi cho phép pha
 | 3 | Error mapping khớp exception classes | file:line check |
 | 4 | Security considerations có implementation evidence | AuthZ/validation references |
 | 5 | All features in domain documented (không per-feature gaps) | Count features vs IMP files |
+
+### Cross-Cutting Gate (Reverse Mode)
+
+| # | Criteria | Check |
+|---|----------|-------|
+| 1 | Mode indicator: `observed_from: codebase_reverse` trong YAML frontmatter của mỗi output | Verify frontmatter |
+| 2 | Mỗi claim có code evidence (file:line) hoặc UNCERTAINTY flag — không claim nào trần trụi | Spot-check 5 claims/output |
+| 3 | Sections không observe được → "⚠️ NOT OBSERVED" flag (không bịa ra standards) | Scan output files |
+| 4 | Inconsistencies giữa các service được flag với `⚠️ INCONSISTENT` + file:line evidence | Đếm INCONSISTENT flags ≥ inconsistency count |
+| 5 | Template section structure được giữ nguyên — không thêm hoặc bớt sections | Compare vs template |
+| 6 | Security risks (token ở localStorage, stacktrace exposed in errors) được flag với `⚠️ SECURITY RISK` | Scan for SECURITY RISK flags |
+| 7 | Summary for Synthesis section có mặt trong mỗi output | Verify section exists per output |
 
 ### TST Gate (Reverse Mode)
 

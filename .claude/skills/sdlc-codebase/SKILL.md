@@ -8,7 +8,7 @@ description: >-
   code", "tạo agent_docs từ codebase", "document codebase", "extract specs
   from code", "đồng bộ tài liệu với code", "generate SDLC docs from source".
 argument-hint: "[--focus <description>] [--scope <path>] [--artifacts hld,lld,srs,imp,tst] [--dry-run]"
-version: 1.3.0
+version: 1.4.0
 user-invocable: true
 category: sdlc
 keywords: [reverse-engineer, codebase, agent-docs, documentation, sdlc, specs-from-code]
@@ -119,6 +119,11 @@ ls agent_docs/features/*.md 2>/dev/null | head -5 && echo "  ... (SRS features)"
 ls agent_docs/backend/*/tech-design/*.md 2>/dev/null | head -3 && echo "  ... (LLD)" || true
 ls agent_docs/backend/*/implementation/*.md 2>/dev/null | head -3 && echo "  ... (IMP)" || true
 ls agent_docs/backend/*/test-specs/*.md 2>/dev/null | head -3 && echo "  ... (TST)" || true
+test -f agent_docs/error-handling.md && echo "  error-handling (cross-cutting)" || true
+test -f agent_docs/caching-strategy.md && echo "  caching-strategy (cross-cutting)" || true
+test -f agent_docs/performance-test.md && echo "  performance-test (cross-cutting)" || true
+test -f agent_docs/frontend-architecture.md && echo "  frontend-architecture (cross-cutting)" || true
+test -f agent_docs/frontend-test-strategy.md && echo "  frontend-test-strategy (cross-cutting)" || true
 ```
 
 **Route dựa trên trạng thái:**
@@ -188,9 +193,10 @@ Báo cáo: "🔍 Scout hoàn tất — {N} sub-project, {M} modules, {T} technol
 Pipeline ngược với sdlc-orchestrator task flow. **Dùng Workflow để fan-out agent theo service/domain**, không spawn Agent trực tiếp trong skill.
 
 ```
-Scout Report ──→ HLD ──→ 🚦Gate ──→ LLD ──→ 🚦Gate ──→ SRS ──→ 🚦Gate ──→ IMP∥TST ──→ 🚦Gate ──→ Report
-                 (1 agent)  (retry≤3)  (N∥ +S)  (retry≤3)  (M∥ +S)  (retry≤3)  (2M∥)      (retry≤3)
+Scout Report ──→ HLD ──→ 🚦Gate ──→ LLD ──→ 🚦Gate ──→ SRS ──→ 🚦Gate ──→ CROSS-CUTTING ──→ 🚦Gate ──→ IMP∥TST ──→ 🚦Gate ──→ Report
+                 (1 agent)  (retry≤3)  (N∥ +S)  (retry≤3)  (M∥ +S)  (retry≤3)  (2-stage)      (retry≤3)  (2M∥)      (retry≤3)
 
+                 Cross-Cutting: Stage 1 (4∥) → barrier → Stage 2 (1 agent)
                  Gate fail ở attempt 3 → skipRemaining = true → tất cả phase sau bị skip → Report
 ```
 
@@ -204,7 +210,9 @@ Scout Report ──→ HLD ──→ 🚦Gate ──→ LLD ──→ 🚦Gate �
 **Vì sao thứ tự này?** Khi reverse engineering từ code:
 - **HLD trước** — cấu trúc service, communication patterns thấy trực tiếp từ code (1 agent, cross-cutting)
 - **LLD tiếp** — domain models, API contracts, data flow extracted per service (N agents ∥)
+- **LLD Synthesis** — API contracts by domain, canonical error codes, FR candidates (1 agent). **Không** sinh cross-cutting.md — việc đó được giao cho dedicated agents sau SRS
 - **SRS sau** — functional requirements được suy ra từ implementation + HLD/LLD context, grouped by domain (M agents ∥)
+- **Cross-Cutting sau SRS** — 5 dedicated agents tổng hợp error-handling, caching-strategy, performance-test, frontend-architecture, frontend-test-strategy từ code artifacts. Dùng dedicated `codebase-cross-cutting-*` agents với mindset OBSERVE (không DESIGN). Có scope detection tự động + 2-stage execution
 - **IMP∥TST cuối** — implementation + test specs per domain (2M agents ∥, song song IMP với TST)
 
 #### Human-in-the-Loop (Plan Level)
@@ -357,6 +365,11 @@ Khi human chỉ định `--artifacts`, chỉ sinh những artifact được ch�
 | `codebase-imp` | IMP (reverse) | 1 domain/epic | Document implementation: execution flows, business rules, error mapping, security |
 | `codebase-tst` | TST (reverse) | 1 domain/epic | Document test patterns: test architecture, test cases, fixtures, coverage gaps |
 | `codebase-gate` | Gate (inter-phase) | Per-phase outputs | Verify artifacts against phase-specific gate criteria. Read-only. Returns structured PASS/FAIL. Called by workflow script between phases with retry ≤ 3 |
+| `codebase-cross-cutting-error-handling` | Cross-Cutting (reverse) | Toàn bộ backend services | Extract observed error handling patterns: taxonomy, HTTP mapping, security, logging. OBSERVE, not DESIGN. Writes `error-handling.md` |
+| `codebase-cross-cutting-caching-strategy` | Cross-Cutting (reverse) | Toàn bộ backend services | Extract observed caching patterns: L0-L3 layers, inventory, invalidation, stampede prevention. Writes `caching-strategy.md` |
+| `codebase-cross-cutting-performance-test` | Cross-Cutting (reverse) | Toàn bộ services | Create performance test plan from SRS NFRs + LLD §8 performance targets. Writes `performance-test.md` |
+| `codebase-cross-cutting-frontend-architecture` | Cross-Cutting (reverse) | Frontend services | Extract observed frontend patterns: rendering, state, auth, error boundaries. Writes `frontend-architecture.md` |
+| `codebase-cross-cutting-frontend-test-strategy` | Cross-Cutting (reverse) | Frontend services | Extract observed test strategy: pyramid, MSW, patterns, coverage. Runs in Stage 2 after error-handling + frontend-architecture. Writes `frontend-test-strategy.md` |
 
 ---
 
