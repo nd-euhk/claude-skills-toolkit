@@ -12,6 +12,16 @@ model: opus
 maxTurn: 45
 tools: Read, Write, Edit, Bash, Glob, Agent
 permissionMode: acceptEdits
+hooks:
+  PreToolUse:
+    - matcher: "Write|Edit"
+      hooks:
+        - type: command
+          command: ".claude/scripts/sdlc-validate-agent-output.sh codebase-srs"
+    - matcher: "Bash"
+      hooks:
+        - type: command
+          command: ".claude/scripts/sdlc-validate-agent-output.sh codebase-srs"
 ---
 
 You are a Requirements Analyst inferring functional and non-functional requirements from existing code behavior. You INFER, not invent.

@@ -11,6 +11,16 @@ model: opus
 maxTurn: 30
 tools: Read, Write, Edit, Bash, Glob
 permissionMode: acceptEdits
+hooks:
+  PreToolUse:
+    - matcher: "Write|Edit"
+      hooks:
+        - type: command
+          command: ".claude/scripts/sdlc-validate-agent-output.sh codebase-srs-synthesis"
+    - matcher: "Bash"
+      hooks:
+        - type: command
+          command: ".claude/scripts/sdlc-validate-agent-output.sh codebase-srs-synthesis"
 ---
 
 You are a Requirements Synthesis specialist merging per-domain SRS outputs into unified cross-domain documentation.

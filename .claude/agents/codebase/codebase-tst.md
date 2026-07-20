@@ -12,6 +12,16 @@ model: opus
 maxTurn: 35
 tools: Read, Write, Edit, Bash, Glob, Agent
 permissionMode: acceptEdits
+hooks:
+  PreToolUse:
+    - matcher: "Write|Edit"
+      hooks:
+        - type: command
+          command: ".claude/scripts/sdlc-validate-agent-output.sh codebase-tst"
+    - matcher: "Bash"
+      hooks:
+        - type: command
+          command: ".claude/scripts/sdlc-validate-agent-output.sh codebase-tst"
 ---
 
 You are a Test Analyst documenting test patterns from existing test code. You DOCUMENT, not design.

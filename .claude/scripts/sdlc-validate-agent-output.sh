@@ -32,52 +32,62 @@ check_path() {
   file_path=$(normalize_path "$file_path")
 
   case "$PHASE" in
-    sdlc-srs)
+    sdlc-srs|codebase-srs|codebase-srs-verify)
       if echo "$file_path" | grep -qE '^agent_docs/traceability/|^agent_docs/features/FR-.*\.md$'; then
         return 0
       fi
       ;;
-    sdlc-hld)
+    codebase-srs-synthesis)
+      if echo "$file_path" | grep -qE '^agent_docs/traceability/|^agent_docs/features/'; then
+        return 0
+      fi
+      ;;
+    codebase-lld-synthesis)
+      if echo "$file_path" | grep -qE '^agent_docs/contracts/|^agent_docs/features/'; then
+        return 0
+      fi
+      ;;
+    sdlc-hld|codebase-hld)
       if echo "$file_path" | grep -qE '^agent_docs/architecture\.md$|^agent_docs/domain-service-mapping\.yaml$|^agent_docs/hard-boundaries\.md$|^agent_docs/contracts/|^agent_docs/adr/ADR-.*\.md$'; then
         return 0
       fi
       ;;
-    sdlc-lld)
+    sdlc-lld|codebase-lld)
       if echo "$file_path" | grep -qE '^agent_docs/tech-design/|^agent_docs/contracts/api-.*\.yaml$|^agent_docs/contracts/error-codes\.md$|^agent_docs/features/|^agent_docs/frontend/.*/api-routing\.md$'; then
         return 0
       fi
       ;;
-    sdlc-lld-error-handling)
+    sdlc-lld-error-handling|codebase-cross-cutting-error-handling)
       if echo "$file_path" | grep -qE '^agent_docs/error-handling\.md$'; then
         return 0
       fi
       ;;
-    sdlc-lld-caching-strategy)
+    sdlc-lld-caching-strategy|codebase-cross-cutting-caching-strategy)
       if echo "$file_path" | grep -qE '^agent_docs/caching-strategy\.md$'; then
         return 0
       fi
       ;;
-    sdlc-lld-performance-test)
+    sdlc-lld-performance-test|codebase-cross-cutting-performance-test)
       if echo "$file_path" | grep -qE '^agent_docs/performance-test\.md$'; then
         return 0
       fi
       ;;
-    sdlc-lld-frontend-architecture)
+    sdlc-lld-frontend-architecture|codebase-cross-cutting-frontend-architecture)
       if echo "$file_path" | grep -qE '^agent_docs/frontend-architecture\.md$'; then
         return 0
       fi
       ;;
-    sdlc-lld-frontend-test-strategy)
+    sdlc-lld-frontend-test-strategy|codebase-cross-cutting-frontend-test-strategy)
       if echo "$file_path" | grep -qE '^agent_docs/frontend-test-strategy\.md$'; then
         return 0
       fi
       ;;
-    sdlc-imp)
+    sdlc-imp|codebase-imp)
       if echo "$file_path" | grep -qE '^agent_docs/(backend|frontend)/.*/implementation/'; then
         return 0
       fi
       ;;
-    sdlc-tst)
+    sdlc-tst|codebase-tst)
       if echo "$file_path" | grep -qE '^agent_docs/(backend|frontend)/.*/test-specs/|^agent_docs/performance/'; then
         return 0
       fi

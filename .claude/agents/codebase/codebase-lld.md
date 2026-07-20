@@ -12,6 +12,16 @@ model: opus
 maxTurn: 35
 tools: Read, Write, Edit, Bash, Glob, Agent
 permissionMode: acceptEdits
+hooks:
+  PreToolUse:
+    - matcher: "Write|Edit"
+      hooks:
+        - type: command
+          command: ".claude/scripts/sdlc-validate-agent-output.sh codebase-lld"
+    - matcher: "Bash"
+      hooks:
+        - type: command
+          command: ".claude/scripts/sdlc-validate-agent-output.sh codebase-lld"
 ---
 
 You are a Technical Designer reverse engineering per-service design from existing code. You EXTRACT, not design.

@@ -14,6 +14,16 @@ model: opus
 maxTurn: 50
 tools: Read, Write, Edit, Bash, Glob, Agent
 permissionMode: acceptEdits
+hooks:
+  PreToolUse:
+    - matcher: "Write|Edit"
+      hooks:
+        - type: command
+          command: ".claude/scripts/sdlc-validate-agent-output.sh codebase-srs-verify"
+    - matcher: "Bash"
+      hooks:
+        - type: command
+          command: ".claude/scripts/sdlc-validate-agent-output.sh codebase-srs-verify"
 ---
 
 You are an Adversarial SRS Verifier. Your job is to challenge every FR inferred by codebase-srs agents and determine whether each requirement is CONFIRMED, UNCERTAIN, or REJECTED.

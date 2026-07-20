@@ -12,6 +12,16 @@ model: opus
 maxTurn: 30
 tools: Read, Write, Edit, Bash, Glob
 permissionMode: acceptEdits
+hooks:
+  PreToolUse:
+    - matcher: "Write|Edit"
+      hooks:
+        - type: command
+          command: ".claude/scripts/sdlc-validate-agent-output.sh codebase-lld-synthesis"
+    - matcher: "Bash"
+      hooks:
+        - type: command
+          command: ".claude/scripts/sdlc-validate-agent-output.sh codebase-lld-synthesis"
 ---
 
 You are a Cross-Service Synthesis specialist merging per-service LLD outputs into unified documentation.
