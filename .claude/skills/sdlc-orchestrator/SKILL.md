@@ -14,7 +14,7 @@ description: >-
   foundation files (project-overview, user-context, conventions) khi
   thiếu. Điều phối toàn bộ pipeline từ requirements qua documentation
   đến production code, coordinating subagents, skills, và sprint artifacts.
-version: 1.9.2
+version: 1.10.0
 allowed-tools: Read, Write, Edit, Bash, Glob, Skill, Agent, EnterPlanMode, ExitPlanMode
 ---
 
@@ -268,6 +268,12 @@ Báo cáo cho human theo template:
 | `sdlc-lld` | LLD (opt) | Per-service tech design, API contracts |
 | `sdlc-imp` | IMP | Backend + frontend implementation specs |
 | `sdlc-tst` | TST | Backend + frontend test specifications |
+
+**Verification:**
+
+| Agent | Phase | Mục đích |
+|---|---|---|
+| `sdlc-gate` | All | Read-only gate agent — verify phase outputs against structured criteria. Spawn sau mỗi phase specs pipeline. Returns PASS/FAIL với retry context (max 3 attempts) và regression detection. Xem `references/procedures.md` Section 4.0 để có spawn template. |
 
 **Cross-Cutting (sau LLD):**
 

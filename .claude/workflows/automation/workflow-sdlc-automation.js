@@ -1,88 +1,21 @@
 export const meta = {
   name: 'workflow-sdlc-automation',
-  description: 'Autonomous SDLC pipeline — runs SRS → HLD → LLD → CROSS-CUTTING → IMP∥TST without human interruption after upfront grilling',
+  description: 'Autonomous SDLC pipeline — runs SRS → HLD → LLD → CROSS-CUTTING → IMP∥TST with independent sdlc-gate verification after each phase, without human interruption after upfront grilling',
   phases: [
     { title: 'SRS', detail: 'Software requirements specification with Gherkin scenarios' },
     { title: 'HLD', detail: 'High-level design — architecture, ADRs, C4 diagrams (optional)' },
     { title: 'LLD', detail: 'Low-level design — per-service tech design, API contracts (optional)' },
     { title: 'CROSS-CUTTING', detail: 'System-wide standards — error handling, caching, performance, frontend' },
     { title: 'IMP+TST', detail: 'Implementation + test specifications in parallel' },
-    { title: 'Report', detail: 'Synthesize results, verify gates, generate final report' },
+    { title: 'Gate', detail: 'Independent sdlc-gate verification — read-only, per-phase criteria, retry with regression detection' },
+    { title: 'Report', detail: 'Synthesize results, generate final report' },
   ],
 }
 
 // ═══════════════════════════════════════════
-// GATE CRITERIA — inline, không phụ thuộc skill references/
+// GATE VERIFICATION — delegated to sdlc-gate agent
+// See gateCheck() below — spawns dedicated read-only gate agent
 // ═══════════════════════════════════════════
-
-const GATE_CRITERIA = {
-  SRS: {
-    required: 4,
-    criteria: [
-      'All FRs have Gherkin Scenario Outlines with Given/When/Then',
-      'All NFRs have quantitative thresholds (p95 < Xms, availability: 99.X%)',
-      'Traceability matrix complete (BR → FR → NFR)',
-      'No service names, API paths, or implementation details',
-    ],
-    criticalIfMissing: ['No FRs defined', 'Traceability completely missing'],
-  },
-  HLD: {
-    required: 7,
-    criteria: [
-      'C4 Container diagram complete (not just System Context)',
-      'All ADRs have: Context, Decision, Rationale, Consequences, Alternatives Considered',
-      'ADR index (agent_docs/adrs/README.md) exists with status tracking',
-      'Superseded ADRs link to replacement ADR',
-      'Bounded context map for each service boundary',
-      'Event taxonomy + hard boundaries between services',
-      'No per-service internals (reserved for LLD)',
-    ],
-    criticalIfMissing: ['Wrong service boundary (bounded context mismatch)'],
-  },
-  LLD: {
-    required: 3,
-    criteria: [
-      'All 9 sections: Domain Model, API Contracts, REST Clients, Caching, Transaction Boundaries, Error Flows, Degraded Modes, Work Packages, Routing Overlay',
-      'No new architectural decisions (belongs in HLD)',
-      'Each FR has work package with routing overlay',
-    ],
-    criticalIfMissing: ['Missing API contracts for new services'],
-  },
-  IMP: {
-    required: 6,
-    criteria: [
-      'Execution flow for each feature (step-by-step)',
-      'Business rules mapped to code paths',
-      'Data impact: schema changes, migrations, indexes',
-      'Error mapping: exception → HTTP status → error response body',
-      'Security: authz rules, input validation points, data sanitization',
-      'References LLD work packages and tech-design',
-    ],
-    criticalIfMissing: [],
-  },
-  TST: {
-    required: 6,
-    criteria: [
-      'Unit test cases with concrete inputs/expected outputs',
-      'Integration test cases (Testcontainers specs)',
-      'E2E test scenarios (Playwright user flows)',
-      'Performance test thresholds (p95, p99)',
-      'Test fixtures and mock definitions',
-      'References IMP specs for feature behavior',
-    ],
-    criticalIfMissing: [],
-  },
-  CROSS_CUTTING: {
-    required: 1,  // per-agent — mỗi agent tự gate check
-    criteria: [
-      'Output file exists and follows template structure',
-      'All template sections populated (no "TODO" placeholders)',
-      'Cross-references to architecture.md, tech-design, and hard-boundaries',
-      'Consistent with per-service LLD outputs (no contradictions)',
-    ],
-    criticalIfMissing: [],
-  },
-}
 
 // ── Safe-parse args (MANDATORY) ──
 const _args = (typeof args === 'string') ? JSON.parse(args) : (args || {})
@@ -125,7 +58,7 @@ const PHASE_RESULT = {
   properties: {
     phase: { type: 'string' },
     status: { type: 'string', enum: ['completed', 'failed', 'skipped'] },
-    gate: { type: 'string', enum: ['PASS', 'PASS_WITH_WARNINGS', 'FAIL', 'CRITICAL_FAIL'] },
+    gate: { type: 'string', enum: ['PASS', 'FAIL'] },
     gateChecked: { type: 'number' },
     gatePassed: { type: 'number' },
     outputs: { type: 'array', items: { type: 'string' } },
@@ -190,14 +123,7 @@ ${requirements.nfrs || 'Define measurable thresholds for performance, availabili
 - Use domain-specific FR-ID prefix based on feature area (AUTH, ORDER, PAYMENT, etc.)
 - Assign FR-NNN sequentially starting from existing FRs in agent_docs/features/
 
-## Gate Self-Check
-Before finishing, verify:
-- [ ] All FRs have Gherkin Scenario Outlines with Given/When/Then
-- [ ] All NFRs have quantitative thresholds
-- [ ] Traceability matrix complete (BR → FR → NFR)
-- [ ] No service names, API paths, or implementation details
-
-Report: "Gate: [PASS/FAIL] ([N]/[M] criteria met)". Return structured output.`
+Return structured output with list of created files and FR-IDs.`
 }
 
 function hldPrompt(srsOutputs) {
@@ -229,17 +155,7 @@ ${srsSummary}`)}
 - Define event taxonomy if async communication is used
 - Hard boundaries between services — no direct DB access across services
 
-## Gate Self-Check
-Before finishing, verify:
-- [ ] C4 Container diagram complete (not just System Context)
-- [ ] All ADRs have: Context, Decision, Rationale, Consequences, Alternatives Considered
-- [ ] ADR index exists with status tracking
-- [ ] Superseded ADRs link to replacement
-- [ ] Bounded context map for each service boundary
-- [ ] Event taxonomy + hard boundaries between services
-- [ ] No per-service internals
-
-Report: "Gate: [PASS/FAIL] ([N]/[M] criteria met)". Return structured output.`
+Return structured output with list of created files.`
 }
 
 function lldPrompt(srsOutputs, hldOutputs) {
@@ -285,19 +201,7 @@ ${contextParts.join('\n\n')}`)}
 - Circuit breaker configs: concrete thresholds (failureRate ≥ 50%, waitDuration ≥ 30s)
 - All .md files MUST have YAML frontmatter
 
-## Gate Self-Check
-Before finishing, verify:
-- [ ] Every service has tech-design with all 9 sections
-- [ ] Circuit breaker configs have concrete thresholds
-- [ ] Error flows cover degraded mode behavior
-- [ ] Every FR enriched with routing overlay (backend_service, api_endpoints)
-- [ ] API contracts are valid OpenAPI 3.0
-- [ ] error-codes.md catalogs all error states from FRs
-- [ ] features/README.md has dependency graph
-- [ ] No new architectural decisions — HLD is authoritative
-- [ ] All files in agent_docs/ only, with YAML frontmatter
-
-Report: "Gate: [PASS/FAIL] ([N]/[M] criteria met)". Return structured output.`
+Return structured output with list of created files and enriched FR-IDs.`
 }
 
 function impPrompt(srsOutputs, lldOutputs) {
@@ -334,16 +238,7 @@ For EACH feature (FR-ID), create:
 - Error mapping must be exhaustive (all exception types covered)
 - Security section must address: authz, input validation, data sanitization
 
-## Gate Self-Check
-Before finishing, verify:
-- [ ] Execution flow for each feature (step-by-step)
-- [ ] Business rules mapped to code paths
-- [ ] Data impact documented (schema, migrations, indexes)
-- [ ] Error mapping: exception → HTTP status → error body
-- [ ] Security: authz rules, input validation, data sanitization
-- [ ] References LLD work packages
-
-Report: "Gate: [PASS/FAIL] ([N]/[M] criteria met)". Return structured output.`
+Return structured output with list of created files and FR-IDs.`
 }
 
 function tstPrompt(srsOutputs, impOutputs) {
@@ -380,16 +275,7 @@ For EACH feature (FR-ID), create:
 - Integration tests: specify Docker images, WireMock mappings, DB seed data
 - Performance thresholds must be quantitative
 
-## Gate Self-Check
-Before finishing, verify:
-- [ ] Unit test cases with concrete inputs/expected outputs
-- [ ] Integration test cases (Testcontainers specs)
-- [ ] E2E test scenarios (Playwright user flows)
-- [ ] Performance test thresholds (p95, p99)
-- [ ] Test fixtures and mock definitions
-- [ ] References IMP specs
-
-Report: "Gate: [PASS/FAIL] ([N]/[M] criteria met)". Return structured output.`
+Return structured output with list of created files and FR-IDs.`
 }
 
 function crossCuttingPrompt(agentType, srsOutputs, hldOutputs, lldOutputs) {
@@ -427,27 +313,73 @@ ${contextParts.join('\n\n')}`)}
 - All sections must be populated — no "TODO" or placeholder text
 - Be consistent with per-service LLD outputs — no contradictions
 
-## Gate Self-Check
-Before finishing, verify:
-- [ ] Output file exists and follows template structure
-- [ ] All template sections populated (no "TODO" placeholders)
-- [ ] Cross-references to architecture.md, tech-design, and hard-boundaries
-- [ ] Consistent with per-service LLD outputs (no contradictions)
-
-Report: "Gate: [PASS/FAIL] ([N]/[M] criteria met)". Return structured output.`
+Return structured output with path to the created file.`
 }
 
-// ── Gate Result Parser ──
-function parseGateResult(reportText) {
-  if (!reportText) return { gate: 'FAIL', checked: 0, passed: 0 }
-  const match = reportText.match(/Gate:\s*(PASS|PASS_WITH_WARNINGS|FAIL|CRITICAL_FAIL)\s*\(?(\d+)\/(\d+)/i)
-  if (match) {
-    return { gate: match[1], passed: parseInt(match[2]), checked: parseInt(match[3]) }
+// ── Gate Result Parser (sdlc-gate structured output) ──
+function parseGateVerdict(reportText) {
+  if (!reportText) return { gate: 'FAIL', checked: 0, passed: 0, critical: false }
+  // Parse GATE_VERDICT: PASS|FAIL (first line of sdlc-gate output)
+  const verdictMatch = reportText.match(/GATE_VERDICT:\s*(PASS|FAIL)/i)
+  const gate = verdictMatch ? verdictMatch[1] : 'FAIL'
+  // Parse summary: "## Summary: PASS — 4/4 criteria met" or similar
+  const summaryMatch = reportText.match(/Summary:.*?(\d+)\/(\d+)/)
+  const passed = summaryMatch ? parseInt(summaryMatch[1]) : 0
+  const checked = summaryMatch ? parseInt(summaryMatch[2]) : 0
+  // Detect critical failure
+  const critical = /CRITICAL/i.test(reportText) || gate === 'FAIL' && checked === 0
+  return { gate, checked, passed, critical }
+}
+
+// ── Gate Check — spawn sdlc-gate for independent verification ──
+async function gateCheck(phaseName, outputs, attempt = 1, previousFailure = null, opts = {}) {
+  const { crossCuttingScope = null, services = [], domains = [] } = opts
+
+  let prompt = `Verify ${phaseName} phase outputs against gate criteria.
+
+Phase: ${phaseName}
+Attempt: ${attempt}/3
+
+Expected outputs:
+${outputs.length > 0 ? outputs.map(f => `- ${f}`).join('\n') : '(auto-detect from agent_docs/)'}`
+
+  if (services.length > 0) {
+    prompt += `\n\nServices:\n${services.map(s => `- ${s}`).join('\n')}`
   }
-  // Fallback: search for gate language
-  if (reportText.includes('CRITICAL_FAIL')) return { gate: 'CRITICAL_FAIL', passed: 0, checked: 0 }
-  if (reportText.includes('PASS')) return { gate: 'PASS', passed: 0, checked: 0 }
-  return { gate: 'FAIL', passed: 0, checked: 0 }
+  if (domains.length > 0) {
+    prompt += `\n\nDomains:\n${domains.map(d => `- ${d}`).join('\n')}`
+  }
+  if (crossCuttingScope) {
+    const ccFlags = Object.entries(crossCuttingScope)
+      .filter(([, v]) => v === true)
+      .map(([k]) => k)
+      .join(', ')
+    prompt += `\n\nCross-cutting scope (only validate these files): ${ccFlags}`
+  }
+  if (previousFailure) {
+    prompt += `\n\nPrevious gate failure (attempt ${attempt - 1}):\n${previousFailure}\nFocus on previously failed criteria. Flag any regression: criteria that passed before but fail now.`
+  }
+
+  try {
+    const result = await agent(prompt, {
+      label: `gate-${phaseName}${attempt > 1 ? `-r${attempt}` : ''}`,
+      phase: `Gate-${phaseName}`,
+      agentType: 'sdlc-gate',
+      model: 'sonnet',
+    })
+
+    if (!result) {
+      return { gate: 'FAIL', checked: 0, passed: 0, critical: false, details: 'sdlc-gate returned null' }
+    }
+
+    const reportText = typeof result === 'string' ? result : JSON.stringify(result)
+    const verdict = parseGateVerdict(reportText)
+    verdict.details = reportText
+    return verdict
+  } catch (e) {
+    log(`ERROR: sdlc-gate crash for ${phaseName}: ${e.message || String(e)}`)
+    return { gate: 'FAIL', checked: 0, passed: 0, critical: false, details: `sdlc-gate error: ${e.message || String(e)}` }
+  }
 }
 
 function extractOutputs(reportText) {
@@ -474,8 +406,12 @@ function extractFrIds(reportText) {
   return [...new Set([...matches].map(m => m[0]))]
 }
 
-// ── Phase Runner with Retry ──
-async function runPhase(phaseName, agentType, prompt, dependsOn = null) {
+// ── Phase Runner with Gate ──
+// Spawns writing agent → extracts outputs → spawns sdlc-gate for independent verification
+// Set skipGate=true for phases where gate is handled separately (e.g., cross-cutting)
+async function runPhase(phaseName, agentType, prompt, dependsOn = null, opts = {}) {
+  const { skipGate = false, gateOpts = {} } = opts
+
   if (dependsOn && dependsOn.status === 'failed') {
     log(`SKIP ${phaseName} — dependency ${dependsOn.phase} failed`)
     return {
@@ -493,10 +429,12 @@ async function runPhase(phaseName, agentType, prompt, dependsOn = null) {
 
   const MAX_RETRIES = 1
   let lastError = null
+  let previousFailure = null
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     const label = attempt > 0 ? `${phaseName}-retry${attempt}` : phaseName
     try {
+      // ── Step 1: Spawn writing agent ──
       log(`${attempt > 0 ? 'RETRY ' : ''}Spawning ${agentType} agent for ${phaseName}...`)
 
       const result = await agent(prompt, {
@@ -526,34 +464,83 @@ async function runPhase(phaseName, agentType, prompt, dependsOn = null) {
       }
 
       const reportText = typeof result === 'string' ? result : JSON.stringify(result)
-      const gateResult = parseGateResult(reportText)
       const outputs = extractOutputs(reportText)
       const frIds = extractFrIds(reportText)
 
-      const isPassing = gateResult.gate === 'PASS' || gateResult.gate === 'PASS_WITH_WARNINGS'
-      log(`${isPassing ? '✅' : '⚠️'} ${phaseName} complete — gate: ${gateResult.gate} (${gateResult.passed}/${gateResult.checked})`)
+      log(`${agentType} complete — ${outputs.length} output(s), ${frIds.length} FR(s)`)
+
+      // ── Step 2: Spawn sdlc-gate for independent verification ──
+      if (skipGate) {
+        log(`⏭️  Gate skipped for ${phaseName} (deferred to separate gate phase)`)
+        return {
+          phase: phaseName,
+          status: 'completed',
+          gate: 'PASS',
+          gateChecked: 0,
+          gatePassed: 0,
+          outputs: outputs,
+          frIds: frIds,
+          issues: [],
+          retries: attempt,
+        }
+      }
+
+      log(`Spawning sdlc-gate for ${phaseName} verification...`)
+      const gateResult = await gateCheck(
+        phaseName.toLowerCase(),
+        outputs,
+        attempt + 1,
+        previousFailure,
+        gateOpts,
+      )
+
+      const isPassing = gateResult.gate === 'PASS'
+      log(`${isPassing ? '✅' : '⚠️'} ${phaseName} gate: ${gateResult.gate} (${gateResult.passed}/${gateResult.checked})`)
 
       if (outputs.length > 0) {
         log(`  📄 Outputs: ${outputs.join(', ')}`)
       }
 
+      if (isPassing) {
+        return {
+          phase: phaseName,
+          status: 'completed',
+          gate: gateResult.gate,
+          gateChecked: gateResult.checked,
+          gatePassed: gateResult.passed,
+          outputs: outputs,
+          frIds: frIds,
+          issues: [],
+          retries: attempt,
+        }
+      }
+
+      // Gate FAIL — prepare retry context
+      const failSummary = `Gate FAIL: ${gateResult.passed}/${gateResult.checked} criteria met`
+      if (attempt < MAX_RETRIES) {
+        log(`⚠️  ${failSummary} — retrying with failure context (${attempt + 1}/${MAX_RETRIES})`)
+        previousFailure = failSummary + '\n' + (gateResult.details || '')
+        continue
+      }
+
+      // Max retries exhausted
       return {
         phase: phaseName,
-        status: gateResult.gate === 'CRITICAL_FAIL' ? 'failed' : 'completed',
+        status: gateResult.critical ? 'failed' : 'completed',
         gate: gateResult.gate,
         gateChecked: gateResult.checked,
         gatePassed: gateResult.passed,
         outputs: outputs,
         frIds: frIds,
-        issues: gateResult.gate === 'FAIL' || gateResult.gate === 'CRITICAL_FAIL'
-          ? [`Gate ${gateResult.gate}: ${gateResult.passed}/${gateResult.checked} criteria met`]
-          : [],
+        issues: [`${failSummary} after ${MAX_RETRIES + 1} attempts`],
         retries: attempt,
       }
+
     } catch (e) {
       lastError = e.message || String(e)
       if (attempt < MAX_RETRIES) {
         log(`ERROR: ${lastError} — retrying (${attempt + 1}/${MAX_RETRIES})`)
+        previousFailure = `Agent error: ${lastError}`
         continue
       }
       log(`FAIL: ${phaseName} after ${MAX_RETRIES + 1} attempt(s): ${lastError}`)
@@ -594,7 +581,7 @@ if (runSRS) {
   srsResult = await runPhase('SRS', 'sdlc-srs', srsPrompt())
   results.SRS = srsResult
 
-  if (srsResult.status === 'failed' && srsResult.gate === 'CRITICAL_FAIL') {
+  if (srsResult.status === 'failed') {
     log('🛑 CRITICAL: SRS failed — cannot continue pipeline')
     return buildReport('failed', results, warnings)
   }
@@ -609,7 +596,7 @@ if (runHLD) {
   hldResult = await runPhase('HLD', 'sdlc-hld', hldPrompt(srsResult), srsResult)
   results.HLD = hldResult
 
-  if (hldResult.status === 'failed' && hldResult.gate === 'CRITICAL_FAIL') {
+  if (hldResult.status === 'failed') {
     warnings.push('HLD critical failure — LLD và downstream phases sẽ thiếu architectural context')
   }
 } else {
@@ -655,7 +642,7 @@ if (runCROSS_CUTTING && ccEnabled) {
     stage1AgentTypes.push('sdlc-lld-error-handling')
     stage1Tasks.push(async () => {
       const result = await runPhase('CC-error-handling', 'sdlc-lld-error-handling',
-        crossCuttingPrompt('sdlc-lld-error-handling', srsResult, hldResult, lldResult))
+        crossCuttingPrompt('sdlc-lld-error-handling', srsResult, hldResult, lldResult), null, { skipGate: true })
       ccResults.errorHandling = result
     })
   } else {
@@ -666,7 +653,7 @@ if (runCROSS_CUTTING && ccEnabled) {
     stage1AgentTypes.push('sdlc-lld-caching-strategy')
     stage1Tasks.push(async () => {
       const result = await runPhase('CC-caching-strategy', 'sdlc-lld-caching-strategy',
-        crossCuttingPrompt('sdlc-lld-caching-strategy', srsResult, hldResult, lldResult))
+        crossCuttingPrompt('sdlc-lld-caching-strategy', srsResult, hldResult, lldResult), null, { skipGate: true })
       ccResults.cachingStrategy = result
     })
   } else {
@@ -677,7 +664,7 @@ if (runCROSS_CUTTING && ccEnabled) {
     stage1AgentTypes.push('sdlc-lld-performance-test')
     stage1Tasks.push(async () => {
       const result = await runPhase('CC-performance-test', 'sdlc-lld-performance-test',
-        crossCuttingPrompt('sdlc-lld-performance-test', srsResult, hldResult, lldResult))
+        crossCuttingPrompt('sdlc-lld-performance-test', srsResult, hldResult, lldResult), null, { skipGate: true })
       ccResults.performanceTest = result
     })
   } else {
@@ -688,7 +675,7 @@ if (runCROSS_CUTTING && ccEnabled) {
     stage1AgentTypes.push('sdlc-lld-frontend-architecture')
     stage1Tasks.push(async () => {
       const result = await runPhase('CC-frontend-architecture', 'sdlc-lld-frontend-architecture',
-        crossCuttingPrompt('sdlc-lld-frontend-architecture', srsResult, hldResult, lldResult))
+        crossCuttingPrompt('sdlc-lld-frontend-architecture', srsResult, hldResult, lldResult), null, { skipGate: true })
       ccResults.frontendArchitecture = result
     })
   } else {
@@ -720,34 +707,48 @@ if (runCROSS_CUTTING && ccEnabled) {
     } else {
       log('Spawning frontend-test-strategy (Stage 2 — depends on frontend-architecture + error-handling)')
       const result = await runPhase('CC-frontend-test-strategy', 'sdlc-lld-frontend-test-strategy',
-        crossCuttingPrompt('sdlc-lld-frontend-test-strategy', srsResult, hldResult, lldResult))
+        crossCuttingPrompt('sdlc-lld-frontend-test-strategy', srsResult, hldResult, lldResult), null, { skipGate: true })
       ccResults.frontendTestStrategy = result
     }
   } else {
     ccResults.frontendTestStrategy = { phase: 'CC-frontend-test-strategy', status: 'skipped', gate: 'PASS', outputs: [], frIds: [], issues: [] }
   }
 
-  // ── Aggregate CROSS-CUTTING results ──
+  // ── Single sdlc-gate for ALL cross-cutting outputs ──
   const ccValues = Object.values(ccResults)
-  const ccGateChecked = ccValues.reduce((sum, r) => sum + (r.gateChecked || 0), 0)
-  const ccGatePassed = ccValues.reduce((sum, r) => sum + (r.gatePassed || 0), 0)
+  const allCCOutputs = ccValues.flatMap(r => r.outputs || [])
+  const ccAgentFailed = ccValues.some(r => r.status === 'failed')
+
+  let ccGateResult = { gate: 'PASS', checked: 0, passed: 0 }
+  if (!ccAgentFailed && allCCOutputs.length > 0) {
+    log(`Spawning sdlc-gate for CROSS-CUTTING verification (${allCCOutputs.length} outputs)...`)
+    ccGateResult = await gateCheck('cross-cutting', allCCOutputs, 1, null, {
+      crossCuttingScope: ccScope,
+    })
+    log(`${ccGateResult.gate === 'PASS' ? '✅' : '⚠️'} CROSS-CUTTING gate: ${ccGateResult.gate} (${ccGateResult.passed}/${ccGateResult.checked})`)
+  } else if (ccAgentFailed) {
+    log('⚠️  Skipping CROSS-CUTTING gate — one or more agents failed')
+  }
+
   results.CROSS_CUTTING = {
     phase: 'CROSS-CUTTING',
-    status: ccValues.some(r => r.status === 'failed') ? 'failed'
+    status: ccAgentFailed ? 'failed'
       : ccValues.some(r => r.status === 'completed') ? 'completed' : 'skipped',
-    gate: ccValues.some(r => r.gate === 'FAIL' || r.gate === 'CRITICAL_FAIL') ? 'FAIL' : 'PASS',
-    gateChecked: ccGateChecked,
-    gatePassed: ccGatePassed,
-    outputs: ccValues.flatMap(r => r.outputs || []),
+    gate: ccAgentFailed ? 'FAIL' : ccGateResult.gate,
+    gateChecked: ccGateResult.checked,
+    gatePassed: ccGateResult.passed,
+    outputs: allCCOutputs,
     frIds: [],
-    issues: ccValues.flatMap(r => r.issues || []),
+    issues: ccAgentFailed
+      ? ccValues.filter(r => r.status === 'failed').flatMap(r => r.issues || [])
+      : (ccGateResult.gate === 'FAIL' ? [`CROSS-CUTTING gate FAIL: ${ccGateResult.passed}/${ccGateResult.checked}`] : []),
     subPhases: ccResults,
   }
 
   // Log CROSS-CUTTING summary
   for (const [name, r] of Object.entries(ccResults)) {
     if (r.status !== 'skipped') {
-      log(`  ${r.status === 'completed' ? '✅' : '⚠️'} CC-${name}: ${r.status} (gate: ${r.gate})`)
+      log(`  ${r.status === 'completed' ? '✅' : '⚠️'} CC-${name}: ${r.status}`)
     }
   }
 } else {
@@ -806,7 +807,7 @@ function buildReport(status, results, warnings) {
       totalGatePassed += result.gatePassed || 0
       if (result.outputs) allOutputs.push(...result.outputs)
       if (result.frIds) result.frIds.forEach(id => allFrIds.add(id))
-      if (result.status === 'failed' || result.gate === 'FAIL' || result.gate === 'CRITICAL_FAIL') {
+      if (result.status === 'failed' || result.gate === 'FAIL') {
         hasFailures = true
       }
     }

@@ -21,9 +21,19 @@ Agent({
     [Expected outputs: đường dẫn file + mô tả nội dung]
     [Gate criteria: xem Section 5 bên dưới — chọn đúng phase]
 
-    Làm theo procedure của bạn. Self-check gate trước khi finish.
-    Báo cáo những gì đã tạo/cập nhật và các vấn đề phát hiện.
+    Làm theo procedure của bạn. Báo cáo những gì đã tạo/cập nhật và các vấn đề phát hiện.
+    Orchestrator sẽ spawn sdlc-gate để verify output của bạn sau phase này.
   "
+})
+```
+
+**Sau khi agent hoàn thành, orchestrator spawn sdlc-gate để verify gate:**
+```
+Agent({
+  subagent_type: "sdlc-gate",
+  description: "Gate: {phase} cho {feature}",
+  permissionMode: "acceptEdits",
+  prompt: "Xem Section 4.0 để có template đầy đủ."
 })
 ```
 
@@ -45,7 +55,7 @@ Agent({
     Expected output: agent_docs/error-handling.md
     Template: templates/supporting/error-handling-TEMPLATE.md
     Gate: Section 4.3b
-    Làm theo procedure của bạn. Self-check gate trước khi finish.
+    Làm theo procedure của bạn. Orchestrator sẽ spawn sdlc-gate để verify output.
   "
 })
 Agent({
@@ -58,7 +68,7 @@ Agent({
     Expected output: agent_docs/caching-strategy.md
     Template: templates/supporting/caching-strategy-TEMPLATE.md
     Gate: Section 4.3b
-    Làm theo procedure của bạn. Self-check gate trước khi finish.
+    Làm theo procedure của bạn. Orchestrator sẽ spawn sdlc-gate để verify output.
   "
 })
 Agent({
@@ -72,7 +82,7 @@ Agent({
     Expected output: agent_docs/performance-test.md
     Template: templates/supporting/performance-test-TEMPLATE.md
     Gate: Section 4.3b
-    Làm theo procedure của bạn. Self-check gate trước khi finish.
+    Làm theo procedure của bạn. Orchestrator sẽ spawn sdlc-gate để verify output.
   "
 })
 Agent({
@@ -86,7 +96,7 @@ Agent({
     Expected output: agent_docs/frontend-architecture.md
     Template: templates/supporting/frontend-architecture-TEMPLATE.md
     Gate: Section 4.3b
-    Làm theo procedure của bạn. Self-check gate trước khi finish.
+    Làm theo procedure của bạn. Orchestrator sẽ spawn sdlc-gate để verify output.
   "
 })
 ```
@@ -107,7 +117,7 @@ Agent({
     Expected output: agent_docs/frontend-test-strategy.md
     Template: templates/supporting/frontend-test-strategy-TEMPLATE.md
     Gate: Section 4.3b
-    Làm theo procedure của bạn. Self-check gate trước khi finish.
+    Làm theo procedure của bạn. Orchestrator sẽ spawn sdlc-gate để verify output.
   "
 })
 ```
@@ -353,54 +363,110 @@ nằm trong `references/flow-cook.md` Bước 4. **Flow cook là canonical sourc
 
 ---
 
-## 4. Gate Criteria
+## 4. Gate Verification
 
-Orchestrator kiểm tra subagent self-check report sau mỗi phase. Nếu gate fail → báo cáo human, không proceed.
+Sau mỗi phase, spawn `sdlc-gate` agent để verify output. Gate agent là read-only — nó kiểm tra file thực tế và trả về structured PASS/FAIL. Orchestrator chỉ cần spawn và đọc kết quả, không tự verify thủ công.
 
-### 4.1 SRS Gate
-- [ ] Tất cả FRs có Gherkin Scenario Outlines với Given/When/Then
-- [ ] Tất cả NFRs có ngưỡng định lượng (performance: p95 < Xms, availability: 99.X%)
-- [ ] Traceability matrix đầy đủ (BR → FR → NFR)
-- [ ] Không có service names, API paths, hoặc implementation details
+### 4.0 sdlc-gate Spawn Template
 
-### 4.2 HLD Gate
-- [ ] C4 Container diagram hoàn chỉnh (không chỉ System Context)
-- [ ] Tất cả ADRs có: Context, Decision, Rationale, Consequences, Alternatives Considered
-- [ ] ADR index (`agent_docs/adrs/README.md`) tồn tại với status tracking
-- [ ] ADR bị superseded có link đến ADR thay thế
-- [ ] Bounded context map cho mỗi service boundary
-- [ ] Event taxonomy + hard boundaries giữa các service
-- [ ] Không có per-service internals (để dành cho LLD)
+```
+Agent({
+  subagent_type: "sdlc-gate",
+  description: "Gate: {phase} cho {feature}",
+  permissionMode: "acceptEdits",
+  prompt: "
+    Validate phase: {phase}
+    Services: [{service list from orchestrator context}]
+    Domains: [{domain list from orchestrator context}]
+    Expected outputs: [{file paths}]
+    crossCuttingScope: [{selected cross-cutting files}]  ← chỉ cho cross-cutting phase
+    Attempt: {attempt_number}/3
+    Previous failure: [{previousFailure summary}]  ← chỉ khi attempt > 1
 
-### 4.3 LLD Gate
-- [ ] Đủ 9 sections: Domain Model, API Contracts, REST Clients, Caching, Transaction Boundaries, Error Flows, Degraded Modes, Work Packages, Routing Overlay
-- [ ] Không có architectural decisions mới (thuộc HLD)
-- [ ] Mỗi FR có work package với routing overlay
+    Đọc files từ agent_docs/ và verify gate criteria theo phase.
+    Return GATE_VERDICT: PASS|FAIL với detailed report.
+  "
+})
+```
 
-### 4.3b Cross-Cutting Gate
-- [ ] `error-handling.md`: error taxonomy ≥8 categories, HTTP status mapping, security rules (nếu applicable)
-- [ ] `caching-strategy.md`: cache architecture L0-L3, inventory per service (nếu applicable)
-- [ ] `performance-test.md`: NFR targets quantified, 5 test types (nếu applicable)
-- [ ] `frontend-architecture.md`: rendering strategy, state management, data fetching (nếu applicable)
-- [ ] `frontend-test-strategy.md`: test pyramid, MSW patterns, coverage targets (nếu applicable)
-- [ ] Tất cả file YAML frontmatter có `depends_on` + `referenced_by`
-- [ ] File được chọn = file được sinh (không thiếu, không thừa)
+**Cross-cutting phase lưu ý:**
+- Luôn truyền `crossCuttingScope` — danh sách file được chọn để sinh (dựa trên scope detection)
+- Gate agent chỉ kiểm tra criteria cho file trong scope, đánh dấu N/A cho file không được chọn
+- Ví dụ: nếu chỉ chọn `error-handling` + `caching-strategy`, gate agent bỏ qua C3/C4/C5
 
-### 4.4 IMP Gate
-- [ ] Execution flow cho mỗi feature (step-by-step)
-- [ ] Business rules mapped đến code paths
-- [ ] Data impact: schema changes, migrations, indexes
-- [ ] Error mapping: exception → HTTP status → error response body
-- [ ] Security: authz rules, input validation points, data sanitization
-- [ ] References LLD work packages và tech-design
+### 4.1 SRS Gate (4 criteria)
 
-### 4.5 TST Gate
-- [ ] Unit test cases với concrete inputs/expected outputs
-- [ ] Integration test cases (Testcontainers specs)
-- [ ] E2E test scenarios (Playwright user flows)
-- [ ] Performance test thresholds (p95, p99)
-- [ ] Test fixtures và mock definitions
-- [ ] References IMP specs cho feature behavior
+| # | Criterion | Critical |
+|---|-----------|----------|
+| S1 | Tất cả FRs có Gherkin Scenario Outlines với Given/When/Then | ✅ |
+| S2 | Tất cả NFRs có ngưỡng định lượng (p95 < Xms, availability: 99.X%) | |
+| S3 | Traceability matrix đầy đủ (BR → FR → NFR) | ✅ |
+| S4 | Không có service names, API paths, hoặc implementation details | |
+
+### 4.2 HLD Gate (7 criteria)
+
+| # | Criterion | Critical |
+|---|-----------|----------|
+| H1 | C4 Container diagram hoàn chỉnh (không chỉ System Context) | ✅ |
+| H2 | Tất cả ADRs có: Context, Decision, Rationale, Consequences, Alternatives Considered | |
+| H3 | ADR index (`agent_docs/adrs/README.md`) tồn tại với status tracking | |
+| H4 | ADR bị superseded có link đến ADR thay thế | |
+| H5 | Bounded context map cho mỗi service boundary | |
+| H6 | Event taxonomy + hard boundaries giữa các service | |
+| H7 | Không có per-service internals (để dành cho LLD) | |
+
+### 4.3 LLD Gate (3 criteria)
+
+| # | Criterion | Critical |
+|---|-----------|----------|
+| L1 | Đủ 9 sections: Domain Model, API Contracts, REST Clients, Caching, Transaction Boundaries, Error Flows, Degraded Modes, Work Packages, Routing Overlay | ✅ |
+| L2 | Không có architectural decisions mới (thuộc HLD) | |
+| L3 | Mỗi FR có work package với routing overlay | |
+
+### 4.3b Cross-Cutting Gate (7 criteria — conditional)
+
+| # | Criterion | Applicability |
+|---|-----------|---------------|
+| C1 | `error-handling.md`: error taxonomy ≥8 categories, HTTP status mapping, security rules | Nếu `error-handling` trong scope |
+| C2 | `caching-strategy.md`: cache architecture L0-L3, inventory per service | Nếu `caching-strategy` trong scope |
+| C3 | `performance-test.md`: NFR targets quantified, 5 test types (Load/Stress/Spike/Soak/Breakpoint) | Nếu `performance-test` trong scope |
+| C4 | `frontend-architecture.md`: rendering strategy, state management, data fetching | Nếu `frontend-architecture` trong scope |
+| C5 | `frontend-test-strategy.md`: test pyramid, MSW patterns, coverage targets | Nếu `frontend-test-strategy` trong scope |
+| C6 | Tất cả file YAML frontmatter có `depends_on` + `referenced_by` | Tất cả file được chọn |
+| C7 | File được chọn = file được sinh (không thiếu, không thừa) | Tất cả |
+
+### 4.4 IMP Gate (6 criteria)
+
+| # | Criterion | Critical |
+|---|-----------|----------|
+| I1 | Execution flow cho mỗi feature (step-by-step) | ✅ |
+| I2 | Business rules mapped đến code paths | |
+| I3 | Data impact: schema changes, migrations, indexes | |
+| I4 | Error mapping: exception → HTTP status → error response body | |
+| I5 | Security: authz rules, input validation points, data sanitization | |
+| I6 | References LLD work packages và tech-design | |
+
+### 4.5 TST Gate (6 criteria)
+
+| # | Criterion | Critical |
+|---|-----------|----------|
+| T1 | Unit test cases với concrete inputs/expected outputs | ✅ |
+| T2 | Integration test cases (Testcontainers specs) | |
+| T3 | E2E test scenarios (Playwright user flows) | |
+| T4 | Performance test thresholds (p95, p99) | |
+| T5 | Test fixtures và mock definitions | |
+| T6 | References IMP specs cho feature behavior | |
+
+### 4.6 Gate Result Handling
+
+Sau khi sdlc-gate trả về kết quả:
+
+| Verdict | Hành động |
+|---------|-----------|
+| **PASS** | Tiến đến phase tiếp theo. Báo cáo human. |
+| **FAIL (attempt < 3)** | Spawn `sdlc-gate` với `attempt + 1` và `previousFailure` context. Gate agent focus vào criteria đã fail. |
+| **FAIL (attempt = 3)** | Dừng pipeline. Báo cáo human criteria nào fail. Human quyết định: skip phase, continue manually, hoặc abort. |
+| **CRITICAL fail** | Dừng pipeline ngay lập tức (bất kể attempt). Critical criteria được đánh dấu ✅ trong bảng trên. |
 
 ---
 

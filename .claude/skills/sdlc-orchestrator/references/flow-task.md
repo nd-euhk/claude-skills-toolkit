@@ -66,7 +66,7 @@ Cho MỖI phase, thực hiện đúng 8 bước (xem SKILL.md "Human-in-the-Loop
 4. **Đợi human review** — approve/revise plan
 5. **ExitPlanMode**
 6. **Spawn sdlc-* subagent** — dùng template: `references/procedures.md` → Section 1.1
-7. **Verify gate** — dùng criteria: `references/procedures.md` → Section 4
+7. **Spawn sdlc-gate** — dùng template: `references/procedures.md` → Section 4.0. Gate agent verify output, trả về GATE_VERDICT: PASS|FAIL. Nếu FAIL → retry với previousFailure context (max 3 attempts) hoặc báo cáo human
 8. **Report progress** — dùng template: `references/procedures.md` → Section 6.1
 
 ### 4.2: Spawn Template cho Mỗi Phase
@@ -81,8 +81,6 @@ Agent({
     [Approved plan từ human review]
     Context: agent_docs/project-overview.md, agent_docs/user-context.md
     Expected outputs: agent_docs/features/FR-{DOMAIN}-{NNN}.md
-    Gate: references/procedures.md → Section 4.1
-    Làm theo procedure của bạn. Self-check gate trước khi finish.
   "
 })
 ```
@@ -97,7 +95,6 @@ Agent({
     [Approved plan từ human review]
     Context: agent_docs/features/FR-{DOMAIN}-{NNN}.md (SRS output)
     Expected outputs: agent_docs/adrs/, agent_docs/architecture.md (update)
-    Gate: references/procedures.md → Section 4.2
   "
 })
 ```
@@ -112,7 +109,6 @@ Agent({
     [Approved plan]
     Context: agent_docs/architecture.md, agent_docs/adrs/
     Expected outputs: agent_docs/tech-design/{name}-service.md (per service), contracts/, features/ (enriched), frontend/{app}/api-routing.md (if FE)
-    Gate: references/procedures.md → Section 4.3
   "
 })
 ```
@@ -120,9 +116,9 @@ Agent({
 **IMP ∥ TST (song song):**
 ```
 // Spawn đồng thời
-Agent({ subagent_type: "sdlc-imp", ... })  // Gate: Section 4.4
-Agent({ subagent_type: "sdlc-tst", ... })  // Gate: Section 4.5
-// Đợi cả hai finish → verify gates độc lập
+Agent({ subagent_type: "sdlc-imp", ... })
+Agent({ subagent_type: "sdlc-tst", ... })
+// Đợi cả hai finish → spawn sdlc-gate cho từng phase độc lập
 ```
 
 ### 4.3: Cross-Cutting Phase (sau LLD, trước IMP∥TST)
@@ -170,7 +166,7 @@ Vì scope được phát hiện tự động từ file, human chủ yếu xác n
 4. **Đợi human review** — approve/revise scope (thêm/bớt file)
 5. **ExitPlanMode**
 6. **Spawn agents** — Stage 1 (∥ 4 agent) → barrier → Stage 2 (1 agent nếu cần)
-7. **Verify gate** — `references/procedures.md` → Section 4.3b
+7. **Spawn sdlc-gate** — dùng template: `references/procedures.md` → Section 4.0 với `crossCuttingScope` parameter. Gate agent verify output của TẤT CẢ cross-cutting files. Retry nếu fail (max 3 attempts)
 8. **Report progress** — dùng cross-cutting report template
 
 #### Spawn Templates
