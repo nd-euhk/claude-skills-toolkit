@@ -12,7 +12,7 @@ description: >-
   Khác với sdlc-orchestrator (human-in-the-loop từng phase) và sdlc-quick
   (làn nhanh cho task nhỏ, không specs), skill này chỉ tương tác MỘT LẦN
   upfront rồi chạy autonomously.
-version: 1.5.2
+version: 1.5.3
 allowed-tools: Read, Write, Edit, Bash, Skill, Agent, AskUserQuestion, Workflow
 ---
 
@@ -182,26 +182,10 @@ cross-file baseline comparison).
 
 ### Monitor & Report
 
-Workflow chạy autonomously. Khi complete, báo cáo:
+> **Chi tiết đầy đủ** (report template, interference handling, post-report actions):
+> → `references/cook-flow.md#giai-đoạn-8-monitor--report`
 
-```
-🏁 Cook Automation hoàn thành — [feature name]
-   📊 Baseline: [N] tests captured (.work/baselines/YYYYMMDD-FR-{ID}-{BE|FE}.json)
-   ✅ TC-1: DONE — [test name] (RED→GREEN→INTERFERENCE-LIGHT→REFACTOR-light)
-   ⚠️ TC-2: INTERFERENCE — [broken test] (cùng file: TC broke another test)
-   ⏭️ TC-3: SKIPPED — accidental green
-   🚦 GATE light: PASS (4/4) + INTERFERENCE-FULL ✅ (no cross-file interference)
-   🔧 REFACTOR full: [N] findings fixed, [M] flagged
-   🚦 GATE full: PASS (10/10)
-   👀 Code Review: [findings]
-   📦 Git: [commit hash] (đã push / chưa push)
-   📋 Sprint: [board updates]
-   🔗 Next: [gợi ý]
-```
-
-INTERFERENCE-LIGHT phát hiện → dừng pipeline, báo human (revert culprit hoặc fix broken test).
-GATE light L1i INTERFERENCE-FULL → dừng pipeline, báo cáo interference table.
-Gate fail → workflow báo cáo phase nào fail + lý do. Xem `references/error-handling.md#e4`.
+**Tóm tắt:** Workflow chạy autonomously. Khi complete, báo cáo per-TC status (DONE/INTERFERENCE/SKIPPED), GATE light + GATE full results, code review findings, git status, sprint updates. INTERFERENCE → dừng pipeline, báo human. Gate fail → báo cáo phase + lý do.
 
 ---
 

@@ -360,6 +360,45 @@ README: cập nhật agent_docs/README.md routing table
 
 ---
 
+## Giai đoạn 8: Monitor & Report
+
+Workflow chạy autonomously toàn bộ TDD cycle (Giai đoạn 4). Automation controller
+chỉ monitor tiến độ — không micro-manage từng TC bên trong workflow.
+
+### 8.1 Report Template
+
+Khi workflow complete, báo cáo kết quả tổng hợp:
+
+```
+🏁 Cook Automation hoàn thành — [feature name]
+   📊 Baseline: [N] tests captured (.work/baselines/YYYYMMDD-FR-{ID}-{BE|FE}.json)
+   ✅ TC-1: DONE — [test name] (RED→GREEN→INTERFERENCE-LIGHT→REFACTOR-light)
+   ⚠️ TC-2: INTERFERENCE — [broken test] (cùng file: TC broke another test)
+   ⏭️ TC-3: SKIPPED — accidental green
+   🚦 GATE light: PASS (4/4) + INTERFERENCE-FULL ✅ (no cross-file interference)
+   🔧 REFACTOR full: [N] findings fixed, [M] flagged
+   🚦 GATE full: PASS (10/10)
+   👀 Code Review: [findings]
+   📦 Git: [commit hash] (đã push / chưa push)
+   📋 Sprint: [board updates]
+   🔗 Next: [gợi ý]
+```
+
+### 8.2 Interference Handling
+
+- **INTERFERENCE-LIGHT** phát hiện → dừng pipeline, báo human (revert culprit hoặc fix broken test)
+- **GATE light L1i INTERFERENCE-FULL** → dừng pipeline, báo cáo interference table (broken tests + culprit TCs)
+- **Gate fail** → workflow báo cáo phase nào fail + lý do. Xem `references/error-handling.md#e4`.
+
+### 8.3 Post-Report Actions
+
+Sau khi báo cáo:
+1. Nếu tất cả gates pass + `autoPush: true` → tiếp tục Code Review → Git Push → Sprint Update (Giai đoạn 5-7)
+2. Nếu `autoPush: false` → dừng, báo human review manual
+3. Nếu có interference hoặc gate failure → dừng pipeline, báo human với concrete options
+
+---
+
 ## Cook-specific Error Handling
 
 | Tình huống | Hành động |

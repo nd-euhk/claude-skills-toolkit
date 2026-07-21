@@ -2,6 +2,11 @@
 
 All notable changes to the skills-toolkit plugin are documented here.
 
+## [2.21.5] - 2026-07-21
+
+### Changed
+- **sdlc-automation 1.5.3:** Chuyển cook Monitor & Report template (20 dòng) từ SKILL.md vào `references/cook-flow.md#giai-đoạn-8-monitor--report`. SKILL.md giữ summary ngắn + link ref file. Cả 3 flows (task, cr, cook) giờ nhất quán dùng summary+link pattern.
+
 ## [2.21.4] - 2026-07-21
 
 ### Changed
