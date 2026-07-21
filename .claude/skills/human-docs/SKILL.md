@@ -4,8 +4,8 @@ description: >-
   Đồng bộ agent_docs/ → docs/ cho human-readable output. Agent là SSOT (Single Source of Truth).
   Dùng khi cần xuất tài liệu cho người đọc từ agent artifacts: "/human-docs sync:srs",
   "/human-docs sync:architecture", "/human-docs sync:all", "/human-docs review".
-allowed-tools: Read, Write, Glob, Bash(*), Workflow
-version: 2.4.1
+allowed-tools: Read, Write, Glob, Bash(*), Workflow, Agent
+version: 2.5.0
 ---
 
 # human-docs — Agent → Human Documentation Sync
@@ -15,7 +15,7 @@ version: 2.4.1
 Agent docs (`agent_docs/`) được viết cho Claude/agent đọc — token-efficient, structured.
 Human docs (`docs/`) được viết cho developer, PM, on-call engineer đọc — narrative, context-rich.
 
-Agent là **SSOT** (Single Source of Truth). Skill này chỉ dispatch workflow scripts để transform — không tự thực thi logic.
+Agent là **SSOT** (Single Source of Truth). Sync commands dispatch workflow scripts; review command spawns agent trực tiếp.
 
 ## Sync Scope
 
@@ -94,9 +94,40 @@ Nếu 1 trong 2 fail → báo partial success, workflow còn lại vẫn tiếp 
 ### `/human-docs review`
 
 So sánh 2 chiều `agent_docs/` ↔ `docs/`, phát hiện inconsistency. **Read-only.**
+Spawn trực tiếp `human-docs-review` agent (không cần workflow — 1 agent duy nhất).
 
-```javascript
-Workflow({ scriptPath: ".claude/workflows/human-docs/human-docs-review.js" })
+```
+Agent({
+  subagent_type: "human-docs-review",
+  description: "Review agent_docs ↔ docs consistency",
+  prompt: "Review consistency between agent_docs/ and docs/. Compare all files, classify each.
+    1. Scan agent_docs/: features/FR-*.md, architecture.md, adrs/ADR-*.md, error-handling.md, caching-strategy.md, frontend-architecture.md, frontend-test-strategy.md, performance-test.md
+    2. Scan docs/: product/SRS.md, product/features/README.md, architecture/README.md, architecture/system-architecture.md, architecture/diagrams/
+    3. Classify each file: synced, stale, missing, orphan, diverged
+    4. Cross-cutting files are ROUTED (not copied) — check README.md references instead of individual files
+    5. Flag v1.0.0 artifacts (SRS-BACKEND.md, SRS-FRONTEND.md) as orphan
+    6. DO NOT write any files."
+})
+```
+
+Sau khi agent trả về kết quả, format output:
+
+```
+docs/product/  ─────────────────────────────────
+  ✅ path (synced)
+  ⚠️ path (stale — reason)
+  ❌ path (missing — reason)
+  👻 path (orphan — reason)
+  🔀 path (diverged — reason)
+
+docs/architecture/  ────────────────────────────
+  (tương tự)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Summary: X synced, Y stale, Z missing, W orphan
+
+Action: run "/human-docs sync:all" to fix out-of-date files
+  — hoặc "All docs up-to-date ✅" nếu không có stale/missing
 ```
 
 5 trạng thái: `synced` ✅ | `stale` ⚠️ | `missing` ❌ | `orphan` 👻 | `diverged` 🔀

@@ -2,6 +2,11 @@
 
 All notable changes to the skills-toolkit plugin are documented here.
 
+## [2.22.0] - 2026-07-21
+
+### Changed
+- **human-docs 2.5.0:** Bỏ workflow `human-docs-review.js` — chỉ spawn 1 agent duy nhất, không có orchestration logic. Chuyển logic spawn agent + format output vào thẳng SKILL.md body. Sync commands (sync:srs, sync:architecture) vẫn dùng workflow vì có parallel fan-out + data aggregation có ý nghĩa.
+
 ## [2.21.6] - 2026-07-21
 
 ### Changed
