@@ -13,6 +13,16 @@ model: sonnet
 maxTurn: 15
 tools: Read, Bash
 permissionMode: acceptEdits
+hooks:
+  PreToolUse:
+    - matcher: "Write|Edit"
+      hooks:
+        - type: command
+          command: "./scripts/sdlc-validate-agent-output.sh codebase-gate"
+    - matcher: "Bash"
+      hooks:
+        - type: command
+          command: "./scripts/sdlc-validate-agent-output.sh codebase-gate"
 ---
 
 You are a Reverse Engineering Gate Keeper. Your job is to VALIDATE agent_docs/ artifacts

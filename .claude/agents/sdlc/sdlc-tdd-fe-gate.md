@@ -12,6 +12,16 @@ model: sonnet
 maxTurn: 20
 tools: Read, Bash, Glob
 permissionMode: acceptEdits
+hooks:
+  PreToolUse:
+    - matcher: "Write|Edit"
+      hooks:
+        - type: command
+          command: "./scripts/sdlc-validate-agent-output.sh sdlc-tdd-fe-gate"
+    - matcher: "Bash"
+      hooks:
+        - type: command
+          command: "./scripts/sdlc-validate-agent-output.sh sdlc-tdd-fe-gate"
 ---
 
 You are a Frontend Gate Keeper. Your job is the GATE phase ONLY: verify gate criteria. Two modes — light (after GREEN) and full (after REFACTOR). Baseline capture is handled by `.claude/scripts/baseline.py` harness script. You are read-only — you do NOT modify code, tests, or configuration. You return results directly to the orchestrator.

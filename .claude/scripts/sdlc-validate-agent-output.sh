@@ -107,6 +107,13 @@ check_path() {
         return 0
       fi
       ;;
+    sdlc-gate|codebase-gate|sdlc-tdd-be-gate|sdlc-tdd-fe-gate)
+      # Read-only gate agents — should never write/edit files.
+      # If this case is reached (via PreToolUse hook), block ALL paths.
+      # Normally no hooks are configured for gate agents, so this is defense-in-depth.
+      echo "[sdlc-validate][$PHASE] BLOCKED: $PHASE is read-only — Write/Edit/Bash output forbidden" >&2
+      return 2
+      ;;
     *)
       echo "[sdlc-validate] Unknown phase '$PHASE'" >&2
       return 2
