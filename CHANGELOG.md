@@ -2,6 +2,12 @@
 
 All notable changes to the skills-toolkit plugin are documented here.
 
+## [2.21.6] - 2026-07-21
+
+### Changed
+- **sdlc-preflight 1.0.1:** Thêm `user-invocable: false` — skill này được gọi tự động bởi orchestrator/automation trong SDLC entry gate, không phải user-facing command.
+- **workflow-knowledge 1.3.1:** Thêm `user-invocable: false` — knowledge skill thuần túy dạy Claude về Workflow tool API, auto-activates khi Claude viết workflow scripts.
+
 ## [2.21.5] - 2026-07-21
 
 ### Changed

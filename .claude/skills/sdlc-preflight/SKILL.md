@@ -8,7 +8,8 @@ description: >-
   → tạo file. Dùng khi bắt đầu SDLC pipeline, trước SRS phase, hoặc khi
   cần đảm bảo agent_docs/ sẵn sàng. Hỗ trợ CLI args: --project-overview,
   --user-context, --conventions.
-version: 1.0.0
+version: 1.0.1
+user-invocable: false
 allowed-tools: Read, Write, Bash, Skill, Agent, AskUserQuestion, EnterPlanMode, ExitPlanMode
 ---
 

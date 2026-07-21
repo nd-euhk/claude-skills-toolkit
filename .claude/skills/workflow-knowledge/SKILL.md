@@ -5,7 +5,8 @@ description: >-
   and best practices for multi-agent scripts. Auto-activates when Claude writes
   or edits workflow scripts, encounters the Workflow tool, or needs to decide
   between pipeline/parallel/agent orchestration strategies.
-version: 1.3.0
+version: 1.3.1
+user-invocable: false
 allowed-tools: Read
 ---
 
