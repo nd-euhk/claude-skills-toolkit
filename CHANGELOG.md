@@ -2,6 +2,48 @@
 
 All notable changes to the skills-toolkit plugin are documented here.
 
+## [2.21.4] - 2026-07-21
+
+### Changed
+- **sdlc-automation 1.5.2:** Trích xuất task flow procedure (105 dòng) ra `references/task-flow.md`. SKILL.md giữ summary 4 bước + link ref file, nhất quán với cr/cook flow pattern.
+- **sdlc-pipeline:** Sửa 4 tên cross-cutting agent thiếu prefix `sdlc-lld-` trong forward pipeline table. Cả 5 tên giờ đều dùng full qualified name.
+
+## [2.21.3] - 2026-07-21
+
+### Added
+- **sdlc-gate, codebase-gate, sdlc-tdd-be-gate, sdlc-tdd-fe-gate:** Added PreToolUse validation hooks for defense-in-depth. All 4 gate agents are read-only but now have hooks calling `sdlc-validate-agent-output.sh` to block any accidental Write/Edit/Bash output.
+- **sdlc-validate-agent-output.sh:** Added `sdlc-tdd-be-gate` and `sdlc-tdd-fe-gate` to the read-only gate case (merged with `sdlc-gate|codebase-gate`).
+
+## [2.21.2] - 2026-07-21
+
+### Fixed
+- **sdlc-validate-agent-output.sh:** Added `codebase-gate` case (merged with `sdlc-gate`) in phase validation. Previously `codebase-gate` fell through to the catch-all `*` case, printing "Unknown phase" to stderr. Gate agents are read-only — the case blocks Write/Edit/Bash as defense-in-depth, symmetric with `sdlc-gate`.
+
+## [2.21.1] - 2026-07-21
+
+### Changed
+- **sdlc-automation 1.5.1:** Documented fixbug flow as orchestrator-only. Bug keywords ("bug"/"lỗi"/"fix") now trigger explicit escalation to orchestrator with `flow=fixbug` instead of ambiguous hints. Fixbug requires human diagnosis judgment — cannot be autonomous.
+- **sdlc-routing:** Added "Available via" column to intent→flow table. `fixbug` explicitly marked as **orchestrator only**.
+- **sdlc-escalation:** Added fixbug flow section documenting orchestrator-only constraint and escalation rules from quick/automation.
+- **sdlc-entry-gate:** Added orchestrator-only annotation to fixbug row.
+
+## [2.21.0] - 2026-07-21
+
+### Changed
+- **sdlc-automation 1.5.0:** Replaced agent self-check gate pattern with independent `sdlc-gate` verification. Writing agents no longer self-evaluate — workflow spawns dedicated `sdlc-gate` (model: sonnet, read-only) after each phase to verify outputs against structured criteria. Cross-cutting uses a single centralized gate check after all agents complete. Added retry context with `previousFailure` (max 2 attempts) and regression detection. Removed dead `GATE_CRITERIA` inline object and all `## Gate Self-Check` sections from agent prompts. Workflow meta now includes explicit Gate phase.
+- **workflow-sdlc-automation.js:** `runPhase()` now two-step: spawn writing agent → spawn `sdlc-gate`. New `gateCheck()` function with `crossCuttingScope` support. `parseGateVerdict()` replaces `parseGateResult()` — parses `GATE_VERDICT: PASS|FAIL` structured output. Cross-cutting agents use `skipGate: true` — gate unified after all CC outputs.
+
+## [2.20.0] - 2026-07-21
+
+### Added
+- **sdlc-gate 1.0.0:** New dedicated gate agent for the forward SDLC pipeline. Validates SRS, HLD, LLD, CROSS-CUTTING, IMP, and TST phase outputs against structured per-phase criteria with concrete grep-able verification instructions. Read-only (Read, Bash, Glob, Agent) — returns `GATE_VERDICT: PASS|FAIL` with per-criteria breakdown, per-entity reporting, and regression detection. Supports retry context (max 3 attempts) and conditional cross-cutting criteria via `crossCuttingScope`. Symmetric to `codebase-gate` in the reverse pipeline. Replaces the manual gate checklist previously in `procedures.md:356-404`.
+
+### Changed
+- **sdlc-orchestrator (procedures.md):** Section 4 replaced manual gate checklist with `sdlc-gate` agent spawn template (Section 4.0) and criteria summary tables with critical flag markers. Section 1.1 spawn templates updated to reference sdlc-gate. Cross-cutting templates updated.
+- **sdlc-orchestrator (flow-task.md):** Step 4.1 sub-step 7 and step 4.3 sub-step 7 updated to spawn `sdlc-gate` instead of manual gate verification. Spawn templates simplified — removed gate self-check instructions (now handled by sdlc-gate).
+- **sdlc-pipeline.md:** Gate Protocol section updated to document both `sdlc-gate` (forward) and `codebase-gate` (reverse) as phase gate agents.
+- **sdlc-validate-agent-output.sh:** Added `sdlc-gate` case — defense-in-depth block for any accidental Write/Edit attempts on the read-only gate agent.
+
 ## [2.19.2] - 2026-07-20
 
 ### Fixed
