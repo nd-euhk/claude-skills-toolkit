@@ -16,7 +16,7 @@ SRS → HLD → LLD → [CROSS-CUTTING] → IMP ∥ TST
 | SRS | `sdlc-srs` | Feature specs with Gherkin scenarios, NFRs, traceability | **Never** |
 | HLD | `sdlc-hld` | C4 diagrams, ADRs, service boundaries, event taxonomy | With human confirmation |
 | LLD | `sdlc-lld` | Per-service tech-design, domain models, API contracts, work packages | With human confirmation |
-| CROSS-CUTTING | `sdlc-lld-error-handling`, `caching-strategy`, `performance-test`, `frontend-architecture`, `frontend-test-strategy` | System-wide standards synthesized from per-service LLD | With human confirmation; scope auto-detected from architecture |
+| CROSS-CUTTING | `sdlc-lld-error-handling`, `sdlc-lld-caching-strategy`, `sdlc-lld-performance-test`, `sdlc-lld-frontend-architecture`, `sdlc-lld-frontend-test-strategy` | System-wide standards synthesized from per-service LLD | With human confirmation; scope auto-detected from architecture |
 | IMP | `sdlc-imp` | Per-feature implementation specs (execution flows, business rules, error mapping) | No |
 | TST | `sdlc-tst` | Per-feature test specs (unit, integration, E2E, performance) | No |
 
@@ -67,7 +67,8 @@ Quick flow uses a reduced cycle: RED (1 TC, no interference/refactor) → GREEN
 Every phase agent output MUST pass its corresponding gate before the next phase
 starts. Gate agents are read-only — they verify, never modify.
 
-- **Phase gates**: `codebase-gate` (reverse) or phase-specific criteria (forward)
-- **TDD gates**: GATE-light after GREEN, GATE-full after REFACTOR-full
-- **Gate failure**: stop the pipeline, report which criteria failed, propose next action
+- **Forward pipeline gates**: `sdlc-gate` validates SRS, HLD, LLD, CROSS-CUTTING, IMP, TST outputs against structured per-phase criteria with retry context (max 3 attempts) and regression detection
+- **Reverse pipeline gates**: `codebase-gate` validates HLD, LLD, LLD-Synthesis, SRS, SRS-Synthesis, IMP, TST outputs against code-evidence-based criteria
+- **TDD gates**: GATE-light after GREEN, GATE-full after REFACTOR-full (via `sdlc-tdd-be-gate` / `sdlc-tdd-fe-gate`)
+- **Gate failure**: stop the pipeline, report which criteria failed, propose next action. Critical criteria stop pipeline immediately regardless of retry count.
 - **Never proceed past a failing gate** without human approval

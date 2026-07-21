@@ -17,6 +17,20 @@ quick → automation → orchestrator
 - **orchestrator** handles everything with full human-in-the-loop safety
 - **reverse** is a peer lane for codebase→specs work, can escalate to orchestrator
 
+### fixbug Flow: Orchestrator-Only
+
+The `fixbug` flow is **only available through orchestrator**. It requires human
+diagnosis judgment (stack trace analysis, root cause hypothesis, fix scope
+evaluation) that automation and quick cannot safely provide.
+
+- **Never escalate from quick to fixbug** — quick does not diagnose bugs. If a
+  bug is discovered during quick flow, escalate to orchestrator with
+  `flow=fixbug`.
+- **Never escalate from automation to fixbug** — automation has no fixbug flow.
+  If the human input contains "bug"/"lỗi"/"fix", explicitly escalate to
+  orchestrator with `flow=fixbug` (see automation SKILL.md §Step 2).
+- **Orchestrator handles fixbug directly** — no further escalation needed.
+
 ## When to Escalate
 
 ### From quick → orchestrator (or automation)

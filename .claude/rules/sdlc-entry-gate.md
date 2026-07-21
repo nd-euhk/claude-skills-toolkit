@@ -38,7 +38,7 @@ Requirements by flow:
 | `task` | `project-overview.md` + `user-context.md` | Invoke `sdlc-preflight` skill, verify again, stop if still missing |
 | `cr` | Warn if missing, ask human before invoking `sdlc-preflight` skill |
 | `cook` | Verify ready-status + feature specs + IMP + TST specs exist. Missing specs → reject cook, propose task flow |
-| `fixbug` | `project-overview.md` recommended but not required |
+| `fixbug` | `project-overview.md` recommended but not required. **Orchestrator-only flow** — not available through automation or quick. Requires human diagnosis judgment for root cause analysis and fix scope evaluation |
 | `reverse` | None required (reverse pipeline produces foundation from code) |
 | `quick` | **Skip entirely** — quick flow does not run specs, foundation is irrelevant |
 

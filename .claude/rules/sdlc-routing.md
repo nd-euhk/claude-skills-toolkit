@@ -9,13 +9,13 @@ differ across installations.
 Match the user's primary intent to a flow, not a keyword. Same intent expressed
 in different words should resolve to the same flow.
 
-| User intent | Flow | What it triggers |
-|-------------|------|-------------------|
-| Build a new feature, greenfield work, major change, create specs from scratch | `task` | Full forward pipeline: SRS → HLD → LLD → CROSS-CUTTING → IMP∥TST |
-| Change existing behavior, modify a feature, update specs for existing code | `cr` | Impact analysis + selective re-spec: scout → analyze → re-spec affected phases |
-| Fix a defect, repair broken behavior, resolve a bug | `fixbug` | Root-cause diagnosis + targeted fix: scout → diagnose → fix → verify |
-| Write code from ready specs, implement from agent_docs, execute TDD cycle | `cook` | TDD execution: baseline → per-TC RED→GREEN→INTERFERENCE→REFACTOR→GATE |
-| Reverse-engineer specs from an existing codebase, document what code does | `reverse` | Reverse pipeline: scout → HLD → LLD → SRS → VERIFY → CROSS-CUTTING → IMP∥TST |
+| User intent | Flow | Available via | What it triggers |
+|-------------|------|--------------|-------------------|
+| Build a new feature, greenfield work, major change, create specs from scratch | `task` | orchestrator, automation | Full forward pipeline: SRS → HLD → LLD → CROSS-CUTTING → IMP∥TST |
+| Change existing behavior, modify a feature, update specs for existing code | `cr` | orchestrator, automation | Impact analysis + selective re-spec: scout → analyze → re-spec affected phases |
+| Fix a defect, repair broken behavior, resolve a bug | `fixbug` | **orchestrator only** | Root-cause diagnosis + targeted fix: scout → diagnose → fix → verify |
+| Write code from ready specs, implement from agent_docs, execute TDD cycle | `cook` | orchestrator, automation | TDD execution: baseline → per-TC RED→GREEN→INTERFERENCE→REFACTOR→GATE |
+| Reverse-engineer specs from an existing codebase, document what code does | `reverse` | orchestrator, sdlc-codebase skill | Reverse pipeline: scout → HLD → LLD → SRS → VERIFY → CROSS-CUTTING → IMP∥TST |
 
 ## Entry Point Selection
 
