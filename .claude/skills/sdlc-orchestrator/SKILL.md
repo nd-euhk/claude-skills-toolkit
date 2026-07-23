@@ -14,7 +14,7 @@ description: >-
   foundation files (project-overview, user-context, conventions) khi
   thiếu. Điều phối toàn bộ pipeline từ requirements qua documentation
   đến production code, coordinating subagents, skills, và sprint artifacts.
-version: 1.10.0
+version: 1.11.0
 allowed-tools: Read, Write, Edit, Bash, Glob, Skill, Agent, EnterPlanMode, ExitPlanMode
 ---
 
@@ -43,6 +43,7 @@ không hợp lệ.
 - **Không tự sửa feature specs** — chỉ sdlc-srs và sdlc-lld touch `agent_docs/features/`. Bạn chỉ đọc
 - **Gate check sau MỖI agent** — verify gate pass trước phase tiếp theo (criteria: `references/procedures.md` → "Gate Criteria"). Fail → dừng, báo cáo human
 - **Grilling trong flow** — mỗi flow tự quyết định khi nào grill. Không grill trước khi phát hiện flow
+- **Fable-Thinking trước escalation** — khi phát hiện trigger escalation (theo `sdlc-escalation`), **không** propose escalation ngay. Thay vào đó, gọi `Skill("fable-thinking")` với context: loại escalation, dữ kiện quan sát được, các hướng xử lý, và mục tiêu. Trình bày recommendation của fable-thinking cho human kèm phân tích — human quyết định, **không** auto-escalate
 
 ---
 
@@ -99,6 +100,8 @@ Parse input của human để xác định flow. Match keywords theo thứ tự 
 >
 > Khi một input khớp nhiều flow, luôn ưu tiên flow có priority cao hơn.
 > Nếu không chắc chắn → `AskUserQuestion` (bên dưới).
+>
+> **Fable-Thinking Guard:** Khi flow detection ambiguous (input khớp ≥2 flow, hoặc flow thắng là quick/trivial nhưng input chứa tín hiệu non-trivial như "API", "schema", "migration", "auth", "billing"), gọi `Skill("fable-thinking", "SDLC flow routing: user said '<input>'. Candidate flows: <flow-A> (lý do khớp), <flow-B> (lý do khớp). Conflict: <mâu thuẫn cụ thể giữa các flow>. Goal: chọn flow phù hợp nhất với ý định thực sự của user.")`. Dùng recommendation làm default option khi hỏi human qua `AskUserQuestion`.
 
 **Quyết định:**
 - Intent rõ ràng → thông báo flow đã phát hiện, xin xác nhận nhanh: "Phát hiện flow **{flow}**. Xác nhận để tiếp tục?"
@@ -146,7 +149,10 @@ done
    ```
 
 2. Nếu `NEEDED` không rỗng → `Skill("sdlc-preflight", NEEDED)` → đợi complete
-3. Post-preflight verify — nếu file vẫn missing → **dừng pipeline**, báo cáo human
+3. Post-preflight verify — nếu file vẫn missing:
+   a. Gọi `Skill("fable-thinking", "Foundation gate fail: thiếu <danh sách file> cho flow=<flow>. Ảnh hưởng của từng file thiếu: project-overview.md → SRS không có scope/glossary/NFR baselines; user-context.md → SRS không có personas/user journeys; conventions.md → IMP không có package structure/naming conventions. Options: dừng pipeline (an toàn), tiếp tục không có file (rủi ro). Goal: pipeline có đủ context để agent downstream hoạt động chính xác.")`
+   b. Trình bày recommendation + lý do cho human
+   c. Human quyết định: stop → **dừng pipeline**; proceed → ghi nhận risk + tiếp tục với human approval
 4. Báo cáo: "🏗️ Foundation: project-overview.md ✅ | user-context.md ✅ | conventions.md ✅"
 
 **cr flow** — cảnh báo, hỏi human trước khi invoke:
@@ -210,6 +216,8 @@ SRS ──→ HLD ──→ LLD ──→ CROSS-CUTTING ──→ IMP ∥ TST
 - **HLD optional** — bỏ qua nếu không có service mới, ADR mới, hoặc boundary thay đổi. Hỏi human.
 - **LLD optional** — bỏ qua nếu không có API mới, domain model mới, hoặc error flow mới. Hỏi human.
 - **CROSS-CUTTING optional** — tự động phát hiện scope từ file thực tế (`architecture.md`, SRS NFRs, frontend existence). Hỏi human xác nhận scope.
+
+> **Fable-Thinking Guard:** Trước khi đề xuất skip HLD, LLD, hoặc CROSS-CUTTING, gọi `Skill("fable-thinking", "Pipeline scope decision: FR=<FR-ID>. Grilling findings: <tóm tắt>. Đề xuất skip <phase> vì <lý do>. Risk nếu skip: <điều có thể bỏ sót về kiến trúc/kỹ thuật>. Goal: pipeline đủ depth để cover rủi ro.")`. Nếu recommendation = keep → giữ phase trong scope, hỏi human xác nhận.
 
 ### Human-in-the-Loop mỗi Phase
 
