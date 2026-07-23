@@ -41,6 +41,43 @@ Agent nhận những gì chúng cần, không phải toàn bộ conversation:
 - **Cross-cutting agents**: pass architecture.md + per-service tech-design files
 - **Không bao giờ pass full conversation history** cho subagent
 
+## Advisor Subagent — Decision Support
+
+<EXTREMELY-IMPORTANT>
+Tại các decision point ambiguous, controller spawn `advisor` subagent thay vì tự suy luận.
+Advisor là read-only — nó phân tích và đề xuất, không quyết định. Controller hoặc human
+là người quyết định cuối cùng.
+</EXTREMELY-IMPORTANT>
+
+### Khi Nào Spawn Advisor
+
+| Decision point | Controller | Trigger |
+|---------------|-----------|---------|
+| Escalation | orchestrator | Phát hiện trigger escalation |
+| Flow detection ambiguous | orchestrator, automation | Input khớp ≥2 flow hoặc chứa tín hiệu non-trivial |
+| Foundation gate fail | orchestrator | File nền tảng vẫn thiếu sau preflight |
+| Skip phase proposal | orchestrator | Cân nhắc skip HLD, LLD, hoặc CROSS-CUTTING |
+| Grilling exit | automation | Còn ≥2 câu chưa trả lời sau grilling |
+| Fail-safe | automation | Workflow fail hoặc gate fail sau 2 retry |
+| Bug keyword detection | automation | Input chứa "bug"/"lỗi"/"fix" — cần phân biệt genuine vs false positive |
+| Flow selection ambiguous | automation | Flow không rõ ràng sau keyword hint |
+| Gate fail exhausted | automation | Retry exhausted, gate vẫn fail |
+
+### Context Cần Cung Cấp Cho Advisor
+
+- **Tình huống cụ thể** — decision point là gì, tại sao ambiguous
+- **Các options khả dĩ** — ít nhất 2 hướng xử lý
+- **Thông tin đã thu thập** — những gì đã OBSERVED (file đã đọc, command đã chạy)
+- **Stakes** — điều gì xảy ra nếu chọn sai
+- **File paths liên quan** — để advisor có thể tự GROUND nếu cần
+
+### Sử Dụng Kết Quả
+
+- Advisor trả về structured recommendation: Goal, Options considered, Discrimination, Recommendation, Weakest link, Confidence breakdown (OBSERVED/DERIVED/ASSUMED)
+- Controller trình bày recommendation cho human kèm weakest link
+- Human quyết định; controller thực thi
+- **Không** auto-apply advisor recommendation nếu chưa có human confirmation (trừ automation lane với confidence OBSERVED > 80%)
+
 ## Parallel Work Safety
 
 <EXTREMELY-IMPORTANT>

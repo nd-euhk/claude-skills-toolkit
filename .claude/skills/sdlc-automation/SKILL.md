@@ -12,7 +12,7 @@ description: >-
   Khác với sdlc-orchestrator (human-in-the-loop từng phase) và sdlc-quick
   (làn nhanh cho task nhỏ, không specs), skill này chỉ tương tác MỘT LẦN
   upfront rồi chạy autonomously.
-version: 1.7.0
+version: 1.8.0
 allowed-tools: Read, Write, Edit, Bash, Skill, Agent, AskUserQuestion, Workflow
 ---
 
@@ -42,8 +42,8 @@ toàn diện, sau đó dispatch `workflow-sdlc-automation` chạy autonomously. 
 - **Không tự sửa feature specs** — chỉ sdlc-srs và sdlc-lld touch `agent_docs/features/`
 - **Respect human decision** — nếu grilling kết luận automation không phù hợp, đề xuất `sdlc-orchestrator` hoặc `sdlc-quick` (nếu task nhỏ)
 - **Fail-safe** — khi có lỗi không mong đợi, fallback về orchestrator. Xem `references/error-handling.md`
-- **Fable-Thinking trước grilling exit** — sau các round grilling, nếu còn ≥2 câu chưa trả lời hoặc human trả lời không dứt khoát cho câu load-bearing, áp dụng fable-thinking protocol: đánh giá goal (workflow có đủ input để chạy autonomously), follow-through từng option (grill thêm / dispatch ngay / fallback), nêu rõ weakest link. **Không** dispatch nếu phân tích kết luận insufficient
-- **Fable-Thinking trước fail-safe** — khi workflow fail hoặc gate fail sau 2 retry, áp dụng fable-thinking protocol: đa giả thuyết (tại sao fail? do spec yếu, do gate quá nghiêm ngặt, hay do lỗi thực sự?), follow-through từng option (fallback orchestrator / skip phase / abort). Trình bày phân tích trước khi fallback
+- **Advisor trước grilling exit** — sau các round grilling, nếu còn ≥2 câu chưa trả lời hoặc human trả lời không dứt khoát cho câu load-bearing, spawn `advisor` subagent với context: các câu chưa được trả lời, thông tin đã thu thập, options (grill thêm / dispatch ngay / fallback). Advisor đánh giá goal (workflow có đủ input để chạy autonomously), follow-through từng option, nêu rõ weakest link. **Không** dispatch nếu advisor kết luận insufficient
+- **Advisor trước fail-safe** — khi workflow fail hoặc gate fail sau 2 retry, spawn `advisor` subagent với context: reason thất bại, retry history, options khả dĩ (fallback orchestrator / skip phase / abort). Advisor phân tích đa giả thuyết (tại sao fail? do spec yếu, do gate quá nghiêm ngặt, hay do lỗi thực sự?), follow-through từng option. Trình bày phân tích trước khi fallback
 
 ---
 
@@ -96,9 +96,9 @@ AskUserQuestion({
 ```
 
 > **Keyword hint**: Nếu human input chứa "bug"/"lỗi"/"fix":
-> 1. Áp dụng fable-thinking protocol: kiểm tra goal (phân loại đúng flow), giữ ≥2 giả thuyết (genuine bug vs false positive như "fix config", "sửa typo", "sửa validation message"), dùng follow-through để phân biệt (nếu genuine bug → cần root cause analysis; nếu false positive → route theo flow thực tế)
-> 2. Nếu recommendation = genuine bug → escalate sang orchestrator với `flow=fixbug`, giải thích: fixbug yêu cầu human diagnosis judgment (stack trace analysis, root cause hypothesis, fix scope evaluation) — không thể autonomous
-> 3. Nếu recommendation = false positive → route theo flow thực tế (dùng keyword hint bên dưới)
+> 1. Spawn `advisor` subagent với context: input chứa bug keyword, phân biệt genuine bug vs false positive ("fix config", "sửa typo", "sửa validation message"). Advisor kiểm tra goal (phân loại đúng flow), follow-through từng giả thuyết (genuine bug → cần root cause analysis; false positive → route theo flow thực tế)
+> 2. Nếu advisor recommendation = genuine bug → escalate sang orchestrator với `flow=fixbug`, giải thích: fixbug yêu cầu human diagnosis judgment (stack trace analysis, root cause hypothesis, fix scope evaluation) — không thể autonomous
+> 3. Nếu advisor recommendation = false positive → route theo flow thực tế (dùng keyword hint bên dưới)
 >
 > **Các keyword hint khác:**
 > "tự động"/"auto"/"spec" → mặc định task. "CR"/"change request"/"thay đổi" → cr.
@@ -106,7 +106,7 @@ AskUserQuestion({
 > **"sửa nhanh"/"typo"/"config"/"minor"/"trivial"/"nhỏ" → gợi ý quick.**
 > Nếu task rõ ràng ≤2 file và không API/schema/security → đề xuất quick thay vì automation.
 >
-> **Fable-Thinking Guard:** Khi flow selection không rõ ràng sau keyword hint (input khớp ≥2 flow, hoặc human chọn "Không phù hợp"), áp dụng fable-thinking protocol: giữ ≥2 flow khả dĩ, chọn observation để phân biệt, follow-through từng flow đến frame cuối (code hoạt động). Dùng kết quả phân tích làm default suggestion trong `AskUserQuestion`.
+> **Advisor Guard:** Khi flow selection không rõ ràng sau keyword hint (input khớp ≥2 flow, hoặc human chọn "Không phù hợp"), spawn `advisor` subagent với context: input của human, keyword hint đã match, các flow đang khớp. Advisor giữ ≥2 flow khả dĩ, chọn observation để phân biệt, follow-through từng flow đến frame cuối (code hoạt động). Dùng kết quả recommendation làm default suggestion trong `AskUserQuestion`.
 
 ### Bước 3: Foundation Gate
 
@@ -140,7 +140,7 @@ Dành cho feature mới, greenfield work, hoặc major change. Full forward pipe
 3. **Dispatch Workflow** — `workflow-sdlc-automation.js` với `flow: "task"`
 4. **Monitor & Report** — workflow autonomously, báo cáo kết quả từng phase + gate status
 
-Gate fail → workflow tự retry với previousFailure context (max 2 attempts). Nếu retry exhausted + gate vẫn fail: áp dụng fable-thinking protocol — đa giả thuyết (tại sao fail?), follow-through từng option (fallback orchestrator / skip phase / abort), nêu weakest link. Trình bày phân tích cho human trước khi fallback. Xem `references/error-handling.md#e4`.
+Gate fail → workflow tự retry với previousFailure context (max 2 attempts). Nếu retry exhausted + gate vẫn fail: spawn `advisor` subagent với context: reason thất bại sau retry, retry history, options (fallback orchestrator / skip phase / abort). Advisor phân tích đa giả thuyết, follow-through từng option, nêu weakest link. Trình bày phân tích cho human trước khi fallback. Xem `references/error-handling.md#e4`.
 
 ---
 

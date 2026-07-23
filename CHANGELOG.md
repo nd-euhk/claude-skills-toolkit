@@ -2,6 +2,40 @@
 
 All notable changes to the skills-toolkit plugin are documented here.
 
+## [2.28.0] - 2026-07-23
+
+### Changed
+- **advisor 1.1.0:** Refine — thêm decision-specific failure modes (frame adoption,
+  first-option lock, fluent recommendation ≠ correct, stakes inflation), chuyển
+  protocol thành procedural 5-step (FRAME → GROUND → REASON → ATTACK → DELIVER) với
+  decision-specific adaptation cho từng bước. Thêm Agent tool cho phép spawn Explore
+  agent để exploring codebase khi cần GROUND facts rộng (search pattern across files,
+  verify claim spanning multiple services).
+
+## [2.27.0] - 2026-07-23
+
+### Added
+- **advisor 1.0.0:** Subagent mới — structured reasoning tại decision point. Spawn khi
+  controller gặp tình huống ambiguous (escalation, flow detection, gate fail, scope
+  negotiation, grilling exit, fail-safe, bug keyword). Áp dụng fable-thinking protocol
+  (Five Moves: FRAME → GROUND → REASON → ATTACK → DELIVER), trả về structured
+  recommendation với confidence breakdown (OBSERVED/DERIVED/ASSUMED). Read-only, model
+  fable, max 8 turns. Dùng chung cho orchestrator và automation.
+- **sdlc-orchestration-rules:** Thêm section "Advisor Subagent — Decision Support" với
+  bảng 9 decision points, context cần cung cấp, và hướng dẫn sử dụng kết quả.
+
+### Changed
+- **sdlc-orchestrator 1.13.0:** Thay 4 inline fable-thinking blocks bằng spawn `advisor`
+  subagent: escalation trigger, flow detection ambiguous, foundation gate fail, skip
+  phase proposal. Controller giờ dispatch advisor thay vì tự suy luận — context
+  isolation, DRY, nhất quán protocol.
+- **sdlc-automation 1.8.0:** Thay 5 inline fable-thinking blocks bằng spawn `advisor`
+  subagent: grilling exit, fail-safe, bug keyword detection, flow selection ambiguous,
+  gate fail sau retry exhausted.
+- **sdlc-fable-thinking-rules:** Dịch "tell" → "dấu hiệu" / "dấu hiệu tố cáo" (3 vị trí,
+  sát nghĩa theo context sử dụng: dấu hiệu nhận biết ở diagnostic list, dấu hiệu tố
+  cáo ở Claim Discipline — grammar là thứ vô tình tố cáo claim đang giả dạng OBSERVED).
+
 ## [2.26.0] - 2026-07-23
 
 ### Changed
