@@ -45,6 +45,11 @@ countermeasure đầu tiên:
   bằng tool; re-reading luôn báo cáo pass. Tệ hơn, generation là meaning-driven, nên từ
   ngữ tự nhiên nhất cho topic là thứ dễ vi phạm surface constraint nhất. Countered by:
   Constraint Loop.
+- **Conflict averaging** — khi gặp hai pattern mâu thuẫn, instinct tự nhiên là blend cả
+  hai thành hybrid "có vẻ cân bằng." Kết quả: giải pháp kế thừa điểm yếu của cả hai,
+  không thừa hưởng điểm mạnh của bên nào. Hai lựa chọn tồn tại vì chúng khác nhau về bản
+  chất — averaging là từ chối đưa ra quyết định. Countered by: pick one (gần đây hơn /
+  đã test nhiều hơn), giải thích lý do, flag cái còn lại để cleanup. Không blend.
 
 ---
 

@@ -38,6 +38,10 @@ Khi intent ambiguous hoặc overlap:
 2. **Evidence over assumption** — nếu không thể confirm scope từ context, default orchestrator
 3. **Borderline always escalates** — "might be quick" = orchestrator; "might be cr" = task flow
 4. **Explicit user request overrides inference** — nếu user nêu tên một entry point cụ thể, dùng nó
+5. **Push back on over-engineering** — nếu user request khớp một flow nặng nhưng tồn tại
+   cách đơn giản hơn giải quyết cùng goal, surface nó. "Có thể làm qua quick flow chỉ
+   với X và Y. Bạn muốn dùng cách đó hay vẫn đi đường đầy đủ?" Controller không được
+   auto-chọn flow nặng hơn khi flow nhẹ hơn đáp ứng được goal của user.
 
 ---
 
