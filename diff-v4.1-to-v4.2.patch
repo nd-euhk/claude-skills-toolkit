@@ -1,0 +1,2055 @@
+diff --git a/.claude-plugin/plugin.json b/.claude-plugin/plugin.json
+index ae2bef2..294a337 100644
+--- a/.claude-plugin/plugin.json
++++ b/.claude-plugin/plugin.json
+@@ -1,5 +1,5 @@
+ {
+   "name": "skills-toolkit",
+   "description": "Create and manage Claude Code skills, plugins, subagents, and hooks. Use when building new skills, validating existing skills, testing skills empirically, creating plugins, converting projects to plugins, creating hooks, or managing plugin automation. Includes /skills-toolkit:skill-composer, /skills-toolkit:skill-refiner, /skills-toolkit:skill-tester, /skills-toolkit:plugin-creator, /skills-toolkit:subagent-creator, /skills-toolkit:hook-creator, and /skills-toolkit:ask-user-question skills.",
+-  "version": "2.23.0"
++  "version": "2.26.0"
+ }
+diff --git a/.claude/references/fable-thinking/content-taste.md b/.claude/references/fable-thinking/content-taste.md
+new file mode 100644
+index 0000000..caff8ff
+--- /dev/null
++++ b/.claude/references/fable-thinking/content-taste.md
+@@ -0,0 +1,178 @@
++# Content Taste — the reasoning protocol applied to writing (English & Vietnamese)
++
++Fable Thinking's moves, applied to the domain where fluency most effectively masks
++emptiness: prose. A model's own writing always reads well to the model that produced it —
++fluent ≠ true has a sibling, fluent ≠ good. This reference teaches how to decide what to
++say, say it like a person, and verify the result is writing rather than word-shaped
++filler, in English and in Vietnamese.
++
++## When to load this reference
++
++Load BEFORE drafting — not as a polish step — whenever the deliverable is prose a human
++will read: docs, READMEs, blog posts, marketing and landing copy, emails, reports, UX
++microcopy, error messages, release notes, social posts, scripts, translations, or a
++review of any of these. The trigger is the deliverable type, not the word "write" in the
++ask. Either language, or both.
++
++## Know Your Own Defaults (why model prose converges on slop)
++
++The writing-domain instances of the failure modes in SKILL.md:
++
++- **Fluency inflation** — you fill silence with words that could open any text and
++  therefore open none. An intro that fits every topic carries zero information about
++  this one. Confidence in your prose rises with token count, not with content.
++- **Symmetry addiction** — the same rhythmic templates fire regardless of content:
++  triads ("faster, smarter, better"), the "not just X, but Y" pivot, mirrored clauses,
++  em-dash chains. One is rhetoric; on every paragraph it is a watermark.
++- **Throat-clearing** — restating the question, announcing what you will say, hedging
++  before saying it, summarizing what you just said. The reader wanted the middle part.
++- **Uniform register** — one corporate-neutral voice for a changelog, a love letter, and
++  an outage apology. Register is a decision about a specific reader; skipping it means
++  no reader was imagined.
++- **Structure worship** — headers, bullets, and bold applied to content that wanted three
++  honest sentences; every list padded to three or five items because lists "should" have
++  them. Structure must carry information about relationships, not decorate.
++- **Translationese** — generating Vietnamese as relexified English (or any L2 through L1
++  templates): source-language sentence shapes, calqued idioms, borrowed punctuation and
++  capitalization conventions. Grammatical, and instantly foreign.
++
++## How to think (the moves, in writing order)
++
++1. **FRAME the reader.** One sentence: who reads this, what do they already know, and
++   what should they know, feel, or do when they finish? One job per piece. Then fix the
++   register deliberately. In English: plain, technical, editorial, conversational. In
++   Vietnamese the register decision is concrete and unskippable: choose the pronoun pair
++   (tôi–bạn, chúng tôi–quý khách, mình–bạn, anh/chị–em, …) before drafting — the pair IS
++   the voice, and it binds tone, vocabulary, and distance for the whole piece.
++2. **Find the core claim before drafting.** State in one sentence the thing this piece
++   exists to say. If you cannot, you are not ready to write — you are about to generate
++   word-shaped filler around an absence. Every section must serve that claim.
++3. **Spend a specificity budget.** Every abstract claim buys its place with a concrete:
++   a number, a named example, a step, a consequence. A paragraph containing no concrete
++   is filler by construction — cut it or find its concrete.
++4. **Write one person to one person.** Draft as if saying it to the specific reader from
++   step 1. Sentences you would never say aloud to a person are sentences a person will
++   not want to read.
++5. **Subtract before delivering.** One deliberate pass to delete: intensifiers doing no
++   work, hedges on things you verified, repeated points, the summary of what the reader
++   just read. What survives is the writing.
++
++## What good writing is (evaluable, not vibes)
++
++- **Survives the deletion test** — no sentence can be removed without losing meaning the
++  reader needs. Applies per-sentence and per-section.
++- **Front-loaded** — the first sentence of the piece, and of each paragraph, carries its
++  point. A reader who stops anywhere leaves with the most important part they've reached.
++- **Concrete-anchored** — each claim traceable to a number, example, or mechanism; the
++  reader can retell the content in their own words, not just its mood.
++- **Varied rhythm** — sentence lengths and shapes vary the way a speaking voice does;
++  no template detectable across paragraphs.
++- **Register-stable** — one chosen voice from first line to last. In Vietnamese: the
++  pronoun pair never drifts (a bạn that becomes quý khách mid-page tells the reader two
++  different people wrote it, and neither imagined them).
++- **Actionable** — the reader can do or decide what the piece intended after one read.
++
++## What to avoid — English slop catalog (matches are failed gates)
++
++- Openers that fit any topic: "In today's fast-paced world…", "In the ever-evolving
++  landscape of…", "Let's dive in".
++- The LLM lexicon as filler: delve, tapestry, landscape, unlock, elevate, empower,
++  seamless, robust, leverage-as-verb, game-changer, cutting-edge, "rich" anything.
++- Announcements and recaps: "It's important to note", "In conclusion", "As mentioned
++  above", a closing paragraph that re-summarizes a page the reader just read.
++- The "not just X, but Y" pivot and stacked rule-of-three constructions.
++- Hedge inflation ("quite", "very", "arguably", "somewhat") on claims that were verified
++  — and confident gloss on claims that were not.
++- Exclamation inflation, emoji sprinkled through professional prose, title-case
++  Headers On Every Phrase.
++- Bullet lists whose items are full paragraphs, or whose parallel grammar is broken.
++
++## What to avoid — Vietnamese slop catalog
++
++- Mở bài vạn năng: "Trong thời đại công nghệ số ngày nay…", "hơn bao giờ hết…", "Hãy
++  cùng khám phá…" — câu mở đúng cho mọi chủ đề nghĩa là không nói gì về chủ đề này.
++- Dấu vết dịch máy từ tiếng Anh: lạm dụng "một cách" + tính từ (thay vì trạng từ thuần
++  Việt hoặc đảo cấu trúc), chuỗi bị động "được/bị" liên tiếp, chuỗi "của" ba tầng, danh
++  hóa "việc" tràn lan ("việc sử dụng việc quản lý…"), dịch idiom từng chữ.
++- "Không chỉ… mà còn…" lặp như điệp khúc — bản Việt của "not just X, but Y".
++- Xưng hô trôi dạt: bạn → quý khách → chúng ta → anh/chị trong cùng một bài; hoặc chọn
++  cặp xưng hô sai độ trang trọng cho người đọc (email xin lỗi khách hàng xưng "mình").
++- Trộn sắc thái từ vựng vô thức: từ Hán-Việt trang trọng chen giữa văn nói suồng sã (và
++  ngược lại) khi không có chủ đích tu từ.
++- Quy ước mượn từ tiếng Anh: Viết Hoa Từng Chữ trong tiêu đề, khoảng trắng trước dấu
++  câu, chấm phẩy kiểu liệt kê Anh-Mỹ áp vào câu Việt.
++- Kết bài "Tóm lại…" nhắc lại nguyên văn những gì vừa viết.
++
++## Details models habitually miss
++
++- The reader's actual knowledge level: explaining basics to experts, or leaving jargon
++  undefined for beginners — both are the same unread-audience error.
++- The stated constraints: requested length, platform limits, format, keyword — these are
++  hard output constraints; run the Constraint Loop from SKILL.md on them.
++- Facts inside content are claims: every name, number, date, price, quote, and citation
++  carries Claim Discipline — verify the tool-checkable ones, flag the rest. Fluent
++  fabrication in marketing copy is still fabrication.
++- English mechanics that survive fluency: dangling modifiers, subject–verb distance,
++  silent tense and person drift between sections.
++- Vietnamese mechanics: dấu thanh đúng trong tên riêng (không "slug hóa" tên người); từ
++  Hán-Việt vs thuần Việt chọn theo sắc thái chứ không ngẫu nhiên; loại từ (cái/chiếc/
++  con/bức…) đúng với danh từ; hỏi/ngã theo chuẩn chính tả, không theo phát âm vùng.
++- Microcopy: button labels start with the verb and name the action's result; error
++  messages say what happened AND what to do next; empty states invite the first action.
++- Titles and subject lines are read a hundred times more than the body — they get the
++  specificity budget first, not last.
++- What the piece displaces: the reader's time. A 900-word answer to a 90-word question
++  is a defect even when every sentence is clean.
++
++## Verify (fluency makes this mandatory — your prose always passes your own re-read)
++
++Apply Harness Leverage: anything a granted capability can check must be checked with it,
++as a loop, until a full pass over the final text is clean.
++
++1. **Read-aloud pass.** Sentence by sentence: would you say this, in this voice, to the
++   specific reader from FRAME? Flag every sentence that exists for rhythm or bulk.
++2. **Slop scan.** Check the text against BOTH catalogs above item by item — a checklist
++   run, not a memory of having kept them in mind. Tool-assisted search for the lexicon
++   items when the harness grants search.
++3. **Deletion test.** Per paragraph: remove it; did the reader lose anything they need?
++   Keep only survivors.
++4. **Concreteness audit.** Mark each paragraph's concrete anchor. A paragraph with no
++   mark gets its concrete added, or gets deleted.
++5. **Register check.** English: one voice throughout. Vietnamese: read only the
++   pronouns, first line to last — one pair, zero drift, correct formality for the
++   reader.
++6. **Fact check.** Type every name/number/date/quote per Claim Discipline; verify the
++   checkable ones with tools; downgrade the grammar on the rest.
++7. **Constraint check.** Word counts, character limits, platform formats → the
++   Constraint Loop, mechanically, on the exact final text.
++8. **Repair and re-verify.** Edits change rhythm and can introduce new slop — after
++   repairs, re-run the scan on the whole text, not the edited lines.
++
++## Evaluate before delivering (act-backed, per the Self-Review Gate)
++
++| Dimension | Passes when | Proven by |
++|-----------|-------------|-----------|
++| Core claim | one sentence states why the piece exists, and it leads | FRAME artifact + front-load check |
++| Concreteness | every paragraph has a marked anchor | concreteness audit |
++| Voice | register chosen and stable; VI pronoun pair constant | register check (pronoun-only read) |
++| Economy | deletion test leaves nothing removable | deletion pass |
++| Slop-free | zero catalog matches in either language | itemized scan |
++| Facts | claims typed; checkable ones verified | fact check acts |
++| Fit | length/format/platform constraints met | constraint loop on final text |
++
++Deliver with Claim Discipline: "scanned against both catalogs and fact-checked the three
++figures" is a different — and honest — claim than "polished the draft". Name the weakest
++link (an unverified quote, an assumed audience) in the delivery.
++
++## Do / Don't
++
++| Don't | Instead |
++|-------|---------|
++| Start drafting from the prompt's wording | FRAME the reader, fix the register, find the core claim first |
++| Open with a sentence that fits any topic | Open with this piece's most specific true sentence |
++| Pad with the LLM lexicon and triads | Spend concretes: numbers, names, steps, consequences |
++| Trust your own re-read of your own prose | Run the itemized scans — your fluency always passes itself |
++| Write Vietnamese through English templates | Choose the pronoun pair first; build sentences Vietnamese-first |
++| Summarize what the reader just read | End where the content ends — or with the next action |
++| Ship facts on fluency | Type and verify them like any load-bearing claim |
++| Answer at the length you generated | Answer at the length the question deserved |
+diff --git a/.claude/references/fable-thinking/design-taste.md b/.claude/references/fable-thinking/design-taste.md
+new file mode 100644
+index 0000000..87184ea
+--- /dev/null
++++ b/.claude/references/fable-thinking/design-taste.md
+@@ -0,0 +1,182 @@
++# Design Taste — the reasoning protocol applied to UI/UX and frontend work
++
++Fable Thinking's moves, applied to the one domain where models are most confidently
++wrong about their own output: visual design. Code either passes tests or fails them;
++design "looks fine" to the model that produced it, always, because the model never sees
++it. This reference teaches how to think, decide, and verify design work so the result is
++designed rather than defaulted.
++
++If the runtime also has `ak:frontend-design` available, load it for the full
++implementation rulebook (palettes, type pairings, numeric craft rules); this reference
++governs the judgment and verification layer and never conflicts with it.
++
++## When to load this reference
++
++Load BEFORE writing the first line of markup, styles, or component code — not after —
++whenever the deliverable is a user-facing surface:
++
++- building or restyling pages, components, dashboards, landing pages, emails, slides,
++  HTML artifacts, TUIs, charts
++- reviewing or critiquing UI code, screenshots, or live pages
++- choosing colors, typography, spacing, layout, or a design system
++- any task whose output a human will look at and judge, not just execute
++
++The trigger is the deliverable type, not the words in the prompt. "Make a quick page for
++X" is a design task; the word "design" need not appear.
++
++## Know Your Own Defaults (why model-generated design converges on slop)
++
++These are the design-domain instances of the failure modes in SKILL.md:
++
++- **Mode collapse / template gravity** — with no strong brief, you emit the statistical
++  mean of training data: one favorite palette, one favorite font, one favorite hero
++  layout, identical card grids. The output is not wrong; it is the average, and average
++  reads as machine-made. Distinctive requires a deliberate choice made early.
++- **Decoration ≠ design** — when unsure, you add (gradients, shadows, glows, badges,
++  ornaments) instead of removing. Good design is mostly subtraction: fewer colors, fewer
++  weights, fewer boxes, more space. If an element encodes no information, it is noise.
++- **Render blindness** — the design-domain form of surface blindness. You emit code and
++  imagine the result; the imagined render is always flattering. Overflow, wrapping,
++  contrast failures, misalignment, and collision are invisible in source form. A claim
++  that a layout "works" is ASSUMED until the artifact is rendered and inspected, or the
++  specific property is computed.
++- **Uniform emphasis** — everything bold, everything colored, every section decorated.
++  Hierarchy means choosing what loses. If every element shouts, the design says nothing.
++- **Happy-path bias** — you design one state: medium-length content, loaded data, desktop
++  width, light mode, mouse input. Real interfaces spend most of their life in the other
++  states.
++- **Completion pressure** — shipping the first composition that renders without errors.
++  Rendering without errors is the floor of correctness, not evidence of quality.
++
++## How to think (the moves, in design order)
++
++1. **FRAME the screen's job.** One sentence: who is looking at this, and what is the ONE
++   thing they must see or do first? Name the emotional register the content deserves —
++   calm utility, dense data, bold marketing, editorial warmth — and let it be a decision,
++   not a leftover. A dashboard and a landing page with the same styling means no decision
++   was made.
++2. **Rank before you draw.** List every element the surface must carry, ordered by
++   importance to the user's job. The finished design's visual weight (size, contrast,
++   position, whitespace) must reproduce that ranking. This list is the load-bearing fact
++   of the whole task; most bad layouts are correct CSS applied to an unranked list.
++3. **Choose the system before the parts.** Fix the design tokens first: one accent color
++   plus a neutral ramp; at most two type families; a spacing scale; a radius and shadow
++   scale. Then every value in the output comes from the scale. Ad-hoc values are how
++   consistency dies one line at a time.
++4. **Design with real content.** Use realistic longest-case and shortest-case content
++   from the start — real names, real numbers, empty lists, missing images. Content is a
++   constraint, not a filler; lorem ipsum defers every hard decision to the moment you can
++   no longer make it.
++5. **Subtract before delivering.** One deliberate pass: remove every element, color,
++   border, shadow, and animation whose absence loses no information. What survives is
++   the design.
++
++## What good design is (evaluable, not vibes)
++
++A surface is well designed when each of these holds and can be shown to hold:
++
++- **Legible hierarchy** — a viewer squinting at it (or seeing it for three seconds) can
++  point at the most important element, and it is the intended one.
++- **One voice of emphasis** — a single accent does all the "look here" work; neutrals do
++  everything else. Emphasis spent everywhere is emphasis spent nowhere.
++- **Rhythm** — spacing values come from one scale; edges align to a grid; equal-status
++  elements are visually equal. The eye notices misalignment before the mind does.
++- **Readable text** — body contrast meets WCAG AA (4.5:1; 3:1 for large text), line
++  length stays in the 45–75 character range, line height gives dense scripts and
++  diacritics room. These are computable properties, not opinions.
++- **Designed states** — hover, focus, active, disabled, empty, loading, error, and
++  overflowing content all have an intended appearance, chosen rather than inherited.
++- **Fit** — the styling belongs to THIS content, audience, and brand. The test: swap in a
++  different product's copy; if the design fits it just as well, the design fit nothing.
++
++## What to avoid (the slop catalog — matches are failed gates, not style choices)
++
++- The default-everything stack: the same overused font on the same neutral panel behind
++  a violet-to-blue gradient hero with three equal feature cards.
++- Glassmorphism, neon glows, and gradient text as substitutes for a composition.
++- Emoji as icons or bullets in professional surfaces.
++- Decoration stacking: shadow + border + gradient + rounded + glow on one element.
++- Center-aligned paragraphs; full-viewport-width text lines.
++- Gray-on-gray body text that fails a contrast computation.
++- Five font sizes where three steps would do; arbitrary values off the spacing scale.
++- Animating everything; motion that communicates nothing; parallax by default.
++- Placeholder tells: lorem ipsum, "John Doe", obvious stock imagery, fake logos.
++- Uniform card grids regardless of whether the content is uniform.
++
++## Details models habitually miss
++
++Enumerate these deliberately — negative-space scanning, because absence is invisible:
++
++- Focus visibility and tab order; hover-only affordances that break on touch; touch
++  targets below ~44px.
++- The longest realistic string: an unbroken URL, a German compound, a 40-character name —
++  where does it wrap, clip, or push the layout?
++- Non-Latin and diacritic-heavy text (Vietnamese stacked marks, CJK) clipped by tight
++  line heights or wrong font fallbacks.
++- Dark mode as a re-decision, not an inversion: shadows stop working, borders must take
++  over, saturated accents need re-tuning.
++- Empty, loading, and error states — the states users actually meet first.
++- Tables: numeric columns right-aligned with tabular figures; header alignment matching
++  the data; horizontal overflow contained in its own scroll region.
++- Optical versus box alignment: icons beside text, play buttons in circles — centered
++  boxes that look off-center.
++- Layout shift while fonts and images load; sticky elements covering content; z-index
++  collisions; mobile safe-area insets.
++- Print/export appearance when the artifact is a document or slide.
++
++## Verify (render blindness makes this mandatory, not optional)
++
++Apply the Harness Leverage rule: anything a granted capability can check must be checked
++with it, as a loop, until a full pass over the final artifact is clean.
++
++1. **Render it.** If the harness grants a browser, screenshot, or preview capability,
++   render the artifact and look at it — at a phone width, a tablet width, and a desktop
++   width. Judging design from source code is reasoning about a render you never saw:
++   ASSUMED wearing OBSERVED grammar.
++2. **Squint test on the render.** Blur or shrink it: does the intended #1 element win?
++   Does the reading order match the importance ranking from FRAME?
++3. **Stress the content.** Swap in the longest realistic strings, an empty collection, a
++   large collection, missing images. Re-render; look again.
++4. **Compute the computable.** Contrast ratios, line length, type scale steps, spacing
++   values against the scale — these are arithmetic. Compute or script them; never
++   eyeball a number a formula settles.
++5. **Walk the states.** Tab through with a keyboard; trigger hover, focus, disabled,
++   loading, error, empty. Every state either has a designed appearance or is a finding.
++6. **Scan against the slop catalog and the missed-details list**, item by item, as a
++   checklist — not from memory of having "kept them in mind".
++7. **Repair and re-verify.** Fixes change layout; a fix can break a neighbor. Loop until
++   one complete pass over the final artifact is clean.
++
++Where the harness grants no renderer, say so in the delivery, downgrade every visual
++claim to DERIVED or ASSUMED, and compensate by computing everything computable (step 4)
++and hand-tracing the layout with concrete content lengths.
++
++## Evaluate before delivering (act-backed, per the Self-Review Gate)
++
++Each verdict must point to the act that proved it:
++
++| Dimension | Passes when | Proven by |
++|-----------|-------------|-----------|
++| Hierarchy | #1 element wins the squint test | rendered inspection |
++| Consistency | all values on the token scales | token audit / grep |
++| Readability | contrast, measure, line height in range | computation |
++| States | interaction + data states designed | state walk |
++| Robustness | survives longest/empty/overflow content | stress render |
++| Distinctiveness | zero slop-catalog matches; fits this brief | checklist scan |
++
++Deliver with Claim Discipline: "verified at three widths with stressed content" is a
++different — and honest — claim than "this should look good". If a dimension was not
++verified, name it as the weakest link instead of letting fluent delivery imply it.
++
++## Do / Don't
++
++| Don't | Instead |
++|-------|---------|
++| Start typing markup from the prompt | FRAME the job, rank the elements, fix the tokens first |
++| Judge the design from its source code | Render it and look, or downgrade the claim honestly |
++| Add decoration when a section feels weak | Subtract noise; strengthen hierarchy or content |
++| Emphasize everything that seems important | Pick what loses; one accent voice |
++| Design with lorem ipsum and medium-length data | Use real longest/shortest/empty content from the start |
++| Eyeball contrast, measure, and spacing | Compute them — they are arithmetic |
++| Ship the first error-free render | Run the stress + states + slop passes, then loop repairs |
++| Restyle what the brief did not ask about | Scope line from Move 1: flag adjacent issues, one sentence |
+diff --git a/.claude/references/fable-thinking/protocol.md b/.claude/references/fable-thinking/protocol.md
+new file mode 100644
+index 0000000..7d7fcd9
+--- /dev/null
++++ b/.claude/references/fable-thinking/protocol.md
+@@ -0,0 +1,250 @@
++# Fable Thinking Protocol — Tham Khảo Chi Tiết
++
++File này chứa các phần nặng của giao thức suy luận. Chỉ load khi vào
++**Standard** hoặc **Full** mode, hoặc khi một Floor check bị trip. Rule
++`sdlc-fable-thinking-rules.md` chứa phần luôn chạy (The Floor + Know Your Own
++Defaults + Claim Discipline + Proportionality Gate + Self-Review Gate).
++
++---
++
++## Know Your Own Defaults (why models reason badly)
++
++Models fail at reasoning in predictable ways. Naming them is the first countermeasure:
++
++- **Pattern-match satisfaction** — the first explanation that fits a familiar template feels
++  like the diagnosis. Familiarity is retrieval, not verification. Countered by Move 3.
++- **Template hijack** — a question whose surface matches a stored template ("flaky test →
++  add retry", "slow query → add index") fires the template's answer before this question's
++  constraints are read. Familiarity raises the risk rather than lowering it. Countered by
++  the Floor.
++- **Fluent ≠ true** — your own well-formed prose feels more correct as it flows. Confidence
++  rises with token count, not with evidence. Countered by Move 4.
++- **Prior-as-fact** — training knowledge gets stated in the grammar of observed fact. Priors
++  decay: APIs change, versions move, prices update, docs rot. Countered by Claim Discipline.
++- **Confirmation seeking** — once you have a favorite hypothesis, you pick tests it will
++  pass. Countered by the discriminating-test rule in Move 3.
++- **Frame adoption** — you inherit the user's framing ("the cache is broken again") as fact.
++  The user is a witness, not an oracle: trust their goal absolutely, treat their diagnosis
++  as testimony to verify. Countered by Moves 1 and 2.
++- **Completion pressure** — producing something answer-shaped now feels better than checking
++  one more thing. An answer-shaped non-answer is worse than "here is what I verified and
++  what is still open". Countered by the Self-Review Gate.
++- **Surface blindness** — you produce and read text as tokens, not characters. Any claim
++  about the surface form of your own output — which symbols it contains, how many units
++  it has, whether a pattern holds — is a guess unless verified unit by unit or by tool;
++  re-reading always reports a pass. Worse, generation is meaning-driven, so the most
++  natural wording for the topic is the likeliest violator of a surface constraint.
++  Countered by the Constraint Loop.
++
++## The Constraint Loop (hard output constraints — never Direct)
++
++Some asks place a mechanically checkable constraint on the output's surface form rather
++than its meaning: forbidden or required symbols, exact counts of words or sentences or
++characters, positional patterns, length or rhyme schemes, strict formats. These look
++trivial and are the opposite: you generate meaning-first and read your own text as
++tokens, so the constraint sits exactly where your perception is weakest. Treat the
++constraint — not the content — as the hard part of the task.
++
++Run this loop for every such task:
++
++1. **Expand the constraint before drafting.** Restate it as a mechanical test that every
++   governed unit of the output must pass. Enumerate the on-topic vocabulary most likely
++   to violate it — starting with the subject's own name, which the constraint may rule
++   out — and choose compliant substitutes before writing a single sentence. If the
++   constraint governs counts or positions, decide how you will count before drafting.
++2. **Draft in your reasoning space**, never directly into the final answer.
++3. **Verify mechanically.** If the runtime has tools, run the check — a script or search
++   is the strongest evidence and costs seconds. Without tools, decompose the text into
++   the units the constraint governs (spell each word out symbol by symbol; count units
++   with an explicit running index) and test every unit against the constraint, one by
++   one. Re-reading the draft and judging that it passes is not verification; it is the
++   exact blindness that produces the violation.
++4. **Repair and re-verify.** Replace each violating unit, then re-verify the replacement
++   and re-scan the full text — a fix can introduce a new violation. Loop until one
++   complete pass over the final text is clean.
++5. **Deliver the verified text verbatim.** Any post-verification rewording, however small,
++   invalidates the check — re-run step 3 if you touch a single unit.
++
++Claim Discipline applies with no exceptions: "the output satisfies the constraint" is
++OBSERVED only after step 3 has run on the exact delivered text. Asserted from re-reading,
++it is ASSUMED wearing OBSERVED grammar — a hallucination about your own output, the most
++avoidable kind.
++
++## The Five Moves
++
++### Move 1 — FRAME: find the real question
++
++1. Restate the ask in one sentence, plus the goal as an end-state of the world — what is
++   true when this succeeds. Name the deliverable type: answer, change, assessment,
++   artifact, or decision. A question about a problem wants an assessment, not an
++   unrequested fix.
++2. Separate the literal request from the goal behind it. If they diverge, serve the request
++   and flag the divergence — never silently substitute your own goal.
++3. Draw the scope line: name what is adjacent but NOT asked. Adjacent problems get one
++   sentence at delivery, not work.
++4. List the 1–3 load-bearing facts — the ones that, if wrong, collapse the whole answer.
++   These get verified first in Move 2.
++5. On long tasks, re-read the original ask at intervals. Drift is silent.
++
++### Move 2 — GROUND: establish truth before reasoning on it
++
++1. Sort what you are holding using Claim Discipline (below): what did you OBSERVE this
++   session, what is PRIOR training knowledge, what are you ASSUMING?
++2. Verify load-bearing facts with tools, not memory: open the file, run the command, fetch
++   the doc. The cheapest way to be right is to look. Batch independent checks in parallel.
++3. Respect the evidence ranking: direct observation > reproduction > primary source >
++   secondary source > memory. Never build on a lower rank when a higher one is one tool
++   call away.
++4. Treat version-sensitive claims (APIs, flags, defaults, prices, model names) as stale
++   until checked.
++5. Read errors literally before interpreting them: the exact message, the exact line, the
++   actual values — not what you expect them to say.
++
++### Move 3 — REASON: mechanism, hypotheses, simulation
++
++1. Hold at least two hypotheses before investigating any single one. If you cannot produce
++   a second, you are pattern-matching, not diagnosing. Write them down.
++2. Choose the next observation by discrimination: which check best splits the surviving
++   candidates? Not: which check confirms the favorite.
++3. Demand mechanism. "X causes Y" requires the full chain X → … → Y with each step
++   checkable. A gap in the chain is an assumption — mark it or verify it.
++   Same-symptom-as-last-time is a hypothesis, never a conclusion.
++4. Simulate with concrete values. Trace code, plans, and processes with actual inputs:
++   empty, one, typical, boundary, huge, malformed, concurrent, unicode/locale-weird.
++   "Looks right" in the abstract is not evidence; most wrong conclusions die on the first
++   concrete trace.
++5. For any change, write the invariant ledger: **preserves** (what stays true), **breaks**
++   (deliberately, with migration), **risks** (could break — watch it). If you cannot write
++   the ledger, you do not understand the change yet.
++6. Scan the negative space: what should exist and does not? The missing error path, missing
++   test, missing case in the switch, absent log line, the question nobody asked. Enumerate
++   what completeness requires, then diff reality against it.
++
++### Move 4 — ATTACK: try to kill your own conclusion
++
++1. Switch roles: you are now the reviewer whose job is to reject this work. Write the
++   strongest objection. If it lands, handle it before delivering.
++2. Ask: what evidence would prove me wrong — and did I actually check for it? Absence of
++   counter-evidence you never looked for is not support.
++3. If a cheap kill-test exists (one more run, one grep, one trace), run it NOW. Skipping a
++   cheap kill-test to protect a conclusion is this protocol's cardinal sin.
++4. Audit your confidence: at each point it rose, name the evidence that moved it.
++   Confidence that grew from effort, repetition, or eloquence resets to the last
++   evidence-backed level.
++5. Name the weakest link — the one part you are least sure of goes into the delivery, not
++   into your private thoughts.
++
++### Move 5 — DELIVER: calibrated, outcome-first, for the absent reader
++
++1. First sentence states the outcome: the answer, the verdict, what changed. Evidence
++   after. Caveats last — but present.
++2. Grammar matches claim type (table below). Never let an assumption wear the grammar of
++   an observation.
++3. Report failures and partial results plainly, with the raw evidence. No soft hedging on
++   things you verified; no confident gloss on things you did not.
++4. Write for a reader who did not watch you work: no shorthand or labels invented mid-task,
++   complete sentences, terms spelled out.
++5. Close with unresolved questions and risks, if any exist. An honest open-issues list
++   beats implied completeness.
++6. Done is a checklist, not a feeling: re-read the original ask; the deliverable answers
++   it; load-bearing facts verified or flagged; scope respected — nothing silently cut,
++   nothing gold-plated.
++
++## Altitude Control
++
++Problems and fixes live at four altitudes: **intent** (what is this for) → **design**
++(what shape solves it) → **implementation** (which lines) → **mechanics** (exact bytes,
++versions, environment).
++
++- Diagnose the altitude before fixing. The most common bad fix is a line-level patch for a
++  design-level fault; the second most common is redesigning what a one-line mechanical fix
++  solves.
++- When reasoning stalls at one altitude, deliberately move one level up or down. Errors
++  hide at altitude boundaries.
++
++## When Stuck
++
++Two or three failed attempts inside one framing means the framing is wrong — not that the
++effort was insufficient. Never repeat a failed probe harder. Change exactly one of:
++
++- **Altitude** — zoom out (what is this actually for?) or in (what are the exact bytes?).
++- **Direction** — invert: "what would have to be true for it to fail exactly this way?"
++  and work backwards from the failure.
++- **Ground** — stop reasoning; go collect the missing observation (a log, a minimal
++  reproduction, a bisect).
++
++Deeper toolkit for stuck-ness: `problem-solving`. Long multi-step chains with explicit
++revision: `sequential-thinking`. This skill governs how single conclusions get made and
++reported; those govern larger exploration structures.
++
++## Portable Techniques (how to think the moves, on any model)
++
++The moves say WHAT to check; these techniques are HOW to execute the checking. They need
++no special runtime — only tokens — and they are the highest-leverage habits for models
++that reason well but default to answering fast. Reach for one whenever an answer starts
++forming automatically:
++
++- **Step back first** — before answering the specific question, name the general
++  principle or problem class it is an instance of, then apply that principle to the
++  specifics. Deriving the abstraction first blocks the template answer that rides in on
++  surface details. Ask "what kind of problem is this?" before "what is the answer?".
++- **Chain the thought, answer last** — reason in explicit numbered steps, each depending
++  on the previous, and state the conclusion only after the chain ends. Never emit the
++  answer first and justify it afterwards: post-hoc justification always succeeds, which
++  is exactly why it proves nothing.
++- **Restate before solving** — rewrite the question in your own words with every detail
++  and constraint included. A detail that will not fit in your restatement is either the
++  trap or a constraint you were about to drop. This is the Floor's Leftovers check run
++  proactively.
++- **Derive twice, independently** — for any load-bearing conclusion, reach it a second
++  time by a different route: different starting point, inverted direction, different
++  method. Agreement is mild support; disagreement is a hard stop signal worth more than
++  either answer.
++- **Concretize** — replace abstractions with actual values and walk them through step by
++  step. "Looks right" in the abstract survives; it rarely survives one concrete trace.
++- **Invert** — assume your conclusion is wrong and ask what it would have had to miss.
++  Working backwards from imagined failure finds holes that forward reasoning steps over.
++- **Treat instant answers as alarms** — an answer that arrived before you finished
++  reading is retrieval, not reasoning. Demote it to a hypothesis and run the Floor
++  against it deliberately. Speed plus confidence is the signature of template hijack,
++  not of correctness.
++
++## Harness Leverage (use what the environment grants)
++
++Portable techniques need only tokens; most runtimes grant more. At the start of a task,
++take inventory of what your harness actually grants — executing code or shell commands,
++reading and writing files, fetching documents, searching, spawning sub-agents — and treat
++that inventory as your verification budget. Two rules govern its use:
++
++- **Anything a granted capability can check, it must check.** A claim that a script, a
++  compiler, a test run, or a search could settle in seconds is never settled by reasoning
++  alone. Manual unit-by-unit verification is the fallback for capability-poor runtimes,
++  not a substitute where tools exist.
++- **Checkable work runs as a loop, not a single pass.** Produce → verify with the
++  strongest granted check → repair → re-verify, and keep looping until one complete
++  verification of the final artifact comes back clean — or the remaining uncertainty is
++  named explicitly in the delivery. One green check on the last edit says nothing about
++  the edit's neighbors: re-verify the whole artifact, not the change.
++
++Confidence earned this way compounds: every loop iteration converts an ASSUMED into an
++OBSERVED. Confidence without a loop behind it is the fluent-≠-true default wearing a
++harness it never used.
++
++## Anti-Patterns
++
++| Don't | Because | Instead |
++|-------|---------|---------|
++| Diagnose by resemblance ("classic X") | Same symptom, different cause | Verify the mechanism chain |
++| Answer the template a question resembles | Familiar surface, different constraints | Run the Floor; account for leftover details |
++| State the goal using one of the options | The question's framing smuggled in as the goal | Goal = the task's object in its finished state, option-free |
++| End the follow-through at the first milestone | Arrived/sent/submitted is not the outcome | Run the movie to the frame where the goal is verified |
++| Test to confirm | Confirmation almost always succeeds | Test to discriminate hypotheses |
++| State priors as facts | Training knowledge decays | Type the claim; check if load-bearing |
++| Verify everything uniformly | Wastes budget on trivia | Load-bearing facts first |
++| Let confidence grow with effort | Effort is not evidence | Audit what moved it |
++| Retry the same probe harder | The framing is the problem | Change altitude, direction, or ground |
++| Bury the answer | The reader needs the outcome | First sentence = outcome |
++| Hedge what you verified | Uncertainty theater erodes trust | Calibrated grammar in both directions |
++| Fix adjacent problems unasked | Scope drift, review burden | One-sentence flag, no work |
++| Deliver answer-shaped non-answers | Worse than an honest gap | "Verified X; still open: Y" |
++| Certify your own text by re-reading it | You see tokens, not characters — a re-read always passes | Decompose into the governed units and test each, or run a tool check |
+diff --git a/.claude/references/fable-thinking/worked-examples.md b/.claude/references/fable-thinking/worked-examples.md
+new file mode 100644
+index 0000000..2954a04
+--- /dev/null
++++ b/.claude/references/fable-thinking/worked-examples.md
+@@ -0,0 +1,228 @@
++# Worked Examples — Default Mode vs. Fable Thinking
++
++Four end-to-end traces showing the protocol applied. Each starts with the reasoning a
++model produces by default, then the protocol run. The point is not that the default answer
++is always wrong — it is that when it is wrong, nothing in the default process would have
++caught it.
++
++---
++
++## Example 0 — The outage report (the Floor, alone, is enough)
++
++**Ask:** "Our company email server went down an hour ago. Should I report the outage to
++IT by email or by phone? Email would give us a paper trail."
++
++### Default-mode run
++
++"Email — a written report creates a paper trail, gives IT the details in searchable form,
++and lets them triage asynchronously." Fluent, process-flavored, delivered with total
++confidence — and wrong. The surface ("which reporting channel is better?") matched the
++written-beats-verbal template; the template answered; the first sentence of the actual
++question never got read. This is template hijack, and the trap is baited precisely to
++look too trivial to check — the paper-trail detail is there to feed the template.
++
++### Protocol run (the Floor only — no five moves needed)
++
++**Goal.** Main verb: *report*; object: *the outage*. End-state: *IT knows the email
++server is down.* Note two things about that sentence. It names the object's finished
++state, not a milestone — "the report was sent" would be a milestone, and milestones are
++where wrong answers hide. And it mentions neither "email" nor "phone": a goal statement
++that contains one of the offered options is the question's framing smuggled in as the
++goal, and it makes every later check pass vacuously ("email → report sent → done").
++
++**Follow-through.** Run the movie for "email" — all the way to the goal-check frame, not
++just to "sent": you compose the report and hit send; the message enters the down email
++server; it never reaches IT; at the final frame IT still does not know. The goal state
++fails — "email" was never an answer to this question, however good its paper trail would
++be. A run that stops at "sent" would have scored both options as fine; the trap only
++becomes visible at the last frame.
++
++**Leftovers.** The draft answer never used "email server went down" — the one detail
++that decides everything. The paper-trail argument is bait: it makes channel quality feel
++like the decision when channel *availability* is.
++
++**Answer.** "Phone — the report has to travel over a channel that is still up, and email
++is the thing that's broken. If you want the paper trail, follow up with a written ticket
++once the server is restored."
++
++### Same trap, other costumes
++
++- "Print the return-shipping label and seal it inside the box" (the carrier reads the
++  outside of the box)
++- Any question where one option routes the fix through the broken thing, or quietly
++  leaves the goal's object behind — the errand that needs the object present, the
++  message sent over the dead channel, the backup stored on the failing disk.
++
++The transferable rule: an answer is an action in the world — check it against the world,
++not against the question's multiple-choice framing. The trap is never this specific
++question; it is any question where a stored template answers before the details are
++read. Total cost of the check: about three sentences of thought.
++
++---
++
++## Example 1 — Bug diagnosis: the "flaky" CI test
++
++**Ask:** "TestCheckoutTotal fails randomly in CI, maybe 1 run in 5. Can you fix the flake?"
++
++### Default-mode run
++
++"Intermittent CI failure" pattern-matches to timing. Add a retry annotation or a sleep,
++CI goes green, done. Symptom suppressed; cause still in the codebase; the test no longer
++guards anything.
++
++Failure modes: pattern-match satisfaction, frame adoption (the word "flaky" was inherited
++as a diagnosis — it is testimony), completion pressure (green CI feels like done).
++
++### Protocol run
++
++**Move 1 — FRAME.** Deliverable: root cause plus a fix that keeps the test meaningful —
++not green CI at any cost. Load-bearing fact to check first: is this actually
++nondeterministic timing, or deterministic under some hidden condition?
++
++**Move 2 — GROUND.** Read the actual failure output, literally. It is an assertion:
++`expected total 59.98, got 89.97` — a wrong VALUE, not a timeout, not a connection error.
++That single observation kills the timing frame: sleeps and retries cannot fix a wrong
++number. (OBSERVED. The "flaky = timing" idea was PRIOR all along.)
++
++**Move 3 — REASON.** The wrong value equals the correct total plus one extra item, so
++state is leaking in from somewhere. Three hypotheses:
++
++- H1: test-order dependence — another test leaves data behind in a shared fixture.
++- H2: genuine race in the checkout code under parallel test execution.
++- H3: CI-environment difference (database version, locale, time zone).
++
++Discriminating checks, not confirming ones: run the failing test alone 20 times
++(splits H1 from H2/H3), then run the full suite with a fixed seed order (isolates H1's
++trigger). Result: alone, 20/20 green; full suite, fails exactly when `TestCartMerge` runs
++first. Mechanism, stated end-to-end: `TestCartMerge` inserts a cart row → its cleanup only
++runs on the success path → package-level fixture reuses the connection → leftover row joins
++into checkout's total. Every step checkable; H2 and H3 discarded on evidence, not vibes.
++
++**Move 4 — ATTACK.** Strongest objection: "maybe there is also a race, and order-dependence
++is masking it." Cheap kill-test: apply the cleanup fix, run the suite 20 times in parallel
++mode — 20/20 green. Weakest link, said out loud: 20 runs bounds the flake rate, it does not
++prove zero; the original failure rate (~1 in 5) would almost certainly have reappeared.
++
++**Move 5 — DELIVER.** "The test is not flaky — it is order-dependent. `TestCartMerge`
++skips cleanup on its failure path and leaks a cart row into the shared fixture;
++`TestCheckoutTotal` then sums the extra item (59.98 + 29.99 = 89.97, the exact failure
++value). Fixed by moving cleanup to a deferred/teardown block. Evidence: 20/20 green in
++isolation before the fix, 20/20 green in full parallel suite after. Open risk: 20 runs
++bounds but does not prove; if it ever recurs, the fixture itself should stop being shared."
++
++---
++
++## Example 2 — Code review: the innocent retry change
++
++**Ask:** Review a small PR: "extend the HTTP retry helper to also retry on 4xx — fixes
++checkout flakiness we saw on Friday." Diff is four clean lines.
++
++### Default-mode run
++
++The diff is small, readable, well-tested for style; existing tests pass. "LGTM, maybe add
++a comment." The review evaluated the text of the change, never its meaning.
++
++Failure modes: reviewing at the wrong altitude (mechanics instead of design), no invariant
++ledger, frame adoption ("fixes flakiness" accepted as true because the author said so).
++
++### Protocol run
++
++**Move 1 — FRAME.** Deliverable: a verdict on whether this change is safe and actually
++fixes Friday's problem. Load-bearing facts: what does "retry" promise callers today, and
++what actually failed on Friday?
++
++**Move 2 — GROUND.** Two lookups, both cheap. The helper's contract (docstring plus call
++sites): "retries transient failures; safe because requests are idempotent." Friday's
++incident log: the checkout errors were `429 Too Many Requests` — not a generic 4xx.
++
++**Move 3 — REASON.** Invariant ledger for the change:
++
++- **Preserves:** function signature, call sites compile untouched.
++- **Breaks (silently):** the semantic contract. 4xx responses are deterministic client
++  errors — retrying a 400/401/403 cannot succeed and now hammers the API; retrying a POST
++  that returned 402/409 risks duplicate side effects on non-idempotent endpoints.
++- **Risks:** rate-limit amplification — retrying 429s *without backoff* makes Friday's
++  incident worse, not better.
++
++Negative space scan: no test exercises the new retried class; no idempotency guard was
++added; no backoff/jitter accompanies the one status (429) that genuinely deserves retrying.
++Altitude check: the failure is being patched at implementation level, but it lives at
++design level — "which failures are retryable" is a contract question, not a loop condition.
++
++**Move 4 — ATTACK.** Objection to my own verdict: "maybe their API returns 4xx for
++transient states." Kill-test: grep the API client for status handling and check the
++provider's docs — transient states are 429 and 503 only. Objection survives nowhere.
++
++**Move 5 — DELIVER.** "Request changes — this widens retries to all 4xx, but Friday's
++failures were specifically 429s. Retrying deterministic 4xxs cannot succeed, risks
++duplicate POST side effects, and retrying 429 without backoff amplifies the original
++incident. Suggest: retry 429 and 503 only, with exponential backoff and jitter, plus a
++test for each. The four lines are clean; the contract they change is not."
++
++---
++
++## Example 3 — Analysis: the conversion drop that wasn't
++
++**Ask:** "Signup conversion dropped ~30% last week. It has to be the new pricing page —
++rewrite it before we lose more."
++
++### Default-mode run
++
++Accept the frame, audit the pricing page, produce a persuasive rewrite. If the real cause
++lies elsewhere, the rewrite ships noise, the actual problem keeps burning, and next week
++the same conversation happens angrier.
++
++Failure modes: frame adoption (user's diagnosis taken as fact), no discriminating evidence,
++answer-shaped output (a rewrite is deliverable-shaped regardless of whether it helps).
++
++### Protocol run
++
++**Move 1 — FRAME.** The user's goal is recovering signups — that is the contract. Their
++diagnosis (pricing page) is testimony. Deliverable: verified cause first, then the fix that
++matches it. Load-bearing fact: does the drop's timing actually line up with the pricing
++release?
++
++**Move 2 — GROUND.** Pull the numbers instead of reasoning about them. Daily signups and
++conversion rate for 21 days, plus deploy dates. OBSERVED: the drop starts Tuesday; the
++pricing page shipped Thursday. Two days of drop precede the alleged cause — the headline
++frame is dead on arrival, by timeline alone.
++
++**Move 3 — REASON.** Hypotheses for a Tuesday break:
++
++- H1: traffic mix shifted (a paid campaign paused → lower-intent visitors dominate).
++- H2: measurement broke (an analytics/consent change dropped signup events).
++- H3: a funnel step actually broke for some segment (form, email verification).
++
++Discriminating check: compare *dashboard* signup events against *database* account
++creations for the same window. That one comparison splits H2 from H1/H3 cleanly.
++Result: database signups are flat week-over-week; dashboard events are down 30%. The
++business did not lose signups — the tracker lost events. Mechanism: Tuesday's release
++notes show a consent-banner update; the signup event now fires only after analytics
++consent, so non-consenting users' signups vanished from the dashboard while remaining in
++the database. Every step checkable.
++
++**Move 4 — ATTACK.** Objection: "maybe both — tracking broke AND pricing hurt
++conversion." Kill-test: recompute conversion from database signups over pricing-page
++sessions for the three days since Thursday — flat versus the prior week, within noise.
++Weakest link: three days is a short window for the pricing verdict; say so.
++
++**Move 5 — DELIVER.** "Your signups did not drop — your measurement did. Database account
++creations are flat; the 30% fall exists only in analytics events, and it starts Tuesday
++with the consent-banner release (signup events now fire only after consent), two days
++before the pricing page shipped. Fix the event wiring, not the pricing copy. The pricing
++page shows no conversion effect in database-side numbers so far — though three days is a
++thin sample, so re-check after a full week. Rewriting the page now would have treated a
++healthy patient."
++
++---
++
++## What the four runs share
++
++The protocol paid for itself at the same joints each time. In Example 0 the Floor alone —
++goal end-state, follow-through, leftover details — did all the work before any move ran.
++In the other three: one literal look at primary evidence killed an inherited frame
++(Move 2); a second hypothesis plus one discriminating check replaced pattern-matching
++(Move 3); one cheap kill-test either hardened or corrected the conclusion before it
++shipped (Move 4); and the delivery led with the verdict, typed its claims, and named its
++weakest link (Move 5). None of it required a smarter model — only a model that refuses to
++skip the looking.
+diff --git a/.claude/rules/sdlc-entry-gate.md b/.claude/rules/sdlc-entry-gate.md
+deleted file mode 100644
+index fbd2b96..0000000
+--- a/.claude/rules/sdlc-entry-gate.md
++++ /dev/null
+@@ -1,62 +0,0 @@
+-# SDLC Entry Gate
+-
+-Shared entry gate executed by every SDLC entry point before any pipeline work
+-begins. Do not duplicate this logic in individual skills. Distinct from the
+-`sdlc-preflight` skill (which creates foundation files) — this rule governs
+-when and how to invoke it.
+-
+-## Step 1: Git State Check
+-
+-Check repository state before any work:
+-
+-```bash
+-git branch --show-current && git status --porcelain
+-```
+-
+-If the working tree is dirty, ask the human once with these options:
+-- **Stash** — save changes temporarily
+-- **Commit** — commit before proceeding
+-- **Continue** — proceed with a dirty tree (risk of conflicts)
+-- **Abort** — stop the pipeline
+-
+-Abort ends the session immediately. Any other choice proceeds to Step 2.
+-
+-## Step 2: Foundation Gate
+-
+-Verify required foundation files exist in `agent_docs/`:
+-
+-```bash
+-for f in project-overview.md user-context.md conventions.md; do
+-  test -f agent_docs/$f && echo "found: $f" || echo "missing: $f"
+-done
+-```
+-
+-Requirements by flow:
+-
+-| Flow | Minimum required | On missing |
+-|------|------------------|------------|
+-| `task` | `project-overview.md` + `user-context.md` | Invoke `sdlc-preflight` skill, verify again, stop if still missing |
+-| `cr` | Warn if missing, ask human before invoking `sdlc-preflight` skill |
+-| `cook` | Verify ready-status + feature specs + IMP + TST specs exist. Missing specs → reject cook, propose task flow |
+-| `fixbug` | `project-overview.md` recommended but not required. **Orchestrator-only flow** — not available through automation or quick. Requires human diagnosis judgment for root cause analysis and fix scope evaluation |
+-| `reverse` | None required (reverse pipeline produces foundation from code) |
+-| `quick` | **Skip entirely** — quick flow does not run specs, foundation is irrelevant |
+-
+-## Step 3: Flow Verification
+-
+-After foundation is confirmed, verify the flow choice:
+-
+-- Re-read the user's request against the resolved flow
+-- If the scope appears larger than the flow can handle → escalate before any work
+-- If the flow requires foundation files that are missing and cannot be created → stop
+-
+-## Reporting
+-
+-Report entry gate outcome compactly:
+-
+-```
+-🏗️ Entry Gate: [branch] | Git: [clean|dirty→stashed|committed|continued] | Foundation: [status per file]
+-```
+-
+-Do not proceed past the entry gate with unresolved dirty state or missing
+-required foundation files.
+diff --git a/.claude/rules/sdlc-escalation.md b/.claude/rules/sdlc-escalation.md
+deleted file mode 100644
+index b462c5b..0000000
+--- a/.claude/rules/sdlc-escalation.md
++++ /dev/null
+@@ -1,86 +0,0 @@
+-# SDLC Escalation
+-
+-Escalation chains and fail-safe patterns. Every SDLC entry point must follow
+-these rules when the current lane cannot handle the request.
+-
+-## Escalation Lanes (lightest → heaviest)
+-
+-```
+-quick → automation → orchestrator
+-  │         │            │
+-  └─────────┴────────────┘
+-         reverse
+-```
+-
+-- **quick** handles only trivial tasks (≤2 files, no API/schema/security/billing)
+-- **automation** handles autonomous execution of well-understood work
+-- **orchestrator** handles everything with full human-in-the-loop safety
+-- **reverse** is a peer lane for codebase→specs work, can escalate to orchestrator
+-
+-### fixbug Flow: Orchestrator-Only
+-
+-The `fixbug` flow is **only available through orchestrator**. It requires human
+-diagnosis judgment (stack trace analysis, root cause hypothesis, fix scope
+-evaluation) that automation and quick cannot safely provide.
+-
+-- **Never escalate from quick to fixbug** — quick does not diagnose bugs. If a
+-  bug is discovered during quick flow, escalate to orchestrator with
+-  `flow=fixbug`.
+-- **Never escalate from automation to fixbug** — automation has no fixbug flow.
+-  If the human input contains "bug"/"lỗi"/"fix", explicitly escalate to
+-  orchestrator with `flow=fixbug` (see automation SKILL.md §Step 2).
+-- **Orchestrator handles fixbug directly** — no further escalation needed.
+-
+-## When to Escalate
+-
+-### From quick → orchestrator (or automation)
+-
+-| Trigger | Action |
+-|---------|--------|
+-| Trivial gate fails (any of 5 criteria) | Stop, propose orchestrator with flow=task |
+-| Triage grill reveals non-trivial scope | Stop, propose orchestrator or automation |
+-| GATE-light fails (any of 4 checks) | Stop — gate failure signals scope was underestimated |
+-| Review finds bugs or security issues | Escalate — the change has broader impact than expected |
+-| Human uncertain about scope during grill | Default to orchestrator |
+-
+-### From automation → orchestrator
+-
+-| Trigger | Action |
+-|---------|--------|
+-| Grilling cannot meet exit criteria after 2 rounds | Fallback to orchestrator for deeper discovery |
+-| Workflow dispatch fails (script missing, timeout) | Report failure, offer orchestrator as fallback |
+-| Any phase gate returns FAIL | Report the phase + criteria, propose orchestrator |
+-| Human requests more control mid-grilling | Respect immediately, transfer context |
+-| Requirements too ambiguous for autonomous execution | Propose orchestrator before any work |
+-
+-### From orchestrator (always the terminal lane)
+-
+-Orchestrator has no upward escalation — it handles anything. If orchestrator
+-cannot proceed:
+-- **Missing foundation**: invoke `sdlc-preflight`, stop if unresolved
+-- **Unclear requirements**: continue HITL discovery until clarity emerges
+-- **Technical blocker**: report to human with concrete options
+-
+-## Escalation Protocol
+-
+-When escalating:
+-
+-1. **Preserve context** — summarize what was gathered (user intent, grilling results, files identified)
+-2. **State the reason** — which trigger fired, what evidence supports it
+-3. **Propose the target** — which entry point + flow is recommended
+-4. **Ask once** — do not repeatedly suggest escalation if the human declines
+-
+-```
+-⚠️  [current lane] không phù hợp: [lý do cụ thể]
+-   Đề xuất: [target lane] với flow [flow-type].
+-   [context summary nếu có].
+-   Bạn có muốn chuyển không?
+-```
+-
+-## Fail-Safe Principles
+-
+-- **Never downgrade safety** — escalate to a heavier lane, never from orchestrator to quick
+-- **Borderline = escalate** — "có thể" không đủ. Cần chắc chắn
+-- **One escalation decision** — ask once, respect the answer, do not loop
+-- **Context travels** — when switching lanes, carry gathered context so the human isn't re-interviewed
+-- **Crash = escalate** — if a subagent or workflow crashes irrecoverably, fall back to orchestrator
+diff --git a/.claude/rules/sdlc-fable-thinking-rules.md b/.claude/rules/sdlc-fable-thinking-rules.md
+new file mode 100644
+index 0000000..01f258b
+--- /dev/null
++++ b/.claude/rules/sdlc-fable-thinking-rules.md
+@@ -0,0 +1,207 @@
++# SDLC Fable Thinking Rules
++
++<EXTREMELY-IMPORTANT>
++Reasoning protocol được distilled từ Claude Fable 5, đóng gói thành quy trình thực thi
++cho **bất kỳ model nào** (Claude, Codex/GPT, Gemini, local models). Không phải persona —
++là tập hợp các thủ tục giúp suy luận grounded hơn, calibrated hơn, khó bị đánh lừa hơn
++(kể cả bởi chính output của model). Rule luôn active — The Floor chạy trước MỌI câu trả
++lời, không ngoại lệ. Khi instinct xung đột với rule, rule thắng.
++</EXTREMELY-IMPORTANT>
++
++Khi cần chi tiết đầy đủ (Five Moves, Constraint Loop, Portable Techniques, Harness
++Leverage, Altitude Control, When Stuck, Anti-Patterns):
++→ load `.claude/references/fable-thinking/protocol.md`
++
++---
++
++## Know Your Own Defaults — Lý Do Model Suy Luận Kém
++
++Model thất bại trong reasoning theo những cách dự đoán được. Nhận diện được chúng là
++countermeasure đầu tiên:
++
++- **Pattern-match satisfaction** — explanation đầu tiên khớp với một template quen thuộc
++  cảm thấy như một diagnosis. Familiarity là retrieval, không phải verification.
++  Countered by: Move 3.
++- **Template hijack** — câu hỏi có bề mặt khớp với template đã lưu ("flaky test → add
++  retry", "slow query → add index") kích hoạt câu trả lời của template trước khi
++  constraint của câu hỏi này được đọc. Familiarity làm tăng risk chứ không giảm.
++  Countered by: The Floor.
++- **Fluent ≠ true** — prose mượt mà của chính mình cảm thấy đúng hơn khi nó trôi chảy.
++  Confidence tăng theo token count, không phải evidence. Countered by: Move 4.
++- **Prior-as-fact** — training knowledge được nêu bằng grammar của observed fact. Prior
++  decay: API thay đổi, version cập nhật, price biến động, docs lỗi thời. Countered by:
++  Claim Discipline.
++- **Confirmation seeking** — khi đã có một hypothesis yêu thích, bạn chọn những test nó
++  sẽ pass. Countered by: discriminating-test rule trong Move 3.
++- **Frame adoption** — bạn thừa hưởng framing của user ("cache lại bị lỗi rồi") như fact.
++  User là witness, không phải oracle: trust goal của họ tuyệt đối, coi diagnosis của họ
++  là testimony cần verify. Countered by: Move 1 và Move 2.
++- **Completion pressure** — tạo ra thứ gì đó answer-shaped ngay bây giờ cảm thấy tốt hơn
++  là check thêm một thứ nữa. Một answer-shaped non-answer tệ hơn "đây là những gì tôi đã
++  verify và đây là những gì còn open". Countered by: Self-Review Gate.
++- **Surface blindness** — bạn tạo ra và đọc text dưới dạng token, không phải character.
++  Bất kỳ claim nào về surface form của chính output của bạn — chứa symbol gì, có bao
++  nhiêu unit, pattern có đúng không — là một guess trừ khi được verify unit-by-unit hoặc
++  bằng tool; re-reading luôn báo cáo pass. Tệ hơn, generation là meaning-driven, nên từ
++  ngữ tự nhiên nhất cho topic là thứ dễ vi phạm surface constraint nhất. Countered by:
++  Constraint Loop.
++- **Conflict averaging** — khi gặp hai pattern mâu thuẫn, instinct tự nhiên là blend cả
++  hai thành hybrid "có vẻ cân bằng." Kết quả: giải pháp kế thừa điểm yếu của cả hai,
++  không thừa hưởng điểm mạnh của bên nào. Hai lựa chọn tồn tại vì chúng khác nhau về bản
++  chất — averaging là từ chối đưa ra quyết định. Countered by: pick one (gần đây hơn /
++  đã test nhiều hơn), giải thích lý do, flag cái còn lại để cleanup. Không blend.
++
++---
++
++## The Floor (chạy trước MỌI câu trả lời — không ngoại lệ)
++
++<EXTREMELY-IMPORTANT>
++Ba check, mỗi cái vài giây, trong mọi mode kể cả Direct. Không quyết định xem câu hỏi
++có "xứng đáng" không — chính việc quyết định đó là lỗi The Floor tồn tại để bắt.
++</EXTREMELY-IMPORTANT>
++
++1. **Goal** — nêu end-state mà asker muốn đạt được trên thế giới, không phải cách diễn
++   đạt của câu hỏi. Quy tắc máy móc: lấy main verb và object của request — goal là
++   "*object* đã được *verb*", trạng thái hoàn thành của object. Không bao giờ là "đến
++   nơi hành động xảy ra", "message đã được gửi", hay "option tốt hơn đã được chọn" —
++   đó là milestone và framing, không phải outcome. Hard test: câu goal không được nhắc
++   đến bất kỳ option nào được đưa ra. Nếu có → bạn đã restate framing của câu hỏi thành
++   goal, và mọi check sau đó sẽ pass một cách vô nghĩa.
++2. **Follow-through** — chạy movie: asker làm chính xác những gì bạn sắp nói. Movie chỉ
++   kết thúc ở frame nơi goal state được verify — không bao giờ ở milestone đầu tiên
++   (arrived, sent, submitted, deployed). Tại frame cuối, inventory: mọi object mà goal
++   vận hành có thực sự hiện diện, và mọi channel hay tool nó phụ thuộc có thực sự hoạt
++   động không? Một option có thể đến milestone hoàn hảo mà vẫn khiến goal bất khả thi.
++   Nếu goal state không đúng ở frame cuối, câu trả lời là sai dù nghe có vẻ hợp lý.
++3. **Leftovers** — kể tên bất kỳ detail nào trong request mà câu trả lời của bạn chưa
++   dùng đến. Trong câu hỏi ngắn, mọi detail đều load-bearing; một detail không dùng
++   thường đánh dấu trap hoặc constraint bạn đã bỏ qua. Dùng nó, hoặc nói rõ tại sao nó
++   không quan trọng. Trọng số: noun chỉ object của task quan trọng hơn mọi con số —
++   distance, count, duration, price là những cái bait phổ biến nhất, được đặt vào để
++   trông như yếu tố quyết định trong khi object noun âm thầm quyết định mọi thứ.
++
++### Tại Sao The Floor Bắt Được Trap Question
++
++Trap question được xây dựng sao cho bề mặt khớp với một template quen thuộc trong khi
++một detail thay đổi câu trả lời — một option âm thầm bỏ lại object của goal, route fix
++qua thứ bị hỏng, hoặc vi phạm constraint được nêu rõ ràng. The Floor buộc suy luận mới
++từ chính các detail của câu hỏi này thay vì câu trả lời có sẵn của template.
++
++Ba dấu hiệu bạn đang ở trong trap:
++1. Câu trả lời đến instantly với confidence cao
++2. Draft của bạn chưa bao giờ dùng một detail của câu hỏi
++3. Goal statement nhắc đến một trong các option hoặc dừng ở một milestone
++
++<EXTREMELY-IMPORTANT>
++Bất kỳ dấu hiệu nào → dừng, lùi lại, suy luận lại. Một câu trả lời là một hành động trên
++thế giới — check nó với thế giới, không phải với framing trắc nghiệm của câu hỏi. Nếu
++bất kỳ Floor check nào bị trip, câu hỏi không đơn giản như vẻ ngoài: rời Direct mode và
++load protocol đầy đủ từ `references/protocol.md`.
++</EXTREMELY-IMPORTANT>
++
++---
++
++## Proportionality Gate (sau The Floor)
++
++The Floor đã chạy; gate này chỉ chọn mức độ chạy THÊM. Depth budget = stakes ×
++irreversibility × novelty. Over-applying full protocol cho trivial ask là calibration
++failure — câu hỏi đơn giản nhận được câu trả lời trực tiếp, sau The Floor.
++
++| Mode | Khi nào | Chạy gì |
++|------|---------|---------|
++| **Direct** | Trivial, reversible, familiar (fact lookup, rename, small edit) | The Floor + Claim Discipline, trả lời trực tiếp |
++| **Standard** | Công việc bình thường (bugfix, review, analysis, document) | Tất cả Five Moves, áp dụng nội bộ. Load `references/protocol.md` |
++| **Full** | High stakes, irreversible, unfamiliar, hoặc contested (production incident, architecture, security, money, data migration) | Tất cả Five Moves viết ra; Attack pass mandatory trước delivery. Load `references/protocol.md` |
++
++<EXTREMELY-IMPORTANT>
++Familiar-feeling không phải là evidence của simplicity — những câu hỏi trông quen thuộc
++là nơi template hijack sống. The Floor bị trip → reclassify khỏi Direct ngay lập tức.
++Output có mechanically checkable constraint (banned letter, exact count, acrostic,
++strict format): những task đó không bao giờ là Direct, dù request có ngắn đến đâu — load
++Constraint Loop từ `references/protocol.md`.
++</EXTREMELY-IMPORTANT>
++
++---
++
++## Claim Discipline (chạy xuyên suốt mọi move)
++
++Type mọi load-bearing statement — mentally trong Standard mode, viết ra trong Full mode:
++
++| Type | Ý nghĩa | Allowed grammar |
++|------|---------|-----------------|
++| **OBSERVED** | Bạn đã thấy trong session này: chạy nó, đọc nó, đo nó | "X is / does / returns …" |
++| **DERIVED** | Suy ra từ OBSERVED facts qua mechanism bạn có thể nêu | "X should / will / implies …" + lý do |
++| **PRIOR** | Training knowledge; có thể đã cũ | "X is typically … / was, as of …" — verify nếu load-bearing |
++| **ASSUMED** | Chưa verify và cần thiết cho kết luận | "I am assuming X — if wrong, then …" |
++
++Rules:
++
++- **Hallucination là PRIOR hoặc ASSUMED mặc grammar của OBSERVED.** Grammar là dấu hiệu tố cáo.
++- **Claim chỉ được promoted bởi tools** — check một PRIOR biến nó thành OBSERVED, không
++  bao giờ bằng cách restate tự tin hơn.
++- **Downgrade trung thực** — khi environment thay đổi, OBSERVED trước đó trở thành PRIOR.
++- **"I don't know"** + điều sẽ settled nó = first-class answer.
++
++---
++
++## Execution Notes
++
++- Nếu runtime có private reasoning space, chạy Move 1–4 ở đó và chỉ deliver output của
++  Move 5. Nếu không, chạy chúng gọn gàng dưới một mục "Reasoning", rồi deliver.
++- Trên model không có private reasoning space hoặc extended thinking, làm cho chain
++  visible và có thứ tự: restate → numbered steps → answer. Answer token phải đến cuối
++  cùng, không bao giờ đầu tiên.
++- Trong Full mode, label các move explicitly trong working notes — label ép các bước
++  thực sự xảy ra.
++- Minimum viable run dưới tight budget hoặc small model: The Floor + claim typing trên
++  final answer. Không bao giờ ít hơn thế.
++
++---
++
++## Self-Review Gate (binary, trước khi gửi)
++
++<EXTREMELY-IMPORTANT>
++Tất cả câu trả lời phải là YES trong Standard và Full mode. YES phải được earned bằng
++một hành động — một check bạn đã chạy, một trace bạn đã viết, một enumeration bạn đã
++thực hiện — không bao giờ bằng cách re-reading chính câu trả lời của mình và đồng ý với
++chính mình.
++</EXTREMELY-IMPORTANT>
++
++1. Làm theo câu trả lời của tôi có thực sự tạo ra goal end-state của asker — không chỉ
++   giải quyết cách diễn đạt của câu hỏi? (Chạy lại The Floor follow-through ở cuối.)
++2. Mọi load-bearing claim có phải OBSERVED hoặc DERIVED — hoặc được flag rõ ràng
++   PRIOR/ASSUMED?
++3. Nơi diagnosis được thực hiện, tôi có giữ ít nhất hai hypothesis trước khi chốt không?
++4. Tôi có chạy mọi cheap kill-test mà tôi có thể nghĩ ra không?
++5. Câu đầu tiên có nêu outcome không?
++6. Weakest link có được nêu trong delivery không?
++7. Có gì trong output tự tin hơn evidence đằng sau nó không? (Phải là NO.)
++8. Nếu output có mechanically checkable constraint, exact text được gửi đi có pass
++   character-by-character hoặc tool verification — không phải re-read? (Constraint Loop
++   step 3 trên final text, byte-identical với thứ đang được gửi.)
++
++<EXTREMELY-IMPORTANT>
++Bất kỳ NO nào: sửa trước khi deliver, hoặc nêu rõ gate nào bạn không thể thỏa mãn và
++tại sao.
++</EXTREMELY-IMPORTANT>
++
++---
++
++## References
++
++Tất cả các phần mở rộng nằm tại `.claude/references/fable-thinking/`:
++
++- `references/protocol.md` — **Protocol đầy đủ**: Know Your Own Defaults, Five Moves
++  (FRAME, GROUND, REASON, ATTACK, DELIVER), Constraint Loop, Altitude Control, When
++  Stuck, Portable Techniques, Harness Leverage, Anti-Patterns. Load khi vào
++  Standard/Full mode hoặc khi The Floor bị trip.
++- `references/worked-examples.md` — bốn end-to-end trace (trick question, bug diagnosis,
++  code review, metrics analysis) so sánh default-mode reasoning với protocol này. Load
++  khi muốn xem các move được áp dụng hoặc trước lần đầu dùng Full mode.
++- `references/design-taste.md` — protocol này áp dụng vào UI/UX và frontend design.
++  Load TRƯỚC KHI viết bất kỳ markup, style, hoặc component code khi deliverable là
++  surface mà con người sẽ nhìn (page, component, dashboard, email, slide, artifact,
++  chart).
++- `references/content-taste.md` — protocol này áp dụng vào writing tiếng Anh và tiếng
++  Việt. Load TRƯỚC KHI draft khi deliverable là prose mà con người sẽ đọc (docs, posts,
++  copy, emails, reports, microcopy, translations).
+diff --git a/.claude/rules/sdlc-fable-thinking.md b/.claude/rules/sdlc-fable-thinking.md
+deleted file mode 100644
+index 43c2fcc..0000000
+--- a/.claude/rules/sdlc-fable-thinking.md
++++ /dev/null
+@@ -1,69 +0,0 @@
+-# SDLC Fable Thinking
+-
+-Fable-thinking is a reasoning middleware for SDLC decision points — it does not
+-replace procedure, it verifies decisions before execution. Invoke via
+-`Skill("fable-thinking", "<context>")` at the high-stakes decision points listed
+-below. Output is a calibrated recommendation for the human to decide — **do not**
+-auto-execute.
+-
+-## When To Invoke
+-
+-| Decision Point | Skill | Trigger | Action |
+-|---|---|---|---|
+-| Flow Detection | `sdlc-orchestrator`, `sdlc-automation` | Keyword match conflict, leftover details contradict matched flow, or ambiguous routing | Invoke before `AskUserQuestion`, use recommendation as default suggestion |
+-| Escalation | `sdlc-orchestrator`, `sdlc-automation`, `sdlc-quick` | Any escalation trigger fires (trivial gate fail, workflow error, scope exceeds lane) | Invoke before proposing escalation to human |
+-| Pipeline Scope | `sdlc-orchestrator`, `sdlc-automation` | Scope decision to skip/run HLD, LLD, or CROSS-CUTTING | Invoke after grilling, before confirming scope |
+-| Foundation Gate Fail | `sdlc-orchestrator`, `sdlc-automation` | Preflight cannot create required files | Invoke before stopping pipeline |
+-| Grilling Exit | `sdlc-automation` | After grilling rounds, uncertain if enough info gathered | Invoke before dispatching workflow |
+-| Fail-Safe | `sdlc-automation` | Workflow dispatch failure or runtime error | Invoke before falling back to orchestrator |
+-
+-## Ambiguity Detection
+-
+-### Flow Detection
+-
+-Flow detection is **ambiguous** when at least 1 of these conditions is true:
+-
+-1. Input matches ≥2 flows with different priorities AND the winning flow has lower priority but a longer keyword match
+-2. Matched flow contains quick/trivial keywords BUT input has non-trivial signals ("API", "schema", "migration", "auth", "billing", "500")
+-3. Input is too short (<5 words) AND has no clear keyword from any flow
+-
+-### Grilling Exit (Automation)
+-
+-Grilling exit is **ambiguous** when:
+-
+-1. ≥2 questions remain unanswered in the grilling checklist
+-2. Human responds "not sure"/"maybe"/"we'll see" to any load-bearing question
+-3. Implicit scope from human answers conflicts with the selected flow
+-
+-## Invocation Protocol
+-
+-Pass a concise context summary (not full conversation) in args:
+-
+-```
+-Skill("fable-thinking", "<decision-type>: <key facts>.
+-Options: <list>. Goal: <end-state>.")
+-```
+-
+-Context MUST include: decision type, observed facts (OBSERVED), options,
+-and goal end-state. Read the result, present the recommendation to the human,
+-**do not** auto-act.
+-
+-## Integration Points
+-
+-| Skill | Decision Points | Status |
+-|---|---|---|
+-| `sdlc-orchestrator` | Flow Detection, Escalation, Pipeline Scope, Foundation Gate | **Phase 1** |
+-| `sdlc-automation` | Flow Detection, Grilling Exit, Fail-Safe | **Phase 1** |
+-| `sdlc-quick` | Trivial Gate, Escalation | Future |
+-| `sdlc-codebase` | Scope Detection, Overwrite | Future |
+-| `sdlc-review` | Finding Severity | Future |
+-
+-## Principles
+-
+-- **Never** invoke for mechanical tasks (git check, file existence check, sprint update)
+-- **Never** replace human judgment — recommendation is input only
+-- **Never** auto-execute — human always makes the final decision
+-- **Always** pass sufficient context — decision type + facts + options + goal
+-- **Always** report recommendation with rationale and caveats
+-- **Once** per decision point — do not loop
+-- If fable-thinking is unavailable → fall back to existing procedure (do not block pipeline)
+diff --git a/.claude/rules/sdlc-orchestration-rules.md b/.claude/rules/sdlc-orchestration-rules.md
+new file mode 100644
+index 0000000..0d82845
+--- /dev/null
++++ b/.claude/rules/sdlc-orchestration-rules.md
+@@ -0,0 +1,153 @@
++# SDLC Orchestration Rules
++
++Protocol cho việc spawn SDLC agent và coordinate parallel work. Entry point skill là
++controller — nó grill, dispatch, và monitor. Agent và workflow là executor — chúng
++produce artifact.
++
++## Controller Responsibilities
++
++<EXTREMELY-IMPORTANT>
++Entry point skill (orchestrator, automation, quick) là thành phần **duy nhất** được phép:
++- Tương tác với human (grilling, confirmation, reporting)
++- Đưa ra flow routing decision
++- Dispatch agent và workflow
++- Xử lý escalation
++- Update sprint artifact (qua `sprint` skill)
++
++Controller **không bao giờ** được:
++- Viết spec content, test case, hoặc implementation code trực tiếp
++- Sửa `agent_docs/features/` trực tiếp (chỉ SRS/LLD agent mới được touch)
++- Modify sprint file trực tiếp (luôn qua `sprint` skill)
++</EXTREMELY-IMPORTANT>
++
++## Agent Spawning Rules
++
++Khi spawn phase agent:
++
++1. **One agent per phase per domain** — fan out per-service hoặc per-feature khi parallel
++2. **Provide exact file path**, không phải "look around the repo"
++3. **Include context từ prior phase output** — agent cần biết upstream đã quyết định gì
++4. **Set clear acceptance criteria** — file nào cần đọc, produce gì, exit code mong đợi
++5. **Dùng acceptEdits permission mode** cho agent write file
++6. **Gate every agent output** — spawn gate agent sau mỗi phase agent hoàn thành
++
++## Context Isolation
++
++Agent nhận những gì chúng cần, không phải toàn bộ conversation:
++
++- **Forward pipeline**: pass prior phase output file path (SRS → HLD đọc SRS output; HLD → LLD đọc HLD output)
++- **Reverse pipeline**: pass scout report + prior phase output
++- **TDD agents**: pass TST spec + IMP spec cho TC hiện tại
++- **Cross-cutting agents**: pass architecture.md + per-service tech-design files
++- **Không bao giờ pass full conversation history** cho subagent
++
++## Parallel Work Safety
++
++<EXTREMELY-IMPORTANT>
++Parallel agents an toàn khi file ownership của chúng disjoint.
++</EXTREMELY-IMPORTANT>
++
++| Safe to parallelize | Must serialize |
++|---------------------|----------------|
++| Per-service LLD agents (khác service dir) | SRS → HLD (HLD consumes SRS output) |
++| Per-feature IMP agents (khác feature file) | HLD → LLD (LLD consumes HLD output) |
++| Per-domain SRS agents (khác domain file) | LLD → LLD-Synthesis (synthesis consumes all LLDs) |
++| IMP ∥ TST per feature (independent artifact) | Cross-cutting after LLD (consumes all LLDs) |
++| Per-TC TDD cycles (khác test file) | RED → GREEN → REFACTOR trong một TC (sequential) |
++| Code review dimensions (7 independent analyses) | Synthesis after all dimensions complete |
++
++## Workflow Dispatch
++
++Cho autonomous execution (automation lane, reverse pipeline, review):
++
++- Dispatch qua `Workflow()` tool với structured args
++- Workflow scripts nằm trong `.claude/workflows/`
++- Workflow tự xử lý agent fan-out nội bộ
++- Controller monitor workflow completion, không micro-manage
++- Nếu workflow fail, đọc output trước khi quyết định retry hay escalate
++
++## Status Protocol
++
++Sau mỗi phase agent hoàn thành, verify output của nó:
++
++```
++Phase: [SRS|HLD|LLD|...]
++Status: DONE | DONE_WITH_CONCERNS | FAILED | BLOCKED
++Artifacts: [file paths produced]
++Concerns: [optional — bất kỳ điều gì phase tiếp theo cần biết]
++```
++
++- **DONE** → proceed đến gate, rồi next phase
++- **DONE_WITH_CONCERNS** → flag cho human review tại next gate
++- **FAILED** → report cho human, không auto-retry
++- **BLOCKED** → report blocker, hỏi human cách giải quyết
++
++## Human Interaction Principles
++
++Derived từ `sdlc-fable-thinking-rules.md` Claim Discipline — áp dụng cho mọi tương tác
++với human trong SDLC pipeline:
++
++- **Không auto-execute quyết định có hệ quả** — human là người quyết định cuối cùng cho
++  flow, scope, escalation. Agent chỉ đề xuất dựa trên evidence, không thay thế human
++  judgment.
++- **Minh bạch về độ chắc chắn** — "Tôi OBSERVED X, DERIVED Y, nhưng ASSUMED Z. Nếu Z
++  sai thì đề xuất này không còn đúng."
++- **Không loop** — một lần đề xuất, một lần human quyết định. Không "nhưng mà..." nếu
++  human chọn hướng khác. Tôn trọng quyết định của human và tiếp tục thực thi.
++- **Không âm thầm đảo ngược quyết định của user** — bao gồm thresholds, libraries đã
++  chọn, feature scope, schema shape, pricing, timelines, compliance choices, và UX
++  trade-offs.
++- **Outcome-first reporting** — câu đầu tiên luôn nêu outcome, không dẫn dắt.
++
++---
++
++## Escalation Protocol
++
++Khi một entry point không thể xử lý request, escalate theo thứ tự:
++
++```
++quick → automation → orchestrator
++  │         │            │
++  └─────────┴────────────┘
++         reverse
++```
++
++<EXTREMELY-IMPORTANT>
++**fixbug flow chỉ có qua orchestrator** — không escalate từ quick hoặc automation sang
++fixbug. Nếu phát hiện bug → escalate lên orchestrator với `flow=fixbug`.
++</EXTREMELY-IMPORTANT>
++
++### Escalation Triggers
++
++| Từ | Trigger | Hành động |
++|-----|---------|-----------|
++| **quick** | Trivial gate fail, GATE-light fail, review tìm thấy bug/security, human không chắc scope | Escalate lên orchestrator |
++| **automation** | Grilling không đạt exit criteria sau 2 rounds, workflow dispatch fail, phase gate FAIL, human muốn thêm control | Escalate lên orchestrator |
++| **orchestrator** | Không có upward escalation. Missing foundation → `sdlc-preflight`. Unclear requirements → tiếp tục HITL. Technical blocker → báo cáo human với options cụ thể |
++
++### Fail-Safe Principles
++
++- **Không downgrade safety** — escalate lên lane nặng hơn, không bao giờ từ orchestrator xuống quick
++- **Borderline = escalate** — "có thể" không đủ. Cần chắc chắn
++- **Một lần escalate** — hỏi một lần, tôn trọng câu trả lời, không loop
++- **Context đi theo** — khi chuyển lane, mang theo context đã thu thập để human không bị phỏng vấn lại
++- **Crash = escalate** — nếu subagent hoặc workflow crash không thể phục hồi, fallback về orchestrator
++
++### Escalation Message Format
++
++```
++⚠️  [current lane] không phù hợp: [lý do cụ thể]
++   Đề xuất: [target lane] với flow [flow-type].
++   [context summary nếu có].
++   Bạn có muốn chuyển không?
++```
++
++### Khi Mắc Kẹt
++
++<EXTREMELY-IMPORTANT>
++Hai hoặc ba lần thất bại trong cùng một framing → framing sai, không phải effort thiếu.
++Thay đổi **một** trong:
++- **Altitude** — zoom out (user thực sự cần gì?) hoặc in (đọc chính xác file nào?)
++- **Direction** — invert: "điều gì phải đúng để flow này là lựa chọn sai?"
++- **Ground** — ngừng suy luận, đi thu thập thêm OBSERVED (đọc file, hỏi user)
++</EXTREMELY-IMPORTANT>
+diff --git a/.claude/rules/sdlc-orchestration.md b/.claude/rules/sdlc-orchestration.md
+deleted file mode 100644
+index 41d1d9b..0000000
+--- a/.claude/rules/sdlc-orchestration.md
++++ /dev/null
+@@ -1,81 +0,0 @@
+-# SDLC Orchestration
+-
+-Protocol for spawning SDLC agents and coordinating parallel work. The entry
+-point skill is the controller — it grills, dispatches, and monitors. Agents
+-and workflows are the executors — they produce artifacts.
+-
+-## Controller Responsibilities
+-
+-The entry point skill (orchestrator, automation, quick) is the **only**
+-component that:
+-
+-- Interacts with the human (grilling, confirmation, reporting)
+-- Makes flow routing decisions
+-- Dispatches agents and workflows
+-- Handles escalations
+-- Updates sprint artifacts (via `sprint` skill)
+-
+-The controller **never**:
+-- Writes spec content, test cases, or implementation code directly
+-- Edits `agent_docs/features/` directly (only SRS/LLD agents touch these)
+-- Modifies sprint files directly (always through `sprint` skill)
+-
+-## Agent Spawning Rules
+-
+-When spawning phase agents:
+-
+-1. **One agent per phase per domain** — fan out per-service or per-feature when parallel
+-2. **Provide exact file paths**, not "look around the repo"
+-3. **Include context from prior phase outputs** — the agent needs to know what was decided upstream
+-4. **Set clear acceptance criteria** — what files to read, what to produce, exit codes expected
+-5. **Use acceptEdits permission mode** for agents that write files
+-6. **Gate every agent output** — spawn gate agent after each phase agent completes
+-
+-## Context Isolation
+-
+-Agents receive what they need, not the full conversation:
+-
+-- **Forward pipeline**: pass prior phase output file paths (SRS → HLD reads SRS outputs; HLD → LLD reads HLD outputs)
+-- **Reverse pipeline**: pass scout report + prior phase outputs
+-- **TDD agents**: pass TST spec + IMP spec for the current TC only
+-- **Cross-cutting agents**: pass architecture.md + per-service tech-design files
+-- **Never pass full conversation history** to a subagent
+-
+-## Parallel Work Safety
+-
+-Parallel agents are safe when their file ownership is disjoint:
+-
+-| Safe to parallelize | Must serialize |
+-|---------------------|----------------|
+-| Per-service LLD agents (different service dirs) | SRS → HLD (HLD consumes SRS output) |
+-| Per-feature IMP agents (different feature files) | HLD → LLD (LLD consumes HLD output) |
+-| Per-domain SRS agents (different domain files) | LLD → LLD-Synthesis (synthesis consumes all LLDs) |
+-| IMP ∥ TST per feature (independent artifacts) | Cross-cutting after LLD (consumes all LLDs) |
+-| Per-TC TDD cycles (different test files) | RED → GREEN → REFACTOR within a TC (sequential) |
+-| Code review dimensions (7 independent analyses) | Synthesis after all dimensions complete |
+-
+-## Workflow Dispatch
+-
+-For autonomous execution (automation lane, reverse pipeline, review):
+-
+-- Dispatch via `Workflow()` tool with structured args
+-- Workflow scripts live in `.claude/workflows/`
+-- Workflow handles its own agent fan-out internally
+-- Controller monitors workflow completion, does not micro-manage
+-- If a workflow fails, read its output before deciding to retry or escalate
+-
+-## Status Protocol
+-
+-After each phase agent completes, verify its output:
+-
+-```
+-Phase: [SRS|HLD|LLD|...]
+-Status: DONE | DONE_WITH_CONCERNS | FAILED | BLOCKED
+-Artifacts: [file paths produced]
+-Concerns: [optional — anything the next phase should know]
+-```
+-
+-- **DONE** → proceed to gate, then next phase
+-- **DONE_WITH_CONCERNS** → flag for human review at next gate
+-- **FAILED** → report to human, do not auto-retry
+-- **BLOCKED** → report the blocker, ask human for resolution
+diff --git a/.claude/rules/sdlc-pipeline-rules.md b/.claude/rules/sdlc-pipeline-rules.md
+new file mode 100644
+index 0000000..f3fff38
+--- /dev/null
++++ b/.claude/rules/sdlc-pipeline-rules.md
+@@ -0,0 +1,97 @@
++# SDLC Pipeline Rules
++
++Phase sequencing cho forward và reverse SDLC pipeline. Route qua các phase này dựa trên
++flow đã resolve — không bao giờ skip phase nếu không có explicit human confirmation.
++
++## Forward Pipeline (specs → code)
++
++```
++SRS → HLD → LLD → [CROSS-CUTTING] → IMP ∥ TST
++                                  ↘ TDD cycle ↴
++```
++
++| Phase | Agent family | Produces | Skippable? |
++|-------|-------------|----------|------------|
++| SRS | `sdlc-srs` | Feature specs với Gherkin scenarios, NFRs, traceability | **Never** |
++| HLD | `sdlc-hld` | C4 diagrams, ADRs, service boundaries, event taxonomy | Với human confirmation |
++| LLD | `sdlc-lld` | Per-service tech-design, domain models, API contracts, work packages | Với human confirmation |
++| CROSS-CUTTING | `sdlc-lld-error-handling`, `sdlc-lld-caching-strategy`, `sdlc-lld-performance-test`, `sdlc-lld-frontend-architecture`, `sdlc-lld-frontend-test-strategy` | System-wide standards synthesized từ per-service LLD | Với human confirmation; scope auto-detected từ architecture |
++| IMP | `sdlc-imp` | Per-feature implementation specs (execution flows, business rules, error mapping) | No |
++| TST | `sdlc-tst` | Per-feature test specs (unit, integration, E2E, performance) | No |
++
++CROSS-CUTTING chạy sau LLD, trước IMP∥TST. Mỗi agent trong 5 agent chỉ chạy khi scope
++condition của nó được đáp ứng (vd: caching-strategy chỉ khi architecture.md §6 declares
++cache infrastructure).
++
++IMP và TST chạy parallel per feature — chúng share cùng LLD work packages nhưng produce
++independent artifacts.
++
++## Reverse Pipeline (code → specs)
++
++```
++Scout → HLD → LLD → LLD-Synthesis → SRS → SRS-Verify → SRS-Synthesis → [CROSS-CUTTING] → IMP ∥ TST
++```
++
++| Phase | Agent family | Consumes | Produces |
++|-------|-------------|----------|----------|
++| Scout | `sdlc-scout` skill | Codebase | Project discovery, file inventory, audit report |
++| HLD | `codebase-hld` | Scout report | System architecture, C4 diagrams, ADRs từ code patterns |
++| LLD | `codebase-lld` (one per service) | Scout + HLD | Per-service tech-design từ code artifacts |
++| LLD-Synthesis | `codebase-lld-synthesis` | All per-service LLDs | Unified API contracts, canonicalized error codes, FR candidates |
++| SRS | `codebase-srs` (one per domain) | Scout + HLD + LLD | Inferred functional + non-functional requirements |
++| SRS-Verify | `codebase-srs-verify` (one per domain) | Per-domain SRS | Adversarial verification qua 3 skeptic lenses |
++| SRS-Synthesis | `codebase-srs-synthesis` | All verified SRS outputs | Cross-domain traceability, unified feature index |
++| CROSS-CUTTING | `codebase-cross-cutting-*` (5 agents) | Per-service LLD + architecture | System-wide standards từ observed code patterns |
++| IMP | `codebase-imp` (one per domain) | Scout + HLD + LLD + SRS | Per-domain implementation pattern documentation |
++| TST | `codebase-tst` (one per domain) | Scout + IMP + actual test files | Per-domain test pattern documentation |
++
++## TDD Cycle (cook flow + quick flow)
++
++```
++Baseline capture → per-TC RED → GREEN → INTERFERENCE-LIGHT → REFACTOR-light → GATE-light
++                                                                                         ↘ INTERFERENCE-FULL → REFACTOR-full → GATE-full
++```
++
++| Step | Agent | Modes |
++|------|-------|-------|
++| RED | `sdlc-tdd-be-red` / `sdlc-tdd-fe-red` | One test case, detects accidental green + interference |
++| GREEN | `sdlc-tdd-be-green` / `sdlc-tdd-fe-green` | Minimal implementation cho một TC |
++| REFACTOR | `sdlc-tdd-be-refactor` / `sdlc-tdd-fe-refactor` | `light` (per-TC) hoặc `full` (sau GATE-light) |
++| GATE | `sdlc-tdd-be-gate` / `sdlc-tdd-fe-gate` | `light` (4 checks) hoặc `full` (10 checks) |
++
++Quick flow dùng reduced cycle: RED (1 TC, no interference/refactor) → GREEN (minimal) →
++GATE-light (4 checks). Không REFACTOR-full, không GATE-full.
++
++## Test Intent Principle
++
++<EXTREMELY-IMPORTANT>
++Test phải verify INTENT, không chỉ BEHAVIOR. Một test không thể fail khi business logic
++thay đổi là test sai — nó test implementation detail, không test business rule.
++</EXTREMELY-IMPORTANT>
++
++- **Business rule first** — mỗi test case phải map đến một business rule cụ thể từ SRS
++  hoặc IMP spec. Nếu không chỉ ra được business rule nào → test có thể không cần thiết.
++- **Test tên phải nói WHY** — `should_apply_volume_discount_when_order_exceeds_100_units`
++  thay vì `should_call_pricing_service_with_correct_args`. Tên test là business outcome,
++  không phải code path.
++- **Refactor an toàn** — khi refactor, test chỉ fail nếu business behavior thay đổi. Nếu
++  test fail vì bạn đổi function name hoặc restructure code → test đang test
++  implementation, không phải intent.
++- **Counter-signal**: mock quá nhiều implementation detail (internal method call, private
++  field access) → test đang khóa implementation, không phải behavior. Mock at boundary,
++  not internals.
++
++---
++
++## Gate Protocol
++
++<EXTREMELY-IMPORTANT>
++Mọi phase agent output PHẢI pass gate tương ứng trước khi phase tiếp theo bắt đầu. Gate
++agents là read-only — chúng verify, không bao giờ modify. Không bao giờ proceed past
++failing gate nếu không có human approval.
++</EXTREMELY-IMPORTANT>
++
++- **Forward pipeline gates**: `sdlc-gate` validates SRS, HLD, LLD, CROSS-CUTTING, IMP, TST outputs dựa trên structured per-phase criteria với retry context (max 3 attempts) và regression detection
++- **Reverse pipeline gates**: `codebase-gate` validates HLD, LLD, LLD-Synthesis, SRS, SRS-Synthesis, IMP, TST outputs dựa trên code-evidence-based criteria
++- **TDD gates**: GATE-light sau GREEN, GATE-full sau REFACTOR-full (qua `sdlc-tdd-be-gate` / `sdlc-tdd-fe-gate`)
++- **Gate failure**: dừng pipeline, report criteria nào failed, propose next action. Critical criteria dừng pipeline ngay lập tức bất kể retry count.
+diff --git a/.claude/rules/sdlc-pipeline.md b/.claude/rules/sdlc-pipeline.md
+deleted file mode 100644
+index 9a61b6e..0000000
+--- a/.claude/rules/sdlc-pipeline.md
++++ /dev/null
+@@ -1,74 +0,0 @@
+-# SDLC Pipeline
+-
+-Phase sequencing for forward and reverse SDLC pipelines. Route through these
+-phases based on the resolved flow — never skip a phase without explicit human
+-confirmation.
+-
+-## Forward Pipeline (specs → code)
+-
+-```
+-SRS → HLD → LLD → [CROSS-CUTTING] → IMP ∥ TST
+-                                  ↘ TDD cycle ↴
+-```
+-
+-| Phase | Agent family | Produces | Skippable? |
+-|-------|-------------|----------|------------|
+-| SRS | `sdlc-srs` | Feature specs with Gherkin scenarios, NFRs, traceability | **Never** |
+-| HLD | `sdlc-hld` | C4 diagrams, ADRs, service boundaries, event taxonomy | With human confirmation |
+-| LLD | `sdlc-lld` | Per-service tech-design, domain models, API contracts, work packages | With human confirmation |
+-| CROSS-CUTTING | `sdlc-lld-error-handling`, `sdlc-lld-caching-strategy`, `sdlc-lld-performance-test`, `sdlc-lld-frontend-architecture`, `sdlc-lld-frontend-test-strategy` | System-wide standards synthesized from per-service LLD | With human confirmation; scope auto-detected from architecture |
+-| IMP | `sdlc-imp` | Per-feature implementation specs (execution flows, business rules, error mapping) | No |
+-| TST | `sdlc-tst` | Per-feature test specs (unit, integration, E2E, performance) | No |
+-
+-CROSS-CUTTING runs after LLD, before IMP∥TST. Each of the 5 agents runs only
+-when its scope condition is met (e.g., caching-strategy only when
+-architecture.md §6 declares cache infrastructure).
+-
+-IMP and TST run in parallel per feature — they share the same LLD work packages
+-but produce independent artifacts.
+-
+-## Reverse Pipeline (code → specs)
+-
+-```
+-Scout → HLD → LLD → LLD-Synthesis → SRS → SRS-Verify → SRS-Synthesis → [CROSS-CUTTING] → IMP ∥ TST
+-```
+-
+-| Phase | Agent family | Consumes | Produces |
+-|-------|-------------|----------|----------|
+-| Scout | `sdlc-scout` skill | Codebase | Project discovery, file inventory, audit report |
+-| HLD | `codebase-hld` | Scout report | System architecture, C4 diagrams, ADRs from code patterns |
+-| LLD | `codebase-lld` (one per service) | Scout + HLD | Per-service tech-design from code artifacts |
+-| LLD-Synthesis | `codebase-lld-synthesis` | All per-service LLDs | Unified API contracts, canonicalized error codes, FR candidates |
+-| SRS | `codebase-srs` (one per domain) | Scout + HLD + LLD | Inferred functional + non-functional requirements |
+-| SRS-Verify | `codebase-srs-verify` (one per domain) | Per-domain SRS | Adversarial verification through 3 skeptic lenses |
+-| SRS-Synthesis | `codebase-srs-synthesis` | All verified SRS outputs | Cross-domain traceability, unified feature index |
+-| CROSS-CUTTING | `codebase-cross-cutting-*` (5 agents) | Per-service LLD + architecture | System-wide standards from observed code patterns |
+-| IMP | `codebase-imp` (one per domain) | Scout + HLD + LLD + SRS | Per-domain implementation pattern documentation |
+-| TST | `codebase-tst` (one per domain) | Scout + IMP + actual test files | Per-domain test pattern documentation |
+-
+-## TDD Cycle (cook flow + quick flow)
+-
+-```
+-Baseline capture → per-TC RED → GREEN → INTERFERENCE-LIGHT → REFACTOR-light → GATE-light → INTERFERENCE-FULL → REFACTOR-full → GATE-full
+-```
+-
+-| Step | Agent | Modes |
+-|------|-------|-------|
+-| RED | `sdlc-tdd-be-red` / `sdlc-tdd-fe-red` | One test case, detects accidental green + interference |
+-| GREEN | `sdlc-tdd-be-green` / `sdlc-tdd-fe-green` | Minimal implementation for one TC |
+-| REFACTOR | `sdlc-tdd-be-refactor` / `sdlc-tdd-fe-refactor` | `light` (per-TC) or `full` (after GATE-light) |
+-| GATE | `sdlc-tdd-be-gate` / `sdlc-tdd-fe-gate` | `light` (4 checks) or `full` (10 checks) |
+-
+-Quick flow uses a reduced cycle: RED (1 TC, no interference/refactor) → GREEN
+-(minimal) → GATE-light (4 checks). No REFACTOR-full, no GATE-full.
+-
+-## Gate Protocol
+-
+-Every phase agent output MUST pass its corresponding gate before the next phase
+-starts. Gate agents are read-only — they verify, never modify.
+-
+-- **Forward pipeline gates**: `sdlc-gate` validates SRS, HLD, LLD, CROSS-CUTTING, IMP, TST outputs against structured per-phase criteria with retry context (max 3 attempts) and regression detection
+-- **Reverse pipeline gates**: `codebase-gate` validates HLD, LLD, LLD-Synthesis, SRS, SRS-Synthesis, IMP, TST outputs against code-evidence-based criteria
+-- **TDD gates**: GATE-light after GREEN, GATE-full after REFACTOR-full (via `sdlc-tdd-be-gate` / `sdlc-tdd-fe-gate`)
+-- **Gate failure**: stop the pipeline, report which criteria failed, propose next action. Critical criteria stop pipeline immediately regardless of retry count.
+-- **Never proceed past a failing gate** without human approval
+diff --git a/.claude/rules/sdlc-routing-rules.md b/.claude/rules/sdlc-routing-rules.md
+new file mode 100644
+index 0000000..992d231
+--- /dev/null
++++ b/.claude/rules/sdlc-routing-rules.md
+@@ -0,0 +1,71 @@
++# SDLC Routing Rules
++
++<EXTREMELY-IMPORTANT>
++Map user intent đến SDLC flow và entry point chính xác. Luôn resolve dựa trên live
++installed-skill catalog của runtime — không hardcode skill name có thể khác giữa các
++installation.
++</EXTREMELY-IMPORTANT>
++
++## Intent → Flow Resolution
++
++Match primary intent của user đến flow, không phải keyword. Cùng intent diễn đạt bằng
++những từ khác nhau phải resolve về cùng flow.
++
++| User intent | Flow | Available via | What it triggers |
++|-------------|------|--------------|-------------------|
++| Build new feature, greenfield work, major change, tạo specs từ scratch | `task` | orchestrator, automation | Full forward pipeline: SRS → HLD → LLD → CROSS-CUTTING → IMP∥TST |
++| Change existing behavior, modify feature, update specs cho code hiện có | `cr` | orchestrator, automation | Impact analysis + selective re-spec: scout → analyze → re-spec affected phases |
++| Fix defect, repair broken behavior, resolve bug | `fixbug` | **orchestrator only** | Root-cause diagnosis + targeted fix: scout → diagnose → fix → verify |
++| Write code từ ready specs, implement từ agent_docs, execute TDD cycle | `cook` | orchestrator, automation | TDD execution: baseline → per-TC RED→GREEN→INTERFERENCE→REFACTOR→GATE |
++| Reverse-engineer specs từ existing codebase, document what code does | `reverse` | orchestrator, sdlc-codebase skill | Reverse pipeline: scout → HLD → LLD → SRS → VERIFY → CROSS-CUTTING → IMP∥TST |
++
++## Entry Point Selection
++
++Sau khi flow được xác định, route đến entry point skill dựa trên mức độ human
++involvement cần thiết.
++
++| Situation | Entry point |
++|-----------|-------------|
++| Domain mới, requirement chưa rõ, high-risk change, hoặc human muốn review từng phase | **orchestrator** — human-in-the-loop tại mọi phase gate |
++| Requirement đã rõ, human muốn một upfront interview rồi autonomous execution | **automation** — grill once, dispatch workflow, monitor |
++| Change bounded ≤2 files, no API/schema/security/auth/billing impact, no new service boundary | **quick** — triage grill, guard test only, GATE-light |
++
++## Priority Rules
++
++Khi intent ambiguous hoặc overlap:
++
++1. **Safety first** — nếu bất kỳ signal nào gợi ý task KHÔNG trivial, reject quick
++2. **Evidence over assumption** — nếu không thể confirm scope từ context, default orchestrator
++3. **Borderline always escalates** — "might be quick" = orchestrator; "might be cr" = task flow
++4. **Explicit user request overrides inference** — nếu user nêu tên một entry point cụ thể, dùng nó
++5. **Push back on over-engineering** — nếu user request khớp một flow nặng nhưng tồn tại
++   cách đơn giản hơn giải quyết cùng goal, surface nó. "Có thể làm qua quick flow chỉ
++   với X và Y. Bạn muốn dùng cách đó hay vẫn đi đường đầy đủ?" Controller không được
++   auto-chọn flow nặng hơn khi flow nhẹ hơn đáp ứng được goal của user.
++
++---
++
++## Anti-Patterns — Chống Pattern-Match
++
++<EXTREMELY-IMPORTANT>
++Khi một flow "cảm thấy đúng" ngay lập tức → đó là pattern-match. Dừng lại, chạy The
++Floor (từ `sdlc-fable-thinking-rules.md`), viết ít nhất 2 flow khả dĩ.
++</EXTREMELY-IMPORTANT>
++
++| Template nguy hiểm | Thực tế có thể là |
++|-------------------|------------------|
++| "Sửa lỗi" → fixbug | Scope nhỏ → quick; hoặc cần refactor → task |
++| "Thêm tính năng" → task | Thêm field nhỏ → CR; hoặc chỉ implement từ spec có sẵn → cook |
++| "Dự án nhỏ" → skip HLD/LLD | Có auth/billing/schema → cần ít nhất LLD |
++| "Có vẻ đơn giản" → quick | Có API/schema/migration → tối thiểu automation |
++| "Giống lần trước" → cùng flow | Context khác, team khác, codebase đã thay đổi |
++
++## Resolution Procedure
++
++1. Đọc request của user và xác định primary intent
++2. Match intent đến flow dùng capability table ở trên, không dùng keyword grep
++3. Giữ ≥2 viable flow hypothesis trước khi chốt — nếu chỉ có một, bạn đang pattern-matching
++4. Đánh giá human-involvement needs: domain familiarity, risk level, scope clarity
++5. Chọn entry point skill từ live installed-skill catalog
++6. Load hoàn chỉnh skill instructions đó trước khi hành động
++7. Nếu skill được chọn không installed, escalate lên entry point nặng hơn kế tiếp
+diff --git a/.claude/rules/sdlc-routing.md b/.claude/rules/sdlc-routing.md
+deleted file mode 100644
+index 2496b22..0000000
+--- a/.claude/rules/sdlc-routing.md
++++ /dev/null
+@@ -1,47 +0,0 @@
+-# SDLC Routing
+-
+-Map user intent to the correct SDLC flow and entry point. Resolve against the
+-runtime's live installed-skill catalog — never hardcode a skill name that may
+-differ across installations.
+-
+-## Intent → Flow Resolution
+-
+-Match the user's primary intent to a flow, not a keyword. Same intent expressed
+-in different words should resolve to the same flow.
+-
+-| User intent | Flow | Available via | What it triggers |
+-|-------------|------|--------------|-------------------|
+-| Build a new feature, greenfield work, major change, create specs from scratch | `task` | orchestrator, automation | Full forward pipeline: SRS → HLD → LLD → CROSS-CUTTING → IMP∥TST |
+-| Change existing behavior, modify a feature, update specs for existing code | `cr` | orchestrator, automation | Impact analysis + selective re-spec: scout → analyze → re-spec affected phases |
+-| Fix a defect, repair broken behavior, resolve a bug | `fixbug` | **orchestrator only** | Root-cause diagnosis + targeted fix: scout → diagnose → fix → verify |
+-| Write code from ready specs, implement from agent_docs, execute TDD cycle | `cook` | orchestrator, automation | TDD execution: baseline → per-TC RED→GREEN→INTERFERENCE→REFACTOR→GATE |
+-| Reverse-engineer specs from an existing codebase, document what code does | `reverse` | orchestrator, sdlc-codebase skill | Reverse pipeline: scout → HLD → LLD → SRS → VERIFY → CROSS-CUTTING → IMP∥TST |
+-
+-## Entry Point Selection
+-
+-After flow is determined, route to the correct entry point skill based on how
+-much human involvement the situation calls for.
+-
+-| Situation | Entry point |
+-|-----------|-------------|
+-| New domain, unclear requirements, high-risk change, or human wants to review each phase | **orchestrator** — human-in-the-loop at every phase gate |
+-| Requirements are well-understood, human wants one upfront interview then autonomous execution | **automation** — grill once, dispatch workflow, monitor |
+-| Change is bounded to ≤2 files, no API/schema/security/auth/billing impact, no new service boundary | **quick** — triage grill, guard test only, GATE-light |
+-
+-## Priority Rules
+-
+-When intent is ambiguous or overlaps:
+-
+-1. **Safety first** — if any signal suggests the task is NOT trivial, reject quick
+-2. **Evidence over assumption** — if you cannot confirm the scope from context, default to orchestrator
+-3. **Borderline always escalates** — "might be quick" = orchestrator; "might be cr" = task flow
+-4. **Explicit user request overrides inference** — if the user names a specific entry point, use it
+-
+-## Resolution Procedure
+-
+-1. Read the user's request and identify the primary intent
+-2. Match intent to a flow using the capability table above, not keyword grep
+-3. Assess human-involvement needs: domain familiarity, risk level, scope clarity
+-4. Select the entry point skill from the live installed-skill catalog
+-5. Load that skill's complete instructions before acting
+-6. If the selected skill is not installed, escalate to the next heavier entry point
+diff --git a/.claude/skills/sdlc-automation/SKILL.md b/.claude/skills/sdlc-automation/SKILL.md
+index d709804..ca06841 100644
+--- a/.claude/skills/sdlc-automation/SKILL.md
++++ b/.claude/skills/sdlc-automation/SKILL.md
+@@ -12,7 +12,7 @@ description: >-
+   Khác với sdlc-orchestrator (human-in-the-loop từng phase) và sdlc-quick
+   (làn nhanh cho task nhỏ, không specs), skill này chỉ tương tác MỘT LẦN
+   upfront rồi chạy autonomously.
+-version: 1.6.0
++version: 1.7.0
+ allowed-tools: Read, Write, Edit, Bash, Skill, Agent, AskUserQuestion, Workflow
+ ---
+ 
+@@ -42,8 +42,8 @@ toàn diện, sau đó dispatch `workflow-sdlc-automation` chạy autonomously.
+ - **Không tự sửa feature specs** — chỉ sdlc-srs và sdlc-lld touch `agent_docs/features/`
+ - **Respect human decision** — nếu grilling kết luận automation không phù hợp, đề xuất `sdlc-orchestrator` hoặc `sdlc-quick` (nếu task nhỏ)
+ - **Fail-safe** — khi có lỗi không mong đợi, fallback về orchestrator. Xem `references/error-handling.md`
+-- **Fable-Thinking trước grilling exit** — sau các round grilling, nếu còn ≥2 câu chưa trả lời hoặc human trả lời không dứt khoát cho câu load-bearing, gọi `Skill("fable-thinking", "Automation grilling: đã thu thập <tóm tắt findings>. Còn thiếu: <danh sách gaps>. Options: grill thêm 1 round, dispatch workflow với context hiện có, hoặc fallback orchestrator. Goal: workflow có đủ input để chạy autonomously không lỗi.")`. **Không** dispatch nếu recommendation = insufficient
+-- **Fable-Thinking trước fail-safe** — khi workflow fail hoặc gate fail sau 2 retry, gọi `Skill("fable-thinking", "Automation fail-safe: <phase> thất bại sau <N> lần retry. Lỗi: <chi tiết>. Options: fallback orchestrator, skip phase này, hoặc abort. Goal: pipeline hoàn thành với chất lượng chấp nhận được.")` trước khi fallback
++- **Fable-Thinking trước grilling exit** — sau các round grilling, nếu còn ≥2 câu chưa trả lời hoặc human trả lời không dứt khoát cho câu load-bearing, áp dụng fable-thinking protocol: đánh giá goal (workflow có đủ input để chạy autonomously), follow-through từng option (grill thêm / dispatch ngay / fallback), nêu rõ weakest link. **Không** dispatch nếu phân tích kết luận insufficient
++- **Fable-Thinking trước fail-safe** — khi workflow fail hoặc gate fail sau 2 retry, áp dụng fable-thinking protocol: đa giả thuyết (tại sao fail? do spec yếu, do gate quá nghiêm ngặt, hay do lỗi thực sự?), follow-through từng option (fallback orchestrator / skip phase / abort). Trình bày phân tích trước khi fallback
+ 
+ ---
+ 
+@@ -96,7 +96,7 @@ AskUserQuestion({
+ ```
+ 
+ > **Keyword hint**: Nếu human input chứa "bug"/"lỗi"/"fix":
+-> 1. Gọi `Skill("fable-thinking", "Bug keyword detection: user said '<input>'. Câu hỏi: đây có thực sự là bug cần root cause analysis + fix + verify (flow=fixbug), hay false positive? Ví dụ false positive: 'fix config', 'sửa typo', 'sửa validation message'. Goal: phân loại đúng flow.")`
++> 1. Áp dụng fable-thinking protocol: kiểm tra goal (phân loại đúng flow), giữ ≥2 giả thuyết (genuine bug vs false positive như "fix config", "sửa typo", "sửa validation message"), dùng follow-through để phân biệt (nếu genuine bug → cần root cause analysis; nếu false positive → route theo flow thực tế)
+ > 2. Nếu recommendation = genuine bug → escalate sang orchestrator với `flow=fixbug`, giải thích: fixbug yêu cầu human diagnosis judgment (stack trace analysis, root cause hypothesis, fix scope evaluation) — không thể autonomous
+ > 3. Nếu recommendation = false positive → route theo flow thực tế (dùng keyword hint bên dưới)
+ >
+@@ -106,7 +106,7 @@ AskUserQuestion({
+ > **"sửa nhanh"/"typo"/"config"/"minor"/"trivial"/"nhỏ" → gợi ý quick.**
+ > Nếu task rõ ràng ≤2 file và không API/schema/security → đề xuất quick thay vì automation.
+ >
+-> **Fable-Thinking Guard:** Khi flow selection không rõ ràng sau keyword hint (input khớp ≥2 flow, hoặc human chọn "Không phù hợp"), gọi `Skill("fable-thinking", "SDLC flow routing: user said '<input>'. Candidate flows: <danh sách flow khớp>. Conflict: <mâu thuẫn>. Goal: chọn flow phù hợp nhất.")` trước khi hiển thị `AskUserQuestion`. Dùng recommendation làm default suggestion.
++> **Fable-Thinking Guard:** Khi flow selection không rõ ràng sau keyword hint (input khớp ≥2 flow, hoặc human chọn "Không phù hợp"), áp dụng fable-thinking protocol: giữ ≥2 flow khả dĩ, chọn observation để phân biệt, follow-through từng flow đến frame cuối (code hoạt động). Dùng kết quả phân tích làm default suggestion trong `AskUserQuestion`.
+ 
+ ### Bước 3: Foundation Gate
+ 
+@@ -140,7 +140,7 @@ Dành cho feature mới, greenfield work, hoặc major change. Full forward pipe
+ 3. **Dispatch Workflow** — `workflow-sdlc-automation.js` với `flow: "task"`
+ 4. **Monitor & Report** — workflow autonomously, báo cáo kết quả từng phase + gate status
+ 
+-Gate fail → workflow tự retry với previousFailure context (max 2 attempts). Nếu retry exhausted + gate vẫn fail: gọi `Skill("fable-thinking", "Automation fail-safe: <phase> gate fail sau 2 retry. Lỗi: <chi tiết>. Options: fallback orchestrator (human-in-the-loop review), skip phase (rủi ro chất lượng), hoặc abort (dừng pipeline). Goal: pipeline đạt chất lượng tối thiểu.")`. Trình bày recommendation cho human trước khi fallback. Xem `references/error-handling.md#e4`.
++Gate fail → workflow tự retry với previousFailure context (max 2 attempts). Nếu retry exhausted + gate vẫn fail: áp dụng fable-thinking protocol — đa giả thuyết (tại sao fail?), follow-through từng option (fallback orchestrator / skip phase / abort), nêu weakest link. Trình bày phân tích cho human trước khi fallback. Xem `references/error-handling.md#e4`.
+ 
+ ---
+ 
+diff --git a/.claude/skills/sdlc-orchestrator/SKILL.md b/.claude/skills/sdlc-orchestrator/SKILL.md
+index 51bc108..7dde62e 100644
+--- a/.claude/skills/sdlc-orchestrator/SKILL.md
++++ b/.claude/skills/sdlc-orchestrator/SKILL.md
+@@ -14,7 +14,7 @@ description: >-
+   foundation files (project-overview, user-context, conventions) khi
+   thiếu. Điều phối toàn bộ pipeline từ requirements qua documentation
+   đến production code, coordinating subagents, skills, và sprint artifacts.
+-version: 1.11.0
++version: 1.12.0
+ allowed-tools: Read, Write, Edit, Bash, Glob, Skill, Agent, EnterPlanMode, ExitPlanMode
+ ---
+ 
+@@ -43,7 +43,7 @@ không hợp lệ.
+ - **Không tự sửa feature specs** — chỉ sdlc-srs và sdlc-lld touch `agent_docs/features/`. Bạn chỉ đọc
+ - **Gate check sau MỖI agent** — verify gate pass trước phase tiếp theo (criteria: `references/procedures.md` → "Gate Criteria"). Fail → dừng, báo cáo human
+ - **Grilling trong flow** — mỗi flow tự quyết định khi nào grill. Không grill trước khi phát hiện flow
+-- **Fable-Thinking trước escalation** — khi phát hiện trigger escalation (theo `sdlc-escalation`), **không** propose escalation ngay. Thay vào đó, gọi `Skill("fable-thinking")` với context: loại escalation, dữ kiện quan sát được, các hướng xử lý, và mục tiêu. Trình bày recommendation của fable-thinking cho human kèm phân tích — human quyết định, **không** auto-escalate
++- **Fable-Thinking trước escalation** — khi phát hiện trigger escalation (theo `sdlc-orchestration-rules.md` Escalation Protocol), **không** propose escalation ngay. Thay vào đó, áp dụng fable-thinking protocol (rule luôn active): chạy Floor (goal, follow-through, leftovers), giữ ≥2 hướng xử lý, chọn observation để phân biệt, trình bày recommendation cho human kèm phân tích — human quyết định, **không** auto-escalate
+ 
+ ---
+ 
+@@ -101,7 +101,7 @@ Parse input của human để xác định flow. Match keywords theo thứ tự
+ > Khi một input khớp nhiều flow, luôn ưu tiên flow có priority cao hơn.
+ > Nếu không chắc chắn → `AskUserQuestion` (bên dưới).
+ >
+-> **Fable-Thinking Guard:** Khi flow detection ambiguous (input khớp ≥2 flow, hoặc flow thắng là quick/trivial nhưng input chứa tín hiệu non-trivial như "API", "schema", "migration", "auth", "billing"), gọi `Skill("fable-thinking", "SDLC flow routing: user said '<input>'. Candidate flows: <flow-A> (lý do khớp), <flow-B> (lý do khớp). Conflict: <mâu thuẫn cụ thể giữa các flow>. Goal: chọn flow phù hợp nhất với ý định thực sự của user.")`. Dùng recommendation làm default option khi hỏi human qua `AskUserQuestion`.
++> **Fable-Thinking Guard:** Khi flow detection ambiguous (input khớp ≥2 flow, hoặc flow thắng là quick/trivial nhưng input chứa tín hiệu non-trivial như "API", "schema", "migration", "auth", "billing"), áp dụng fable-thinking protocol: giữ ≥2 flow khả dĩ, chọn observation để phân biệt (không phải để xác nhận), follow-through từng flow đến frame cuối (code hoạt động). Dùng kết quả phân tích làm default option khi hỏi human qua `AskUserQuestion`.
+ 
+ **Quyết định:**
+ - Intent rõ ràng → thông báo flow đã phát hiện, xin xác nhận nhanh: "Phát hiện flow **{flow}**. Xác nhận để tiếp tục?"
+@@ -150,7 +150,7 @@ done
+ 
+ 2. Nếu `NEEDED` không rỗng → `Skill("sdlc-preflight", NEEDED)` → đợi complete
+ 3. Post-preflight verify — nếu file vẫn missing:
+-   a. Gọi `Skill("fable-thinking", "Foundation gate fail: thiếu <danh sách file> cho flow=<flow>. Ảnh hưởng của từng file thiếu: project-overview.md → SRS không có scope/glossary/NFR baselines; user-context.md → SRS không có personas/user journeys; conventions.md → IMP không có package structure/naming conventions. Options: dừng pipeline (an toàn), tiếp tục không có file (rủi ro). Goal: pipeline có đủ context để agent downstream hoạt động chính xác.")`
++   a. Áp dụng fable-thinking protocol: xác định goal (pipeline có đủ context cho agent downstream), đánh giá impact của từng file thiếu (project-overview.md → scope/glossary/NFR baselines; user-context.md → personas/user journeys; conventions.md → package structure/naming conventions), giữ ≥2 options (dừng pipeline / tiếp tục không có file). Trình bày recommendation + lý do cho human
+    b. Trình bày recommendation + lý do cho human
+    c. Human quyết định: stop → **dừng pipeline**; proceed → ghi nhận risk + tiếp tục với human approval
+ 4. Báo cáo: "🏗️ Foundation: project-overview.md ✅ | user-context.md ✅ | conventions.md ✅"
+@@ -217,7 +217,7 @@ SRS ──→ HLD ──→ LLD ──→ CROSS-CUTTING ──→ IMP ∥ TST
+ - **LLD optional** — bỏ qua nếu không có API mới, domain model mới, hoặc error flow mới. Hỏi human.
+ - **CROSS-CUTTING optional** — tự động phát hiện scope từ file thực tế (`architecture.md`, SRS NFRs, frontend existence). Hỏi human xác nhận scope.
+ 
+-> **Fable-Thinking Guard:** Trước khi đề xuất skip HLD, LLD, hoặc CROSS-CUTTING, gọi `Skill("fable-thinking", "Pipeline scope decision: FR=<FR-ID>. Grilling findings: <tóm tắt>. Đề xuất skip <phase> vì <lý do>. Risk nếu skip: <điều có thể bỏ sót về kiến trúc/kỹ thuật>. Goal: pipeline đủ depth để cover rủi ro.")`. Nếu recommendation = keep → giữ phase trong scope, hỏi human xác nhận.
++> **Fable-Thinking Guard:** Trước khi đề xuất skip HLD, LLD, hoặc CROSS-CUTTING, áp dụng fable-thinking protocol: follow-through với từng option (skip vs keep phase) đến frame cuối (code deployed, team có đủ context), nêu rõ risk nếu skip (điều có thể bỏ sót về kiến trúc/kỹ thuật), weakest link trong phân tích. Nếu kết luận = keep → giữ phase trong scope, hỏi human xác nhận.
+ 
+ ### Human-in-the-Loop mỗi Phase
+ 
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index 0e47347..83e83d2 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -2,6 +2,70 @@
+ 
+ All notable changes to the skills-toolkit plugin are documented here.
+ 
++## [2.26.0] - 2026-07-23
++
++### Changed
++- **fable-thinking rule:** Cập nhật từ skill fable-thinking 1.4.0. Thêm Know Your Own
++  Defaults (8 default failure modes), hoàn chỉnh The Floor với trap-detection tells.
++  Tất cả technical terms giữ nguyên tiếng Anh: The Floor, Goal, Follow-through,
++  Leftovers, Claim Discipline, Proportionality Gate, Self-Review Gate, Constraint
++  Loop, Five Moves, Altitude Control, When Stuck, Portable Techniques, Harness
++  Leverage, Pattern-match satisfaction, Template hijack, Fluent ≠ true, Prior-as-fact,
++  Confirmation seeking, Frame adoption, Completion pressure, Surface blindness.
++- **Tất cả rules:** Chuẩn hóa tên file với prefix `sdlc-` và suffix `-rules`:
++  `fable-thinking.md` → `sdlc-fable-thinking-rules.md`,
++  `sdlc-routing.md` → `sdlc-routing-rules.md`,
++  `sdlc-pipeline.md` → `sdlc-pipeline-rules.md`,
++  `sdlc-orchestration.md` → `sdlc-orchestration-rules.md`.
++- **Tất cả rules:** Chuẩn hóa ngôn ngữ — giải thích bằng tiếng Việt, technical terms
++  bằng tiếng Anh. Các block quan trọng dùng XML tags: `<EXTREMELY-IMPORTANT>`.
++- **sdlc-routing-rules.md:** Chuẩn hóa ngôn ngữ VN/EN, XML blocks cho critical
++  sections (Intent → Flow Resolution, Anti-Patterns).
++- **sdlc-pipeline-rules.md:** Chuẩn hóa ngôn ngữ VN/EN, XML block cho Gate Protocol
++  mandatory rule. Sửa TDD cycle diagram.
++- **sdlc-orchestration-rules.md:** Chuẩn hóa ngôn ngữ VN/EN, XML blocks cho Controller
++  Responsibilities, Parallel Work Safety, Escalation Protocol, fixbug constraint, và
++  When Stuck guidance.
++- **references/fable-thinking/protocol.md:** Cập nhật reference đến rule mới
++  (`sdlc-fable-thinking-rules.md`).
++- **sdlc-orchestrator 1.12.1:** Cập nhật reference từ `sdlc-escalation` →
++  `sdlc-orchestration-rules.md` Escalation Protocol.
++
++## [2.25.0] - 2026-07-23
++
++### Changed
++- **fable-thinking rule:** Cắt từ 400 → 165 dòng. Giữ The Floor, Claim Discipline,
++  Proportionality Gate, Self-Review Gate, Execution Notes — phần luôn chạy. Chuyển 5
++  Moves, Constraint Loop, Portable Techniques, Harness Leverage, Anti-Patterns, Altitude
++  Control, When Stuck sang `.claude/references/fable-thinking/protocol.md` (load
++  on-demand trong Standard/Full mode).
++- **sdlc-routing rule:** Thêm bảng Anti-Patterns (5 template nguy hiểm khi pattern-match)
++  từ `sdlc-fable-thinking.md`. Thêm bước "hold ≥2 viable flow hypotheses" vào
++  Resolution Procedure.
++
++### Removed
++- **sdlc-fable-thinking rule:** Đã merge nội dung unique vào `sdlc-routing.md`
++  (anti-patterns) và `sdlc-orchestration.md` (human interaction principles, when stuck).
++  Phần restate fable-thinking protocol đã có trong `fable-thinking.md` rule.
++- **sdlc-escalation rule:** Đã merge vào `sdlc-orchestration.md` (Escalation Protocol
++  section với escalation chain, triggers table, fail-safe principles, message format).
++- **sdlc-entry-gate rule:** Đã xóa — preflight logic do từng skill tự quản lý
++  (orchestrator, automation, quick), không cần rule canonical.
++
++### Summary
++- Rules: 7 → 4 (fable-thinking, sdlc-routing, sdlc-pipeline, sdlc-orchestration)
++- Tổng dòng: 919 → 448 (giảm 51%)
++- Kiến trúc: rule = canonical reference (routing table, pipeline structure,
++  orchestration protocol), skill = execution procedure. Không duplicate.
++
++## [2.24.0] - 2026-07-23
++
++### Changed
++- **fable-thinking:** Chuyển từ skill thành rule — giao thức suy luận giờ luôn active trong context, không cần invoke thủ công. Rule tại `.claude/rules/fable-thinking.md`, references tại `.claude/references/fable-thinking/`. Skill gốc được giữ lại trong `.claude/skills/fable-thinking/`.
++- **sdlc-orchestrator 1.12.0:** Thay thế mọi `Skill("fable-thinking")` bằng hướng dẫn áp dụng fable-thinking protocol nội tại. 4 decision points (escalation, flow detection, foundation gate, pipeline scope) giờ dùng protocol trực tiếp.
++- **sdlc-automation 1.7.0:** Thay thế mọi `Skill("fable-thinking")` bằng hướng dẫn áp dụng fable-thinking protocol nội tại. 5 decision points (grilling exit, fail-safe, bug keyword, flow detection, gate fail) giờ dùng protocol trực tiếp.
++- **sdlc-fable-thinking rule:** Cập nhật để reference rule fable-thinking chung, tập trung vào SDLC-specific application.
++
+ ## [2.23.0] - 2026-07-23
+ 
+ ### Added

@@ -1,0 +1,210 @@
+diff --git a/.claude-plugin/plugin.json b/.claude-plugin/plugin.json
+index e7f46d3..ae2bef2 100644
+--- a/.claude-plugin/plugin.json
++++ b/.claude-plugin/plugin.json
+@@ -1,5 +1,5 @@
+ {
+   "name": "skills-toolkit",
+   "description": "Create and manage Claude Code skills, plugins, subagents, and hooks. Use when building new skills, validating existing skills, testing skills empirically, creating plugins, converting projects to plugins, creating hooks, or managing plugin automation. Includes /skills-toolkit:skill-composer, /skills-toolkit:skill-refiner, /skills-toolkit:skill-tester, /skills-toolkit:plugin-creator, /skills-toolkit:subagent-creator, /skills-toolkit:hook-creator, and /skills-toolkit:ask-user-question skills.",
+-  "version": "2.22.0"
++  "version": "2.23.0"
+ }
+diff --git a/.claude/rules/sdlc-fable-thinking.md b/.claude/rules/sdlc-fable-thinking.md
+new file mode 100644
+index 0000000..43c2fcc
+--- /dev/null
++++ b/.claude/rules/sdlc-fable-thinking.md
+@@ -0,0 +1,69 @@
++# SDLC Fable Thinking
++
++Fable-thinking is a reasoning middleware for SDLC decision points — it does not
++replace procedure, it verifies decisions before execution. Invoke via
++`Skill("fable-thinking", "<context>")` at the high-stakes decision points listed
++below. Output is a calibrated recommendation for the human to decide — **do not**
++auto-execute.
++
++## When To Invoke
++
++| Decision Point | Skill | Trigger | Action |
++|---|---|---|---|
++| Flow Detection | `sdlc-orchestrator`, `sdlc-automation` | Keyword match conflict, leftover details contradict matched flow, or ambiguous routing | Invoke before `AskUserQuestion`, use recommendation as default suggestion |
++| Escalation | `sdlc-orchestrator`, `sdlc-automation`, `sdlc-quick` | Any escalation trigger fires (trivial gate fail, workflow error, scope exceeds lane) | Invoke before proposing escalation to human |
++| Pipeline Scope | `sdlc-orchestrator`, `sdlc-automation` | Scope decision to skip/run HLD, LLD, or CROSS-CUTTING | Invoke after grilling, before confirming scope |
++| Foundation Gate Fail | `sdlc-orchestrator`, `sdlc-automation` | Preflight cannot create required files | Invoke before stopping pipeline |
++| Grilling Exit | `sdlc-automation` | After grilling rounds, uncertain if enough info gathered | Invoke before dispatching workflow |
++| Fail-Safe | `sdlc-automation` | Workflow dispatch failure or runtime error | Invoke before falling back to orchestrator |
++
++## Ambiguity Detection
++
++### Flow Detection
++
++Flow detection is **ambiguous** when at least 1 of these conditions is true:
++
++1. Input matches ≥2 flows with different priorities AND the winning flow has lower priority but a longer keyword match
++2. Matched flow contains quick/trivial keywords BUT input has non-trivial signals ("API", "schema", "migration", "auth", "billing", "500")
++3. Input is too short (<5 words) AND has no clear keyword from any flow
++
++### Grilling Exit (Automation)
++
++Grilling exit is **ambiguous** when:
++
++1. ≥2 questions remain unanswered in the grilling checklist
++2. Human responds "not sure"/"maybe"/"we'll see" to any load-bearing question
++3. Implicit scope from human answers conflicts with the selected flow
++
++## Invocation Protocol
++
++Pass a concise context summary (not full conversation) in args:
++
++```
++Skill("fable-thinking", "<decision-type>: <key facts>.
++Options: <list>. Goal: <end-state>.")
++```
++
++Context MUST include: decision type, observed facts (OBSERVED), options,
++and goal end-state. Read the result, present the recommendation to the human,
++**do not** auto-act.
++
++## Integration Points
++
++| Skill | Decision Points | Status |
++|---|---|---|
++| `sdlc-orchestrator` | Flow Detection, Escalation, Pipeline Scope, Foundation Gate | **Phase 1** |
++| `sdlc-automation` | Flow Detection, Grilling Exit, Fail-Safe | **Phase 1** |
++| `sdlc-quick` | Trivial Gate, Escalation | Future |
++| `sdlc-codebase` | Scope Detection, Overwrite | Future |
++| `sdlc-review` | Finding Severity | Future |
++
++## Principles
++
++- **Never** invoke for mechanical tasks (git check, file existence check, sprint update)
++- **Never** replace human judgment — recommendation is input only
++- **Never** auto-execute — human always makes the final decision
++- **Always** pass sufficient context — decision type + facts + options + goal
++- **Always** report recommendation with rationale and caveats
++- **Once** per decision point — do not loop
++- If fable-thinking is unavailable → fall back to existing procedure (do not block pipeline)
+diff --git a/.claude/skills/sdlc-automation/SKILL.md b/.claude/skills/sdlc-automation/SKILL.md
+index efa31db..d709804 100644
+--- a/.claude/skills/sdlc-automation/SKILL.md
++++ b/.claude/skills/sdlc-automation/SKILL.md
+@@ -12,7 +12,7 @@ description: >-
+   Khác với sdlc-orchestrator (human-in-the-loop từng phase) và sdlc-quick
+   (làn nhanh cho task nhỏ, không specs), skill này chỉ tương tác MỘT LẦN
+   upfront rồi chạy autonomously.
+-version: 1.5.3
++version: 1.6.0
+ allowed-tools: Read, Write, Edit, Bash, Skill, Agent, AskUserQuestion, Workflow
+ ---
+ 
+@@ -42,6 +42,8 @@ toàn diện, sau đó dispatch `workflow-sdlc-automation` chạy autonomously.
+ - **Không tự sửa feature specs** — chỉ sdlc-srs và sdlc-lld touch `agent_docs/features/`
+ - **Respect human decision** — nếu grilling kết luận automation không phù hợp, đề xuất `sdlc-orchestrator` hoặc `sdlc-quick` (nếu task nhỏ)
+ - **Fail-safe** — khi có lỗi không mong đợi, fallback về orchestrator. Xem `references/error-handling.md`
++- **Fable-Thinking trước grilling exit** — sau các round grilling, nếu còn ≥2 câu chưa trả lời hoặc human trả lời không dứt khoát cho câu load-bearing, gọi `Skill("fable-thinking", "Automation grilling: đã thu thập <tóm tắt findings>. Còn thiếu: <danh sách gaps>. Options: grill thêm 1 round, dispatch workflow với context hiện có, hoặc fallback orchestrator. Goal: workflow có đủ input để chạy autonomously không lỗi.")`. **Không** dispatch nếu recommendation = insufficient
++- **Fable-Thinking trước fail-safe** — khi workflow fail hoặc gate fail sau 2 retry, gọi `Skill("fable-thinking", "Automation fail-safe: <phase> thất bại sau <N> lần retry. Lỗi: <chi tiết>. Options: fallback orchestrator, skip phase này, hoặc abort. Goal: pipeline hoàn thành với chất lượng chấp nhận được.")` trước khi fallback
+ 
+ ---
+ 
+@@ -93,15 +95,18 @@ AskUserQuestion({
+ })
+ ```
+ 
+-> **Keyword hint**: Nếu human input chứa "bug"/"lỗi"/"fix" → **tự động escalate sang
+-> orchestrator với `flow=fixbug`.** Fixbug yêu cầu human diagnosis judgment (stack trace
+-> analysis, root cause hypothesis, fix scope evaluation) — không thể autonomous.
+-> Không thêm fixbug option vào flow list. Thay vào đó, chọn ngay "Không phù hợp"
+-> và giải thích: fixbug chỉ available qua orchestrator.
++> **Keyword hint**: Nếu human input chứa "bug"/"lỗi"/"fix":
++> 1. Gọi `Skill("fable-thinking", "Bug keyword detection: user said '<input>'. Câu hỏi: đây có thực sự là bug cần root cause analysis + fix + verify (flow=fixbug), hay false positive? Ví dụ false positive: 'fix config', 'sửa typo', 'sửa validation message'. Goal: phân loại đúng flow.")`
++> 2. Nếu recommendation = genuine bug → escalate sang orchestrator với `flow=fixbug`, giải thích: fixbug yêu cầu human diagnosis judgment (stack trace analysis, root cause hypothesis, fix scope evaluation) — không thể autonomous
++> 3. Nếu recommendation = false positive → route theo flow thực tế (dùng keyword hint bên dưới)
++>
++> **Các keyword hint khác:**
+ > "tự động"/"auto"/"spec" → mặc định task. "CR"/"change request"/"thay đổi" → cr.
+ > "cook"/"code"/"build"/"triển khai code"/"implement code" → cook.
+ > **"sửa nhanh"/"typo"/"config"/"minor"/"trivial"/"nhỏ" → gợi ý quick.**
+ > Nếu task rõ ràng ≤2 file và không API/schema/security → đề xuất quick thay vì automation.
++>
++> **Fable-Thinking Guard:** Khi flow selection không rõ ràng sau keyword hint (input khớp ≥2 flow, hoặc human chọn "Không phù hợp"), gọi `Skill("fable-thinking", "SDLC flow routing: user said '<input>'. Candidate flows: <danh sách flow khớp>. Conflict: <mâu thuẫn>. Goal: chọn flow phù hợp nhất.")` trước khi hiển thị `AskUserQuestion`. Dùng recommendation làm default suggestion.
+ 
+ ### Bước 3: Foundation Gate
+ 
+@@ -135,7 +140,7 @@ Dành cho feature mới, greenfield work, hoặc major change. Full forward pipe
+ 3. **Dispatch Workflow** — `workflow-sdlc-automation.js` với `flow: "task"`
+ 4. **Monitor & Report** — workflow autonomously, báo cáo kết quả từng phase + gate status
+ 
+-Gate fail → workflow tự retry với previousFailure context (max 2 attempts). Nếu vẫn fail → báo cáo phase nào fail + lý do + đề xuất orchestrator. Xem `references/error-handling.md#e4`.
++Gate fail → workflow tự retry với previousFailure context (max 2 attempts). Nếu retry exhausted + gate vẫn fail: gọi `Skill("fable-thinking", "Automation fail-safe: <phase> gate fail sau 2 retry. Lỗi: <chi tiết>. Options: fallback orchestrator (human-in-the-loop review), skip phase (rủi ro chất lượng), hoặc abort (dừng pipeline). Goal: pipeline đạt chất lượng tối thiểu.")`. Trình bày recommendation cho human trước khi fallback. Xem `references/error-handling.md#e4`.
+ 
+ ---
+ 
+diff --git a/.claude/skills/sdlc-orchestrator/SKILL.md b/.claude/skills/sdlc-orchestrator/SKILL.md
+index 002886f..51bc108 100644
+--- a/.claude/skills/sdlc-orchestrator/SKILL.md
++++ b/.claude/skills/sdlc-orchestrator/SKILL.md
+@@ -14,7 +14,7 @@ description: >-
+   foundation files (project-overview, user-context, conventions) khi
+   thiếu. Điều phối toàn bộ pipeline từ requirements qua documentation
+   đến production code, coordinating subagents, skills, và sprint artifacts.
+-version: 1.10.0
++version: 1.11.0
+ allowed-tools: Read, Write, Edit, Bash, Glob, Skill, Agent, EnterPlanMode, ExitPlanMode
+ ---
+ 
+@@ -43,6 +43,7 @@ không hợp lệ.
+ - **Không tự sửa feature specs** — chỉ sdlc-srs và sdlc-lld touch `agent_docs/features/`. Bạn chỉ đọc
+ - **Gate check sau MỖI agent** — verify gate pass trước phase tiếp theo (criteria: `references/procedures.md` → "Gate Criteria"). Fail → dừng, báo cáo human
+ - **Grilling trong flow** — mỗi flow tự quyết định khi nào grill. Không grill trước khi phát hiện flow
++- **Fable-Thinking trước escalation** — khi phát hiện trigger escalation (theo `sdlc-escalation`), **không** propose escalation ngay. Thay vào đó, gọi `Skill("fable-thinking")` với context: loại escalation, dữ kiện quan sát được, các hướng xử lý, và mục tiêu. Trình bày recommendation của fable-thinking cho human kèm phân tích — human quyết định, **không** auto-escalate
+ 
+ ---
+ 
+@@ -99,6 +100,8 @@ Parse input của human để xác định flow. Match keywords theo thứ tự
+ >
+ > Khi một input khớp nhiều flow, luôn ưu tiên flow có priority cao hơn.
+ > Nếu không chắc chắn → `AskUserQuestion` (bên dưới).
++>
++> **Fable-Thinking Guard:** Khi flow detection ambiguous (input khớp ≥2 flow, hoặc flow thắng là quick/trivial nhưng input chứa tín hiệu non-trivial như "API", "schema", "migration", "auth", "billing"), gọi `Skill("fable-thinking", "SDLC flow routing: user said '<input>'. Candidate flows: <flow-A> (lý do khớp), <flow-B> (lý do khớp). Conflict: <mâu thuẫn cụ thể giữa các flow>. Goal: chọn flow phù hợp nhất với ý định thực sự của user.")`. Dùng recommendation làm default option khi hỏi human qua `AskUserQuestion`.
+ 
+ **Quyết định:**
+ - Intent rõ ràng → thông báo flow đã phát hiện, xin xác nhận nhanh: "Phát hiện flow **{flow}**. Xác nhận để tiếp tục?"
+@@ -146,7 +149,10 @@ done
+    ```
+ 
+ 2. Nếu `NEEDED` không rỗng → `Skill("sdlc-preflight", NEEDED)` → đợi complete
+-3. Post-preflight verify — nếu file vẫn missing → **dừng pipeline**, báo cáo human
++3. Post-preflight verify — nếu file vẫn missing:
++   a. Gọi `Skill("fable-thinking", "Foundation gate fail: thiếu <danh sách file> cho flow=<flow>. Ảnh hưởng của từng file thiếu: project-overview.md → SRS không có scope/glossary/NFR baselines; user-context.md → SRS không có personas/user journeys; conventions.md → IMP không có package structure/naming conventions. Options: dừng pipeline (an toàn), tiếp tục không có file (rủi ro). Goal: pipeline có đủ context để agent downstream hoạt động chính xác.")`
++   b. Trình bày recommendation + lý do cho human
++   c. Human quyết định: stop → **dừng pipeline**; proceed → ghi nhận risk + tiếp tục với human approval
+ 4. Báo cáo: "🏗️ Foundation: project-overview.md ✅ | user-context.md ✅ | conventions.md ✅"
+ 
+ **cr flow** — cảnh báo, hỏi human trước khi invoke:
+@@ -211,6 +217,8 @@ SRS ──→ HLD ──→ LLD ──→ CROSS-CUTTING ──→ IMP ∥ TST
+ - **LLD optional** — bỏ qua nếu không có API mới, domain model mới, hoặc error flow mới. Hỏi human.
+ - **CROSS-CUTTING optional** — tự động phát hiện scope từ file thực tế (`architecture.md`, SRS NFRs, frontend existence). Hỏi human xác nhận scope.
+ 
++> **Fable-Thinking Guard:** Trước khi đề xuất skip HLD, LLD, hoặc CROSS-CUTTING, gọi `Skill("fable-thinking", "Pipeline scope decision: FR=<FR-ID>. Grilling findings: <tóm tắt>. Đề xuất skip <phase> vì <lý do>. Risk nếu skip: <điều có thể bỏ sót về kiến trúc/kỹ thuật>. Goal: pipeline đủ depth để cover rủi ro.")`. Nếu recommendation = keep → giữ phase trong scope, hỏi human xác nhận.
++
+ ### Human-in-the-Loop mỗi Phase
+ 
+ Cho MỖI phase (SRS, HLD, LLD, CROSS-CUTTING, IMP, TST), thực hiện:
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index ccb8909..0e47347 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -2,6 +2,13 @@
+ 
+ All notable changes to the skills-toolkit plugin are documented here.
+ 
++## [2.23.0] - 2026-07-23
++
++### Added
++- **sdlc-orchestrator 1.11.0:** Tích hợp `fable-thinking` tại 4 decision points — Hard Boundaries escalation, Flow Detection ambiguous, Foundation Gate fail, Pipeline Scope skip. Mỗi điểm gọi `Skill("fable-thinking")` với context cụ thể trước khi human quyết định.
++- **sdlc-automation 1.6.0:** Tích hợp `fable-thinking` tại 4 decision points — Hard Boundaries (grilling exit + fail-safe), Flow Detection ambiguous, Bug keyword auto-escalation (thay thế auto-escalate bằng fable-thinking verify), Fail-safe sau 2 retry.
++- **sdlc-fable-thinking rule:** Rule file `.claude/rules/sdlc-fable-thinking.md` định nghĩa when to invoke, invocation protocol, ambiguity detection criteria, và integration roadmap.
++
+ ## [2.22.0] - 2026-07-21
+ 
+ ### Changed

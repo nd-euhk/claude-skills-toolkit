@@ -1,0 +1,103 @@
+# SDLC Rules — So sánh 3 phiên bản
+
+> Dành cho team tự chọn phiên bản. Tags: `sdlc-skill-v4` → `sdlc-skill-v4.1` → `sdlc-skill-v4.2` → `sdlc-skill-v4.3`
+
+---
+
+## v4 — Baseline
+
+**Làm được:**
+- 4 flow SDLC: task (spec→code), cr (change request), cook (TDD code), reverse (code→spec)
+- 3 làn entry point: orchestrator (human-in-the-loop), automation (tự động), quick (task nhỏ)
+- Phase gate protocol: mọi phase output phải pass gate trước phase tiếp theo
+- Agent spawning với context isolation (không pass full history)
+- Sprint management: backlog, board, roadmap
+
+**Chưa có:**
+- Reasoning protocol — model tự suy luận không guardrail
+- Escalation protocol — không có cơ chế chuyển làn khi scope vượt
+- Entry gate — không check git state + foundation files trước khi chạy
+- Code discipline rules cho cook/TDD
+
+---
+
+## v4.1 — Fable-Thinking Integration
+
+**Làm được:** mọi thứ v4 + reasoning middleware tại decision points.
+
+**Mới so với v4:**
+
+| Năng lực | Mô tả |
+|----------|-------|
+| **Fable-Thinking rule** | Gọi reasoning middleware tại 6 decision points (flow detection ambiguous, escalation, pipeline scope, foundation gate fail, grilling exit, fail-safe). Model không tự quyết định — fable-thinking phân tích rồi human quyết. |
+| **Bug keyword detection** | Khi user input chứa "bug"/"lỗi"/"fix", fable-thinking phân biệt genuine bug vs false positive trước khi escalate |
+| **Foundation gate fail handling** | Khi preflight không tạo được file nền tảng, fable-thinking đánh giá impact của từng file thiếu + đề xuất stop/proceed |
+| **Pipeline scope decision** | Trước khi skip HLD/LLD/CROSS-CUTTING, fable-thinking đánh giá risk nếu bỏ qua |
+
+**Khác biệt chính với v4:** Model không còn auto-quyết tại decision point — luôn qua fable-thinking verify trước khi human chốt. Nhưng fable-thinking vẫn là **skill invoke** (gọi khi cần), không phải rule tự động.
+
+---
+
+## v4.2 — Protocol-First Architecture
+
+**Làm được:** mọi thứ v4.1 + reasoning protocol luôn active + đầy đủ reference.
+
+**Mới so với v4.1:**
+
+| Năng lực | Mô tả |
+|----------|-------|
+| **The Floor** | 3 check chạy trước MỌI câu trả lời — Goal (end-state thực sự là gì), Follow-through (chạy movie đến frame cuối), Leftovers (detail nào chưa dùng). Không ngoại lệ, kể cả Direct mode. |
+| **Claim Discipline** | Mọi statement được type: OBSERVED (đã thấy), DERIVED (suy ra), PRIOR (training knowledge, có thể cũ), ASSUMED (chưa verify). Grammar là dấu hiệu tố cáo hallucination. |
+| **Self-Review Gate** | 8 checks binary trước khi gửi output. YES phải earned bằng hành động thực tế, không phải re-reading. |
+| **Proportionality Gate** | Direct/Standard/Full mode tùy stakes × irreversibility × novelty. Không over-apply protocol cho task nhỏ. |
+| **8 Known Defaults** | Nhận diện 8 cách model thất bại: pattern-match satisfaction, template hijack, fluent≠true, prior-as-fact, confirmation seeking, frame adoption, completion pressure, surface blindness. Mỗi cái có countermeasure. |
+| **Routing anti-patterns** | Table 5 template nguy hiểm ("sửa lỗi"→fixbug nhưng thực tế scope nhỏ→quick, "thêm tính năng"→task nhưng thực tế CR nhỏ, etc.) |
+| **4 Reference files** | protocol.md (Five Moves đầy đủ), worked-examples.md (4 trace), design-taste.md (UI/UX method), content-taste.md (writing method) |
+| **Advisor cơ bản** | Orchestration rules có section về việc spawn advisor subagent tại decision points ambiguous |
+| **Escalation protocol** | 3 làn + fail-safe principles + context-preserving escalation |
+| **Entry gate** | Git state check + foundation gate + flow verification |
+| **Tiếng Việt** | Toàn bộ rules viết bằng tiếng Việt |
+
+**Khác biệt chính với v4.1:** Fable-thinking từ skill-invoke thành **rule luôn active**. The Floor chạy trước mọi câu trả lời. Protocol đầy đủ với 4 references. Architecture refactor: 6 file rời → 4 file gộp theo domain logic.
+
+---
+
+## v4.3 — Implementation Discipline
+
+**Làm được:** mọi thứ v4.2 + code-level discipline + advisor agent chuyên dụng.
+
+**Mới so với v4.2:**
+
+| Năng lực | Mô tả |
+|----------|-------|
+| **Simplicity First** | GREEN phase implement ĐỦ pass test, không hơn. DRY chỉ áp dụng từ lần thứ 3. Pattern chỉ giới thiệu khi ≥2 implementation cần nó. "Sau này sẽ cần" = không làm. |
+| **Surgical Changes** | Chỉ touch file trong scope. Không format file hàng xóm. Không tự xóa unused code. Không reorganize import. |
+| **Read Before Write** | Trước GREEN phase phải đọc: file sẽ sửa + imports + test file + IMP spec. Grep function name trước khi viết. Check call sites trước khi sửa signature. |
+| **Match Codebase Conventions** | Naming theo pattern có sẵn. File structure mirror file tương tự. Error handling theo style codebase. Conformance > taste. |
+| **Implementation anti-patterns** | 6 instinct→rule mappings: "viết helper cho sạch", "format lại file cho đẹp", "import lát dùng", "pattern best practice", "chắc chỉ có 1 chỗ gọi", "code tệ sửa luôn" |
+| **Advisor agent chuyên dụng** | 132 dòng agent definition với Five Moves protocol, model=sonnet, read-only. Spawn tự động tại 9 decision triggers trong orchestration rules. |
+| **Conflict Averaging** | Default thứ 9 trong Known Defaults: instinct blend 2 pattern mâu thuẫn → kế thừa điểm yếu cả hai. Counter: pick one + giải thích + flag cái kia. |
+| **Test Intent Principle** | Test phải verify business rule, không phải code path. Tên test nói WHY. Refactor chỉ fail test nếu business behavior đổi. |
+| **Push-Back #5** | Controller phải surface flow nhẹ hơn khi nó đáp ứng được goal. Không auto-chọn flow nặng. |
+
+**Khác biệt chính với v4.2:** Bổ sung tầng **implementation** — code discipline cho cook/TDD agents. Advisor từ section trong orchestration rules → agent definition riêng với model=sonnet. 3 amendment vào reasoning, pipeline, routing.
+
+---
+
+## Bảng chọn theo nhu cầu
+
+| Nhu cầu | Chọn |
+|---------|------|
+| Pipeline SDLC cơ bản, không cần reasoning guardrail | **v4** |
+| Cần reasoning middleware tại decision points, nhưng chưa muốn protocol luôn active | **v4.1** |
+| Muốn reasoning protocol luôn active (The Floor), Claim Discipline, đầy đủ references | **v4.2** |
+| Muốn tất cả v4.2 + code discipline cho implementation + advisor agent chuyên dụng | **v4.3** |
+
+## Bảng chọn theo team profile
+
+| Team | Dùng | Vì |
+|------|------|-----|
+| Mới bắt đầu SDLC, muốn pipeline cơ bản | v4 | Nhẹ nhất, không protocol phức tạp |
+| Đã quen SDLC, muốn model cẩn thận hơn ở decision points | v4.1 | Reasoning middleware không xâm lấn |
+| Muốn model luôn reasoning grounded, có guardrail toàn diện | v4.2 | Protocol-first, The Floor, 8 defaults |
+| Muốn model reasoning grounded + code chuẩn mực | v4.3 | Tất cả v4.2 + implementation discipline |
