@@ -2,6 +2,14 @@
 
 All notable changes to the skills-toolkit plugin are documented here.
 
+## [2.24.0] - 2026-07-23
+
+### Changed
+- **fable-thinking:** Chuyển từ skill thành rule — giao thức suy luận giờ luôn active trong context, không cần invoke thủ công. Rule tại `.claude/rules/fable-thinking.md`, references tại `.claude/references/fable-thinking/`. Skill gốc được giữ lại trong `.claude/skills/fable-thinking/`.
+- **sdlc-orchestrator 1.12.0:** Thay thế mọi `Skill("fable-thinking")` bằng hướng dẫn áp dụng fable-thinking protocol nội tại. 4 decision points (escalation, flow detection, foundation gate, pipeline scope) giờ dùng protocol trực tiếp.
+- **sdlc-automation 1.7.0:** Thay thế mọi `Skill("fable-thinking")` bằng hướng dẫn áp dụng fable-thinking protocol nội tại. 5 decision points (grilling exit, fail-safe, bug keyword, flow detection, gate fail) giờ dùng protocol trực tiếp.
+- **sdlc-fable-thinking rule:** Cập nhật để reference rule fable-thinking chung, tập trung vào SDLC-specific application.
+
 ## [2.23.0] - 2026-07-23
 
 ### Added
