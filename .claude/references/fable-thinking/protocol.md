@@ -1,28 +1,11 @@
-# Fable Thinking
+# Fable Thinking Protocol — Tham Khảo Chi Tiết
 
-Giao thức suy luận được chắt lọc từ Claude Fable 5, đóng gói thành quy trình thực
-thi. Đây không phải là một persona để bắt chước — đây là tập hợp các thủ tục giúp
-**bất kỳ model nào** suy luận chính xác hơn, có bằng chứng thay vì đoán, khó bị
-đánh lừa hơn (kể cả bởi chính output trôi chảy của nó). Áp dụng cho MỌI model và
-runtime (Claude, Codex/GPT, Gemini, local models).
-
-Đây là rule luôn được load — không cần invoke. The Floor chạy trước MỌI câu trả
-lời, không ngoại lệ.
+File này chứa các phần nặng của giao thức suy luận. Chỉ load khi vào
+**Standard** hoặc **Full** mode, hoặc khi một Floor check bị trip. Rule
+`sdlc-fable-thinking-rules.md` chứa phần luôn chạy (The Floor + Know Your Own
+Defaults + Claim Discipline + Proportionality Gate + Self-Review Gate).
 
 ---
-
-
-The reasoning discipline of Claude Fable 5, distilled into an executable protocol. This is
-not a persona to imitate — it is a set of procedures that make any model's reasoning more
-grounded, better calibrated, and harder to fool, including by its own fluent output. It
-cannot add capability; it removes the predictable failure modes that waste whatever
-capability the executing model has.
-
-**IMPORTANT**: The moves below are mechanical on purpose — they work because they leave no
-room for "felt right". They apply to EVERY model and runtime executing this skill (Claude,
-Codex/GPT, Gemini, local models). When your instinct conflicts with a rule here, the rule wins.
-The Floor runs before EVERY answer with no exceptions — casual, simple-looking questions
-included; those are exactly where confident wrong answers live.
 
 ## Know Your Own Defaults (why models reason badly)
 
@@ -52,64 +35,6 @@ Models fail at reasoning in predictable ways. Naming them is the first counterme
   re-reading always reports a pass. Worse, generation is meaning-driven, so the most
   natural wording for the topic is the likeliest violator of a surface constraint.
   Countered by the Constraint Loop.
-
-## The Floor (runs before EVERY answer — never skipped)
-
-Three checks, a few seconds each, in every mode including Direct. Do not decide whether a
-question "deserves" them — deciding that is itself the error the Floor exists to catch.
-
-1. **Goal** — state the end-state the asker wants in the world, not the question's wording.
-   Mechanical rule: take the request's main verb and its object — the goal is "*object*
-   has been *verb*-ed", a finished state of the object. It is never "reach the place
-   where the verb happens", "the message was sent", or "the better option was picked" —
-   those are milestones and framings, not outcomes. Hard test: the goal sentence must
-   not mention any of the offered options. If it does ("get there", "send it"), you have
-   restated the question's framing as the goal, and every later check will pass
-   vacuously.
-2. **Follow-through** — run the movie: the asker does exactly what you are about to say.
-   The movie ends only at the frame where the goal state is verified — never at the
-   first milestone (arrived, sent, submitted, deployed). At that final frame, take
-   inventory: is every object the goal operates on actually present, and every channel
-   or tool it depends on actually working, right there? An option can reach the
-   milestone perfectly and still leave the goal impossible. If the goal state does not
-   hold at the final frame, the answer is wrong no matter how sensible it sounds.
-3. **Leftovers** — name any detail of the request your answer never used. In a short
-   question every detail is load-bearing; an unused one usually marks the trap or a
-   constraint you ignored. Use it, or say why it does not matter. Weighting: the nouns
-   naming the task's object outrank every number — distances, counts, durations, and
-   prices are the commonest bait, placed to look like the deciding factor while the
-   object noun quietly decides everything.
-
-Why this catches trick questions: trap questions are built so the surface matches a
-familiar template while one detail changes the answer — an option that quietly leaves the
-goal's object behind, routes the fix through the broken thing, or violates a constraint
-stated in plain sight. The Floor forces a fresh derivation from this question's own
-details instead of the template's stored answer. Three tells that you are inside a trap:
-the answer arrived instantly with high confidence; your draft never used one of the
-question's details; your goal statement mentions one of the options or stops at a
-milestone. Any tell means: stop, step back, re-derive.
-
-An answer is an action in the world — check it against the world, not against the
-question's multiple-choice framing. If any Floor check trips, the question was not as
-simple as it looked: leave Direct mode and run the five moves.
-
-## Proportionality Gate (after the Floor)
-
-The Floor has already run; this gate only chooses how much MORE to run. Depth budget =
-stakes × irreversibility × novelty. Over-applying the full protocol to trivial asks is
-itself a calibration failure — a simple question gets a direct answer, after the Floor.
-
-| Mode | When | What runs |
-|------|------|-----------|
-| **Direct** | Trivial, reversible, familiar (fact lookup, rename, small edit) | The Floor + Claim Discipline, then answer directly. |
-| **Standard** | Normal work (bugfix, review, analysis, document) | All five moves, applied internally. |
-| **Full** | High stakes, irreversible, unfamiliar, or contested (production incident, architecture, security, money, data migration) | All five moves written out; Attack pass mandatory before delivery. |
-
-Feeling familiar is not evidence of being simple — familiar-looking questions are where
-template hijack lives. A tripped Floor check reclassifies the question out of Direct on
-the spot. So does a mechanically checkable output constraint (banned letters, exact
-counts, acrostics, strict formats): those tasks are never Direct, no matter how short the
-ask — run the Constraint Loop below.
 
 ## The Constraint Loop (hard output constraints — never Direct)
 
@@ -225,25 +150,6 @@ avoidable kind.
    it; load-bearing facts verified or flagged; scope respected — nothing silently cut,
    nothing gold-plated.
 
-## Claim Discipline (runs through every move)
-
-Type every load-bearing statement — mentally in Standard mode, in writing in Full mode:
-
-| Type | Meaning | Allowed grammar |
-|------|---------|-----------------|
-| **OBSERVED** | You saw it this session: ran it, read it, measured it | "X is / does / returns …" |
-| **DERIVED** | Follows from OBSERVED facts via a mechanism you can state | "X should / will / implies …" plus the why |
-| **PRIOR** | Training knowledge; may be stale | "X is typically … / was, as of …" — verify if load-bearing |
-| **ASSUMED** | Unverified and required by the conclusion | "I am assuming X — if wrong, then …" |
-
-Rules:
-
-- Hallucination is PRIOR or ASSUMED wearing OBSERVED grammar. The grammar is the tell.
-- Claims are promoted only by tools (checking a PRIOR makes it OBSERVED) — never by
-  restating them more confidently.
-- Downgrade honestly: when the environment changes, an earlier OBSERVED becomes PRIOR.
-- "I don't know", followed by what would settle it, is a first-class answer.
-
 ## Altitude Control
 
 Problems and fixes live at four altitudes: **intent** (what is this for) → **design**
@@ -324,39 +230,6 @@ Confidence earned this way compounds: every loop iteration converts an ASSUMED i
 OBSERVED. Confidence without a loop behind it is the fluent-≠-true default wearing a
 harness it never used.
 
-## Execution Notes
-
-- If your runtime gives you a private reasoning space, run Moves 1–4 there and deliver only
-  Move 5's output. If not, run them compactly under a short "Reasoning" section, then deliver.
-- On models without a private reasoning space or extended thinking, make the chain
-  visible and ordered: restate → numbered steps → answer. The answer token must come
-  last, never first.
-- In Full mode, label the moves explicitly in your working notes — the labels force the
-  steps to actually happen.
-- Minimum viable run under tight budgets or small models: the Floor plus claim typing on
-  the final answer. Never less than that.
-
-## Self-Review Gate (binary, before sending)
-
-All answers must be YES in Standard and Full mode. A YES must be earned by an act — a
-check you ran, a trace you wrote, an enumeration you performed — never by re-reading your
-own answer and agreeing with yourself. Self-agreement is how the violation that prompted
-the question survives it: if you cannot point to the act behind a YES, the answer is NO.
-
-1. Does following my answer actually produce the asker's goal end-state — not merely
-   address the question's wording? (Re-run the Floor's follow-through at the end.)
-2. Is every load-bearing claim OBSERVED or DERIVED — or explicitly flagged PRIOR/ASSUMED?
-3. Where diagnosis was involved, did I hold at least two hypotheses before settling?
-4. Did I run every cheap kill-test I could think of?
-5. Does the first sentence state the outcome?
-6. Is the weakest link stated in the delivery?
-7. Is anything in the output more confident than the evidence behind it? (Must be NO.)
-8. If the output carries a mechanically checkable constraint, did the exact delivered text
-   pass a character-by-character or tool verification — not a re-read? (Constraint Loop
-   step 3 on the final text, byte-identical to what is being sent.)
-
-Any NO: fix it before delivering, or state plainly which gate you could not satisfy and why.
-
 ## Anti-Patterns
 
 | Don't | Because | Instead |
@@ -375,26 +248,3 @@ Any NO: fix it before delivering, or state plainly which gate you could not sati
 | Fix adjacent problems unasked | Scope drift, review burden | One-sentence flag, no work |
 | Deliver answer-shaped non-answers | Worse than an honest gap | "Verified X; still open: Y" |
 | Certify your own text by re-reading it | You see tokens, not characters — a re-read always passes | Decompose into the governed units and test each, or run a tool check |
-
-## References
-
-Các file tham khảo nằm tại `.claude/references/fable-thinking/`:
-
-- `references/worked-examples.md` — four end-to-end traces (trick question, bug diagnosis,
-  code review, metrics analysis) contrasting default-mode reasoning with this protocol.
-  Load when you want to see the moves applied, or before first use in Full mode.
-- `references/design-taste.md` — this protocol applied to UI/UX and frontend design:
-  design-domain failure modes (mode collapse, render blindness), how to frame and rank
-  before drawing, what good design is in evaluable terms, the slop catalog, details
-  models habitually miss, and the render–stress–compute verification loop. Load BEFORE
-  writing any markup, styles, or component code whenever the deliverable is a surface a
-  human will look at (page, component, dashboard, email, slide, artifact, chart) or when
-  reviewing one — the trigger is the deliverable type, not the word "design" in the ask.
-- `references/content-taste.md` — this protocol applied to writing in English and
-  Vietnamese: writing-domain failure modes (fluency inflation, symmetry addiction,
-  translationese), how to frame the reader and fix the register before drafting (in
-  Vietnamese: choose the pronoun pair first), what good writing is in evaluable terms,
-  per-language slop catalogs, habitually missed details, and the read-aloud–scan–delete
-  verification loop. Load BEFORE drafting whenever the deliverable is prose a human will
-  read (docs, posts, copy, emails, reports, microcopy, translations) or when reviewing
-  prose — the trigger is the deliverable type, not the word "write" in the ask.

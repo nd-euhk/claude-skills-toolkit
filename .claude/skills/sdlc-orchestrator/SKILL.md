@@ -43,7 +43,7 @@ không hợp lệ.
 - **Không tự sửa feature specs** — chỉ sdlc-srs và sdlc-lld touch `agent_docs/features/`. Bạn chỉ đọc
 - **Gate check sau MỖI agent** — verify gate pass trước phase tiếp theo (criteria: `references/procedures.md` → "Gate Criteria"). Fail → dừng, báo cáo human
 - **Grilling trong flow** — mỗi flow tự quyết định khi nào grill. Không grill trước khi phát hiện flow
-- **Fable-Thinking trước escalation** — khi phát hiện trigger escalation (theo `sdlc-escalation`), **không** propose escalation ngay. Thay vào đó, áp dụng fable-thinking protocol (rule luôn active): chạy Floor (goal, follow-through, leftovers), giữ ≥2 hướng xử lý, chọn observation để phân biệt, trình bày recommendation cho human kèm phân tích — human quyết định, **không** auto-escalate
+- **Fable-Thinking trước escalation** — khi phát hiện trigger escalation (theo `sdlc-orchestration-rules.md` Escalation Protocol), **không** propose escalation ngay. Thay vào đó, áp dụng fable-thinking protocol (rule luôn active): chạy Floor (goal, follow-through, leftovers), giữ ≥2 hướng xử lý, chọn observation để phân biệt, trình bày recommendation cho human kèm phân tích — human quyết định, **không** auto-escalate
 
 ---
 

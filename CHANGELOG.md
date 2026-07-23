@@ -2,6 +2,62 @@
 
 All notable changes to the skills-toolkit plugin are documented here.
 
+## [2.26.0] - 2026-07-23
+
+### Changed
+- **fable-thinking rule:** Cập nhật từ skill fable-thinking 1.4.0. Thêm Know Your Own
+  Defaults (8 default failure modes), hoàn chỉnh The Floor với trap-detection tells.
+  Tất cả technical terms giữ nguyên tiếng Anh: The Floor, Goal, Follow-through,
+  Leftovers, Claim Discipline, Proportionality Gate, Self-Review Gate, Constraint
+  Loop, Five Moves, Altitude Control, When Stuck, Portable Techniques, Harness
+  Leverage, Pattern-match satisfaction, Template hijack, Fluent ≠ true, Prior-as-fact,
+  Confirmation seeking, Frame adoption, Completion pressure, Surface blindness.
+- **Tất cả rules:** Chuẩn hóa tên file với prefix `sdlc-` và suffix `-rules`:
+  `fable-thinking.md` → `sdlc-fable-thinking-rules.md`,
+  `sdlc-routing.md` → `sdlc-routing-rules.md`,
+  `sdlc-pipeline.md` → `sdlc-pipeline-rules.md`,
+  `sdlc-orchestration.md` → `sdlc-orchestration-rules.md`.
+- **Tất cả rules:** Chuẩn hóa ngôn ngữ — giải thích bằng tiếng Việt, technical terms
+  bằng tiếng Anh. Các block quan trọng dùng XML tags: `<EXTREMELY-IMPORTANT>`.
+- **sdlc-routing-rules.md:** Chuẩn hóa ngôn ngữ VN/EN, XML blocks cho critical
+  sections (Intent → Flow Resolution, Anti-Patterns).
+- **sdlc-pipeline-rules.md:** Chuẩn hóa ngôn ngữ VN/EN, XML block cho Gate Protocol
+  mandatory rule. Sửa TDD cycle diagram.
+- **sdlc-orchestration-rules.md:** Chuẩn hóa ngôn ngữ VN/EN, XML blocks cho Controller
+  Responsibilities, Parallel Work Safety, Escalation Protocol, fixbug constraint, và
+  When Stuck guidance.
+- **references/fable-thinking/protocol.md:** Cập nhật reference đến rule mới
+  (`sdlc-fable-thinking-rules.md`).
+- **sdlc-orchestrator 1.12.1:** Cập nhật reference từ `sdlc-escalation` →
+  `sdlc-orchestration-rules.md` Escalation Protocol.
+
+## [2.25.0] - 2026-07-23
+
+### Changed
+- **fable-thinking rule:** Cắt từ 400 → 165 dòng. Giữ The Floor, Claim Discipline,
+  Proportionality Gate, Self-Review Gate, Execution Notes — phần luôn chạy. Chuyển 5
+  Moves, Constraint Loop, Portable Techniques, Harness Leverage, Anti-Patterns, Altitude
+  Control, When Stuck sang `.claude/references/fable-thinking/protocol.md` (load
+  on-demand trong Standard/Full mode).
+- **sdlc-routing rule:** Thêm bảng Anti-Patterns (5 template nguy hiểm khi pattern-match)
+  từ `sdlc-fable-thinking.md`. Thêm bước "hold ≥2 viable flow hypotheses" vào
+  Resolution Procedure.
+
+### Removed
+- **sdlc-fable-thinking rule:** Đã merge nội dung unique vào `sdlc-routing.md`
+  (anti-patterns) và `sdlc-orchestration.md` (human interaction principles, when stuck).
+  Phần restate fable-thinking protocol đã có trong `fable-thinking.md` rule.
+- **sdlc-escalation rule:** Đã merge vào `sdlc-orchestration.md` (Escalation Protocol
+  section với escalation chain, triggers table, fail-safe principles, message format).
+- **sdlc-entry-gate rule:** Đã xóa — preflight logic do từng skill tự quản lý
+  (orchestrator, automation, quick), không cần rule canonical.
+
+### Summary
+- Rules: 7 → 4 (fable-thinking, sdlc-routing, sdlc-pipeline, sdlc-orchestration)
+- Tổng dòng: 919 → 448 (giảm 51%)
+- Kiến trúc: rule = canonical reference (routing table, pipeline structure,
+  orchestration protocol), skill = execution procedure. Không duplicate.
+
 ## [2.24.0] - 2026-07-23
 
 ### Changed
