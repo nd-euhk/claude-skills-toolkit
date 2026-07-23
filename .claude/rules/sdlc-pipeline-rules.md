@@ -62,6 +62,25 @@ Baseline capture → per-TC RED → GREEN → INTERFERENCE-LIGHT → REFACTOR-li
 Quick flow dùng reduced cycle: RED (1 TC, no interference/refactor) → GREEN (minimal) →
 GATE-light (4 checks). Không REFACTOR-full, không GATE-full.
 
+## Test Intent Principle
+
+<EXTREMELY-IMPORTANT>
+Test phải verify INTENT, không chỉ BEHAVIOR. Một test không thể fail khi business logic
+thay đổi là test sai — nó test implementation detail, không test business rule.
+</EXTREMELY-IMPORTANT>
+
+- **Business rule first** — mỗi test case phải map đến một business rule cụ thể từ SRS
+  hoặc IMP spec. Nếu không chỉ ra được business rule nào → test có thể không cần thiết.
+- **Test tên phải nói WHY** — `should_apply_volume_discount_when_order_exceeds_100_units`
+  thay vì `should_call_pricing_service_with_correct_args`. Tên test là business outcome,
+  không phải code path.
+- **Refactor an toàn** — khi refactor, test chỉ fail nếu business behavior thay đổi. Nếu
+  test fail vì bạn đổi function name hoặc restructure code → test đang test
+  implementation, không phải intent.
+- **Counter-signal**: mock quá nhiều implementation detail (internal method call, private
+  field access) → test đang khóa implementation, không phải behavior. Mock at boundary,
+  not internals.
+
 ---
 
 ## Gate Protocol
