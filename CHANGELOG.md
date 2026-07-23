@@ -2,12 +2,35 @@
 
 All notable changes to the skills-toolkit plugin are documented here.
 
+## [2.25.0] - 2026-07-23
+
+### Added
+- **sdlc-routing rule:** 4 fable-thinking guards — Flow Detection (Resolution Procedure), Trivial Gate (Priority Rules), Bug vs False Positive (fixbug Flow), Escalation (Escalation Protocol)
+- **sdlc-pipeline rule:** 3 fable-thinking guards — CROSS-CUTTING Scope (Forward Pipeline), TDD Interference (TDD Cycle), Gate Failure Strategy (Gate Protocol)
+- **sdlc-entry-gate rule:** 2 fable-thinking guards — Foundation Gate Fail (Bước 2), Flow-Scope Mismatch (Bước 3)
+- **sdlc-orchestration rule:** 1 fable-thinking guard — Fail-Safe (Workflow Dispatch)
+- **sdlc-development-rules rule:** 1 fable-thinking guard — Spec Deviation (Spec Traceability)
+- **sdlc-review-rules rule:** 2 fable-thinking guards — Audit vs Human Decision (Human Decisions), Severity Classification (Severity Classification)
+
+## [2.24.0] - 2026-07-23
+
+### Changed
+- **sdlc rules cleanup:** Loại bỏ 148 dòng (-21%) nội dung không cần thiết trên 7 rule files: duplication, procedural HOW-TO, meta-tracking, generic content, output templates. Sửa reference sai path `skills/fable-thinking/SKILL.md` → `fable-thinking` skill name.
+
+### Added
+- **sdlc-development-rules rule:** Rule file `.claude/rules/sdlc-development-rules.md` thiết lập coding standards dùng chung cho mọi SDLC agent viết code (IMP, TDD-BE/FE, refactor). Dựa trên `development-rules.md` của claudekit, điều chỉnh cho context SDLC: baseline (YAGNI/KISS/DRY), quality gates (test first, không giấu errors, conventional commits), TDD discipline (RED→GREEN→REFACTOR), spec traceability, và tooling rules.
+- **sdlc-review-rules rule:** Rule file `.claude/rules/sdlc-review-rules.md` thiết lập framework xử lý review/audit findings cho gate agents và code review agents. Dựa trên `review-audit-self-decision.md` của claudekit, điều chỉnh cho context SDLC: verified decisions, human decisions (không âm thầm đảo ngược), threat model, gate verdict handling (PASS/FAIL critical/FAIL non-critical/FAIL regression), severity classification (Critical/High/Medium/Low), scout-first principle, và stable code artifacts.
+
+### Changed
+- **sdlc-orchestration rule:** Thêm section "Model Escalation" — khi orchestrator hoặc phase agent gặp hard problem (repeated failed attempts, high-stakes design fork, fuzzy requirements), spawn `Agent("sdlc-fable-thinking", ...)` để được counsel thay vì switch session model. Protocol hoạt động trên mọi model tier, không cần `model: fable`.
+- **sdlc-fable-thinking-rules rule:** Thêm 3 decision points mới (Spec Deviation, Severity Classification, Audit vs Human Decision) và 2 rule files mới vào cross-reference table. Integration roadmap thêm Phase 2.5 cho 2 rule mới.
+
 ## [2.23.0] - 2026-07-23
 
 ### Added
 - **sdlc-orchestrator 1.11.0:** Tích hợp `fable-thinking` tại 4 decision points — Hard Boundaries escalation, Flow Detection ambiguous, Foundation Gate fail, Pipeline Scope skip. Mỗi điểm gọi `Skill("fable-thinking")` với context cụ thể trước khi human quyết định.
 - **sdlc-automation 1.6.0:** Tích hợp `fable-thinking` tại 4 decision points — Hard Boundaries (grilling exit + fail-safe), Flow Detection ambiguous, Bug keyword auto-escalation (thay thế auto-escalate bằng fable-thinking verify), Fail-safe sau 2 retry.
-- **sdlc-fable-thinking rule:** Rule file `.claude/rules/sdlc-fable-thinking.md` định nghĩa when to invoke, invocation protocol, ambiguity detection criteria, và integration roadmap.
+- **sdlc-fable-thinking-rules rule:** Rule file `.claude/rules/sdlc-fable-thinking-rules.md` định nghĩa fable-thinking như reasoning protocol (không phải utility skill), 2 phương thức áp dụng (Skill + Agent), decision points mở rộng qua tất cả 5 rule files, và integration roadmap 3 giai đoạn.
 
 ## [2.22.0] - 2026-07-21
 

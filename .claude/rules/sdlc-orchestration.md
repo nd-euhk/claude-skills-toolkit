@@ -1,81 +1,90 @@
 # SDLC Orchestration
 
-Protocol for spawning SDLC agents and coordinating parallel work. The entry
-point skill is the controller — it grills, dispatches, and monitors. Agents
-and workflows are the executors — they produce artifacts.
+Protocol để spawn SDLC agents và điều phối parallel work. Entry point skill
+là controller — nó grill, dispatch, và monitor. Agents và workflows là
+executors — chúng tạo ra artifacts.
 
 ## Controller Responsibilities
 
-The entry point skill (orchestrator, automation, quick) is the **only**
-component that:
+Entry point skill (orchestrator, automation, quick) là thành phần **duy nhất**
+được phép:
 
-- Interacts with the human (grilling, confirmation, reporting)
-- Makes flow routing decisions
-- Dispatches agents and workflows
-- Handles escalations
-- Updates sprint artifacts (via `sprint` skill)
+- Tương tác với human (grilling, confirmation, reporting)
+- Ra quyết định flow routing
+- Dispatch agents và workflows
+- Xử lý escalations
+- Cập nhật sprint artifacts (qua `sprint` skill)
 
-The controller **never**:
-- Writes spec content, test cases, or implementation code directly
-- Edits `agent_docs/features/` directly (only SRS/LLD agents touch these)
-- Modifies sprint files directly (always through `sprint` skill)
+Controller **không bao giờ**:
+- Viết nội dung specs, test cases, hoặc implementation code trực tiếp
+- Sửa `agent_docs/features/` trực tiếp (chỉ SRS/LLD agents mới được)
+- Sửa sprint files trực tiếp (luôn qua `sprint` skill)
 
 ## Agent Spawning Rules
 
-When spawning phase agents:
+Khi spawn phase agents:
 
-1. **One agent per phase per domain** — fan out per-service or per-feature when parallel
-2. **Provide exact file paths**, not "look around the repo"
-3. **Include context from prior phase outputs** — the agent needs to know what was decided upstream
-4. **Set clear acceptance criteria** — what files to read, what to produce, exit codes expected
-5. **Use acceptEdits permission mode** for agents that write files
-6. **Gate every agent output** — spawn gate agent after each phase agent completes
+1. **Một agent cho mỗi phase cho mỗi domain** — fan out per-service hoặc per-feature khi có thể parallel
+2. **Cung cấp exact file paths**, không phải "look around the repo"
+3. **Bao gồm context từ prior phase outputs** — agent cần biết những gì đã được quyết định ở upstream
+4. **Đặt acceptance criteria rõ ràng** — đọc file nào, tạo ra gì, exit codes mong đợi
+5. **Dùng acceptEdits permission mode** cho agents ghi file
+6. **Gate mọi agent output** — spawn gate agent sau mỗi phase agent hoàn thành
+7. **Agent viết code phải tuân theo** `sdlc-development-rules.md`
+8. **Gate agent phải tuân theo** `sdlc-review-rules.md` cho verdict handling và severity classification
 
 ## Context Isolation
 
-Agents receive what they need, not the full conversation:
+Agent nhận những gì nó cần, không phải toàn bộ conversation:
 
-- **Forward pipeline**: pass prior phase output file paths (SRS → HLD reads SRS outputs; HLD → LLD reads HLD outputs)
-- **Reverse pipeline**: pass scout report + prior phase outputs
-- **TDD agents**: pass TST spec + IMP spec for the current TC only
-- **Cross-cutting agents**: pass architecture.md + per-service tech-design files
-- **Never pass full conversation history** to a subagent
+- **Forward pipeline**: truyền prior phase output file paths (SRS → HLD đọc SRS outputs; HLD → LLD đọc HLD outputs)
+- **Reverse pipeline**: truyền scout report + prior phase outputs
+- **TDD agents**: truyền TST spec + IMP spec cho TC hiện tại
+- **Cross-cutting agents**: truyền architecture.md + per-service tech-design files
+- **Không bao giờ truyền full conversation history** cho subagent
 
 ## Parallel Work Safety
 
-Parallel agents are safe when their file ownership is disjoint:
+Parallel agents an toàn khi file ownership của chúng disjoint:
 
-| Safe to parallelize | Must serialize |
-|---------------------|----------------|
-| Per-service LLD agents (different service dirs) | SRS → HLD (HLD consumes SRS output) |
-| Per-feature IMP agents (different feature files) | HLD → LLD (LLD consumes HLD output) |
-| Per-domain SRS agents (different domain files) | LLD → LLD-Synthesis (synthesis consumes all LLDs) |
-| IMP ∥ TST per feature (independent artifacts) | Cross-cutting after LLD (consumes all LLDs) |
-| Per-TC TDD cycles (different test files) | RED → GREEN → REFACTOR within a TC (sequential) |
-| Code review dimensions (7 independent analyses) | Synthesis after all dimensions complete |
+| An toàn để parallelize | Phải serialize |
+|---|---|
+| Per-service LLD agents (khác service dirs) | SRS → HLD (HLD tiêu thụ SRS output) |
+| Per-feature IMP agents (khác feature files) | HLD → LLD (LLD tiêu thụ HLD output) |
+| Per-domain SRS agents (khác domain files) | LLD → LLD-Synthesis (synthesis tiêu thụ tất cả LLDs) |
+| IMP ∥ TST cho mỗi feature (independent artifacts) | Cross-cutting sau LLD (tiêu thụ tất cả LLDs) |
+| Per-TC TDD cycles (khác test files) | RED → GREEN → REFACTOR trong một TC (tuần tự) |
+| Code review dimensions (7 independent analyses) | Synthesis sau khi tất cả dimensions hoàn thành |
 
 ## Workflow Dispatch
 
-For autonomous execution (automation lane, reverse pipeline, review):
+Cho autonomous execution (automation lane, reverse pipeline, review):
 
-- Dispatch via `Workflow()` tool with structured args
-- Workflow scripts live in `.claude/workflows/`
-- Workflow handles its own agent fan-out internally
-- Controller monitors workflow completion, does not micro-manage
-- If a workflow fails, read its output before deciding to retry or escalate
+- Dispatch qua `Workflow()` tool với structured args
+- Workflow scripts nằm trong `.claude/workflows/`
+- Workflow tự xử lý agent fan-out nội bộ
+- Controller monitor workflow completion, không micro-manage
+- Nếu workflow fail, đọc output trước khi quyết định retry hay escalate. Khi workflow dispatch fail hoặc runtime error, dùng `Agent("sdlc-fable-thinking", {prompt: "Decision: Fail-Safe. Context: OBSERVED: workflow name + phase + error output. PRIOR: workflow fail có thể do transient error hoặc bug thật. ASSUMED: error output chứa đủ thông tin để phân loại. Options: A) Retry — transient error, B) Fallback orchestrator — human-in-the-loop xử lý, C) Skip phase — không critical, D) Abort — không thể tiếp tục. Goal: pipeline hoàn thành với chất lượng chấp nhận được. Verify: đọc workflow output file + error logs."})` để đánh giá fail-safe strategy trước khi hành động
 
 ## Status Protocol
 
-After each phase agent completes, verify its output:
+Sau mỗi phase agent hoàn thành, verify output của nó:
 
 ```
 Phase: [SRS|HLD|LLD|...]
-Status: DONE | DONE_WITH_CONCERNS | FAILED | BLOCKED
-Artifacts: [file paths produced]
-Concerns: [optional — anything the next phase should know]
+Status: DONE | DONE_WITH_CONCERNS | AGENT_ERROR | BLOCKED
+Artifacts: [danh sách file paths đã tạo]
+Concerns: [tùy chọn — những gì phase tiếp theo nên biết]
 ```
 
-- **DONE** → proceed to gate, then next phase
-- **DONE_WITH_CONCERNS** → flag for human review at next gate
-- **FAILED** → report to human, do not auto-retry
-- **BLOCKED** → report the blocker, ask human for resolution
+- **DONE** → proceed sang gate, rồi phase tiếp theo
+- **DONE_WITH_CONCERNS** → flag cho human review ở gate tiếp theo. Nếu
+  concerns liên quan đến severity, dùng fable-thinking Skill để đánh giá
+  (xem `sdlc-fable-thinking-rules.md`)
+- **AGENT_ERROR** → agent crash hoặc không thể hoàn thành. Báo cáo human,
+  không auto-retry
+- **BLOCKED** → báo cáo blocker, hỏi human để giải quyết
+
+**Lưu ý:** `AGENT_ERROR` (agent crash/lỗi runtime) khác với `GATE_FAIL`
+(gate agent phát hiện criteria không đạt). Gate verdict handling với retry
+được quy định trong `sdlc-review-rules.md`.
