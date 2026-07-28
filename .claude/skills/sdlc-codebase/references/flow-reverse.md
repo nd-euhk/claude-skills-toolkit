@@ -36,7 +36,7 @@ Trước khi invoke workflow, skill thực hiện:
    ```
    Workflow({
      scriptPath: ".claude/workflows/codebase/workflow-codebase-reverse.js",
-     args: { scope, scoutReportPath, services, domains, artifacts, focus, foundationPath, workDir }
+     args: { scope, scoutReportPath, services, domains, artifacts, focus, foundationPath, workDir, runDate: new Date().toISOString().split("T")[0] }
    })
    ```
 

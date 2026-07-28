@@ -1,6 +1,6 @@
 # SDLC Rules — So sánh 3 phiên bản
 
-> Dành cho team tự chọn phiên bản. Tags: `sdlc-skill-v4` → `sdlc-skill-v4.1` → `sdlc-skill-v4.2` → `sdlc-skill-v4.3`
+> Dành cho team tự chọn phiên bản. Tags: `sdlc-skill-v4` → `sdlc-skill-v4.1` → `sdlc-skill-v4.2` → `sdlc-skill-v4.3` → `sdlc-skill-v4.4`
 
 ---
 
@@ -84,6 +84,23 @@
 
 ---
 
+## v4.4 — Workflow Quality Assurance
+
+**Làm được:** mọi thứ v4.3 + workflow determinism + anti-pattern review + version comparison docs.
+
+**Mới so với v4.3:**
+
+| Năng lực | Mô tả |
+|----------|-------|
+| **Workflow determinism** | `codebase-reverse.js` không còn dùng `new Date()` — thay bằng `runDate` parameter từ skill dispatch. Đảm bảo workflow resume hoạt động chính xác (cùng input → cached agent trả về kết quả cũ thay vì re-run). |
+| **Workflow knowledge skill** | Skill `workflow-knowledge` dạy Claude toàn bộ Workflow tool API, quality patterns (adversarial verify, judge panel, loop-until-dry, multi-modal sweep, completeness critic, idempotent phase skip), anti-patterns (11 patterns với WRONG/RIGHT code pairs), pipeline vs parallel decision rules, budget awareness, canonical patterns, và coding style. |
+| **Workflow audit report** | Review toàn bộ 8 workflow trong `.claude/workflows/` — phát hiện `new Date()` critical bug, thiếu `budget` awareness, code duplication (~60% giữa review-mr và review-code), hardcoded model override không comment, parallel write conflict risk. |
+| **Version comparison docs** | File `sdlc-versions-comparison.md` so sánh 4 phiên bản SDLC rules, kèm bảng chọn theo nhu cầu và team profile. Hỗ trợ team quyết định dùng phiên bản nào. |
+
+**Khác biệt chính với v4.3:** Thêm tầng **workflow quality** — fix critical resume bug, audit toàn bộ workflow, có comparison docs để team chọn version. `workflow-knowledge` skill là foundation cho các workflow tiếp theo (budget awareness, code review, automation). Chưa có budget awareness trong workflow — sẽ đến ở v4.5.
+
+---
+
 ## Bảng chọn theo nhu cầu
 
 | Nhu cầu | Chọn |
@@ -92,6 +109,7 @@
 | Cần reasoning middleware tại decision points, nhưng chưa muốn protocol luôn active | **v4.1** |
 | Muốn reasoning protocol luôn active (The Floor), Claim Discipline, đầy đủ references | **v4.2** |
 | Muốn tất cả v4.2 + code discipline cho implementation + advisor agent chuyên dụng | **v4.3** |
+| Muốn tất cả v4.3 + workflow determinism + audit + comparison docs | **v4.4** |
 
 ## Bảng chọn theo team profile
 
@@ -101,3 +119,4 @@
 | Đã quen SDLC, muốn model cẩn thận hơn ở decision points | v4.1 | Reasoning middleware không xâm lấn |
 | Muốn model luôn reasoning grounded, có guardrail toàn diện | v4.2 | Protocol-first, The Floor, 8 defaults |
 | Muốn model reasoning grounded + code chuẩn mực | v4.3 | Tất cả v4.2 + implementation discipline |
+| Muốn model reasoning grounded + code chuẩn + workflow ổn định | v4.4 | Tất cả v4.3 + workflow quality assurance |

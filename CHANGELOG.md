@@ -2,6 +2,15 @@
 
 All notable changes to the skills-toolkit plugin are documented here.
 
+## [2.28.1] - 2026-07-28
+
+### Fixed
+- **sdlc-codebase 1.15.1:** Sửa critical bug `new Date()` trong `workflow-codebase-reverse.js`
+  phá hủy workflow resume. Thay bằng `runDate` parameter truyền từ skill dispatch qua args.
+  Cập nhật SKILL.md, flow-reverse.md, procedures.md để truyền `runDate` khi gọi workflow.
+- **workflow-codebase-reverse:** Thay `new Date().toISOString().split('T')[0]` bằng
+  `runDate` từ args — đảm bảo deterministic execution và khả năng resume.
+
 ## [2.28.0] - 2026-07-23
 
 ### Changed

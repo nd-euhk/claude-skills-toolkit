@@ -30,6 +30,7 @@ const {
   foundationPath = 'agent_docs/',
   workDir,
   adversarial = true,
+  runDate,  // ISO date string for deterministic execution (workflow-knowledge: no new Date())
 } = _args
 
 // -- Phase Selection --
@@ -404,7 +405,7 @@ ${uncertainEntries.map(([id, v]) => `**${id}**: ${(v.concerns || ['mixed verdict
 
 Read each FR file matching \`${frGlob}\` and update the frontmatter:
 - Change \`verification: pending\` to the correct verdict (see map below)
-- Change \`verification_date: ""\` to \`verification_date: "${new Date().toISOString().split('T')[0]}"\`
+- Change \`verification_date: ""\` to \`verification_date: "${runDate || 'REQUIRED: pass runDate in args'}"\`
 
 ### FR Verdict Map
 ${Object.entries(verdictMap).map(([id, v]) => `- **${id}**: ${v.verdict}`).join('\n')}

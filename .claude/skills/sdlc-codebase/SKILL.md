@@ -257,6 +257,7 @@ Workflow({
     focus: focus,              // optional
     foundationPath: "agent_docs/",
     workDir: "<đường dẫn tuyệt đối từ pwd>",
+    runDate: new Date().toISOString().split("T")[0],  // ISO date cho deterministic resume (workflow-knowledge: cấm new Date() trong script)
   }
 })
 ```
