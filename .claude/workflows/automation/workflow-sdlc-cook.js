@@ -22,6 +22,8 @@ const {
   baseline = null,
   repoPath = '',
   agents = {},
+  // ── Idempotent resume (dispatcher sets these when re-running after partial failure) ──
+  resumeFrom = null,  // { completedTcIds: ['1','2'], gateLightPass: true, refactorDone: true, gateFullPass: false }
 } = _args
 
 // Caller chịu trách nhiệm chọn đúng agent type — workflow không suy diễn từ layer.
@@ -97,6 +99,25 @@ const COOK_REPORT = {
     nextStep: { type: 'string' },
   },
   required: ['flow', 'featureName', 'frId', 'status'],
+}
+
+// ═══════════════════════════════════════════
+// PIPELINE STATUS SCRIPT
+// ═══════════════════════════════════════════
+
+const STATUS_SCRIPT = '.claude/skills/sdlc-cook/scripts/update-pipeline-status.sh'
+
+function statusUpdateCmd(...updates) {
+  return `${STATUS_SCRIPT} ${frId} ${updates.join(' ')}`
+}
+
+function statusInstruction(updates) {
+  return `## Pipeline Status Update
+Sau khi hoàn thành công việc của bạn, chạy lệnh sau để cập nhật trạng thái pipeline:
+\`\`\`bash
+${statusUpdateCmd(...updates)}
+\`\`\`
+Script này atomic-write vào .pipeline/${frId}-status.json. Không tự sửa file JSON — luôn dùng script.`
 }
 
 // ═══════════════════════════════════════════
@@ -213,7 +234,19 @@ Return a TC_RESULT object with:
 - filesChanged: list of all files modified/created
 - testFile: path to the test file created
 - skipReason: if SKIPPED, explain why (accidental green details)
-- errorDetail: if BLOCKED/STALE/ERROR/INTERFERENCE, explain what went wrong`
+- errorDetail: if BLOCKED/STALE/ERROR/INTERFERENCE, explain what went wrong
+
+${prevResults && prevResults.length === 0
+  ? statusInstruction([`--init`, `feature=${featureName}`, `service=${service}`, `layer=${layer}`, `tc_total=${testCases.length}`, `TC-${tc.id}=RUNNING`])
+  : statusInstruction([`TC-${tc.id}=RUNNING`])
+}
+
+**Sau khi hoàn thành tất cả các bước trên (RED verify + GREEN spawn + INTERFERENCE-LIGHT + REFACTOR-light), cập nhật status một lần nữa với kết quả cuối cùng:**
+\`\`\`bash
+${statusUpdateCmd(`TC-${tc.id}=DONE`)}
+\`\`\`
+(Nếu status khác DONE, thay DONE bằng status thực tế: SKIPPED, BLOCKED, STALE, ERROR, hoặc INTERFERENCE)`
+
 }
 
 function gateAgentPrompt(mode, tcResults, techStackHint) {
@@ -335,7 +368,16 @@ Re-verify all 4 light gates still pass after refactoring.
 
 ## Return Structured Output
 Return a GATE_RESULT with: mode, status (PASS/FAIL), passed, total, failures array, summary.
-Include INTERFERENCE-FULL details in the result if applicable (broken test table: test name, file:line, baseline, now, likely culprit, files changed by culprit).`
+Include INTERFERENCE-FULL details in the result if applicable (broken test table: test name, file:line, baseline, now, likely culprit, files changed by culprit).
+
+${statusInstruction([`gate_${mode}=PENDING`])}
+
+**Sau khi hoàn thành tất cả gate checks, cập nhật status với kết quả cuối cùng:**
+\`\`\`bash
+${statusUpdateCmd(`gate_${mode}=PASS`)}
+\`\`\`
+(Nếu gate FAIL, thay PASS bằng FAIL)`
+
 }
 
 function refactorAgentPrompt(mode, tcResults, gateLightPassed) {
@@ -392,7 +434,83 @@ IMPORTANT: Do NOT restructure architecture, change APIs, or modify test logic.
 - **Conventions**: agent_docs/conventions.md
 
 ## Return Structured Output
-Return a REFACTOR_RESULT with: mode, categoriesRun, findingsFixed, findingsFlagged, testSuiteStillPassing, summary.`
+Return a REFACTOR_RESULT with: mode, categoriesRun, findingsFixed, findingsFlagged, testSuiteStillPassing, summary.
+
+${statusInstruction([`refactor_full=completed`])}
+
+**Sau khi hoàn thành refactoring, cập nhật status:**
+\`\`\`bash
+${statusUpdateCmd(`refactor_full=completed`)}
+\`\`\``
+}
+
+// ═══════════════════════════════════════════
+// GATE RUNNER (DRY — shared by light + full)
+// ═══════════════════════════════════════════
+
+const MAX_GATE_RETRIES = 2
+
+async function runGateWithRetry(mode, totalChecks, phaseName, tcResultsFiltered) {
+  const modeLabel = mode.toUpperCase()
+  const phaseDisplay = `GATE ${modeLabel}`
+
+  // ── Initial run ──
+  let result = null
+  try {
+    result = await agent(gateAgentPrompt(mode, tcResultsFiltered, techStackHint), {
+      label: `GATE-${mode}`,
+      phase: phaseDisplay,
+      agentType: GATE,
+      schema: GATE_RESULT,
+    })
+  } catch (e) {
+    log(`GATE ${mode} error: ${e.message || e}`)
+    result = { mode, status: 'FAIL', passed: 0, total: totalChecks, failures: [`Agent error: ${e.message || e}`], summary: `GATE ${mode} failed to execute` }
+  }
+  if (!result) {
+    result = { mode, status: 'FAIL', passed: 0, total: totalChecks, failures: ['Agent returned null'], summary: `GATE ${mode} agent returned null` }
+  }
+
+  log(`${result.status === 'PASS' ? '✅' : '❌'} GATE ${mode}: ${result.status} (${result.passed}/${result.total})`)
+  if (result.failures && result.failures.length > 0) {
+    result.failures.forEach(f => log(`  ❌ ${f}`))
+  }
+
+  // ── Retry loop ──
+  let retries = 0
+  while (result.status === 'FAIL' && retries < MAX_GATE_RETRIES) {
+    retries++
+    log(`🔄 GATE ${mode} retry ${retries}/${MAX_GATE_RETRIES}...`)
+
+    const fixPrompts = (result.failures || []).map(f =>
+      `Fix this GATE ${mode} failure in the codebase:\n\n**Failure**: ${f}\n\n**Feature**: ${featureName} (${frId})\n**Service**: ${service}\n**Files changed**: ${allFiles.join(', ')}\n\nFix the issue while keeping all tests passing. Make minimal changes.`
+    )
+
+    if (fixPrompts.length > 0) {
+      await parallel(fixPrompts.map(p => () =>
+        agent(p, {
+          label: `fix-gate-${mode}`,
+          phase: phaseDisplay,
+          agentType: GREEN,
+        })
+      ))
+    }
+
+    result = await agent(gateAgentPrompt(mode, tcResultsFiltered, techStackHint), {
+      label: `GATE-${mode}-retry${retries}`,
+      phase: phaseDisplay,
+      agentType: GATE,
+      schema: GATE_RESULT,
+    })
+
+    if (!result) {
+      result = { mode, status: 'FAIL', passed: 0, total: totalChecks, failures: ['Agent returned null on retry'], summary: `GATE ${mode} retry returned null` }
+    }
+
+    log(`${result.status === 'PASS' ? '✅' : '❌'} GATE ${mode} retry ${retries}: ${result.status} (${result.passed}/${result.total})`)
+  }
+
+  return { result, retries }
 }
 
 // ═══════════════════════════════════════════
@@ -404,9 +522,27 @@ log(`📋 FR-ID: ${frId} | Service: ${service} | Layer: ${layer}`)
 log(`🧪 Test Cases: ${testCases.length} (${testCases.map(tc => tc.id).join(', ')})`)
 log('🔀 Strategy: Sequential (each TC builds on previous — TDD requires ordered execution)')
 
+// ── Idempotent resume: skip phases already completed in prior run ──
+const completedTcIds = new Set(resumeFrom?.completedTcIds || [])
+const skipGateLight = resumeFrom?.gateLightPass === true
+const skipRefactor = resumeFrom?.refactorDone === true
+const skipGateFull = resumeFrom?.gateFullPass === true
+
 const tcResults = []
 const warnings = []
 let allTestsPass = true
+
+if (completedTcIds.size > 0) {
+  log(`⏭️ Resuming: ${completedTcIds.size} TCs already done → ${[...completedTcIds].join(', ')}`)
+  for (const tc of testCases) {
+    if (completedTcIds.has(tc.id)) {
+      tcResults.push({ tcId: tc.id, tcName: tc.name, status: 'DONE', filesChanged: [], testFile: '' })
+    }
+  }
+}
+if (skipGateLight) log('⏭️ Skipping GATE light (already PASS)')
+if (skipRefactor) log('⏭️ Skipping REFACTOR full (already done)')
+if (skipGateFull) log('⏭️ Skipping GATE full (already PASS)')
 
 // ── Phase 1: Per-TC TDD Cycle (LUÔN tuần tự) ──
 // Mỗi TC build trên code của TC trước — không thể chạy song song.
@@ -414,7 +550,11 @@ let allTestsPass = true
 phase('TDD Cycle')
 
 for (const tc of testCases) {
-  log(`Starting ${tc.id}: ${tc.name}...`)
+  // Skip TCs already completed in prior run
+  if (completedTcIds.has(tc.id)) {
+    log(`⏭️ ${tc.id}: ${tc.name} — already DONE (resumed)`)
+    continue
+  }
 
   const result = await agent(redAgentPrompt(tc, tcResults), {
     label: `RED ${tc.id}`,
@@ -523,66 +663,19 @@ if (interferenceCount > 0) {
 phase('GATE Light')
 
 const lightTcFilter = r => r.status !== 'ERROR' && r.status !== 'INTERFERENCE'
-log(`🔍 Running GATE light (4 critical checks + INTERFERENCE-FULL baseline comparison)...`)
-log(`  Baseline: ${BASELINE_PATH || 'MISSING — interference detection skipped'}`)
 
-let gateLightResult = null
-try {
-  gateLightResult = await agent(gateAgentPrompt('light', tcResults.filter(lightTcFilter), techStackHint), {
-    label: 'GATE-light',
-    phase: 'GATE Light',
-    agentType: GATE,
-    schema: GATE_RESULT,
-  })
-} catch (e) {
-  log(`GATE light error: ${e.message || e}`)
-  gateLightResult = { mode: 'light', status: 'FAIL', passed: 0, total: 4, failures: [`Agent error: ${e.message || e}`], summary: 'GATE light failed to execute' }
-}
+let gateLightResult, gateLightRetries
+if (skipGateLight) {
+  gateLightResult = { mode: 'light', status: 'PASS', passed: 4, total: 4, failures: [], summary: 'Resumed — already PASS in prior run' }
+  gateLightRetries = 0
+  log('⏭️ GATE light skipped (already PASS)')
+} else {
+  log(`🔍 Running GATE light (4 critical checks + INTERFERENCE-FULL baseline comparison)...`)
+  log(`  Baseline: ${BASELINE_PATH || 'MISSING — interference detection skipped'}`)
 
-if (!gateLightResult) {
-  gateLightResult = { mode: 'light', status: 'FAIL', passed: 0, total: 4, failures: ['Agent returned null'], summary: 'GATE light agent returned null' }
-}
-
-log(`${gateLightResult.status === 'PASS' ? '✅' : '❌'} GATE light: ${gateLightResult.status} (${gateLightResult.passed}/${gateLightResult.total})`)
-if (gateLightResult.failures && gateLightResult.failures.length > 0) {
-  gateLightResult.failures.forEach(f => log(`  ❌ ${f}`))
-}
-
-// ── GATE Light Retry (max 2) ──
-let gateLightRetries = 0
-const MAX_GATE_RETRIES = 2
-while (gateLightResult.status === 'FAIL' && gateLightRetries < MAX_GATE_RETRIES) {
-  gateLightRetries++
-  log(`🔄 GATE light retry ${gateLightRetries}/${MAX_GATE_RETRIES}...`)
-
-  // Spawn fix agent for each failure
-  const fixPrompts = (gateLightResult.failures || []).map(f =>
-    `Fix this GATE light failure in the codebase:\n\n**Failure**: ${f}\n\n**Feature**: ${featureName} (${frId})\n**Service**: ${service}\n**Files changed**: ${allFiles.join(', ')}\n\nFix the issue while keeping all tests passing. Make minimal changes.`
-  )
-
-  if (fixPrompts.length > 0) {
-    await parallel(fixPrompts.map(p => () =>
-      agent(p, {
-        label: 'fix-gate-light',
-        phase: 'GATE Light',
-        agentType: GREEN,
-      })
-    ))
-  }
-
-  // Re-run GATE light
-  gateLightResult = await agent(gateAgentPrompt('light', tcResults.filter(lightTcFilter), techStackHint), {
-    label: `GATE-light-retry${gateLightRetries}`,
-    phase: 'GATE Light',
-    agentType: GATE,
-    schema: GATE_RESULT,
-  })
-
-  if (!gateLightResult) {
-    gateLightResult = { mode: 'light', status: 'FAIL', passed: 0, total: 4, failures: ['Agent returned null on retry'], summary: 'GATE light retry returned null' }
-  }
-
-  log(`${gateLightResult.status === 'PASS' ? '✅' : '❌'} GATE light retry ${gateLightRetries}: ${gateLightResult.status} (${gateLightResult.passed}/${gateLightResult.total})`)
+  const gateLight = await runGateWithRetry('light', 4, 'GATE Light', tcResults.filter(lightTcFilter))
+  gateLightResult = gateLight.result
+  gateLightRetries = gateLight.retries
 }
 
 if (gateLightResult.status !== 'PASS') {
@@ -605,23 +698,28 @@ if (gateLightResult.status !== 'PASS') {
 // ── Phase 3: REFACTOR Full ──
 phase('REFACTOR Full')
 
-log('🔧 Running REFACTOR full (6 categories + framework-specific)...')
+let refactorResult
+if (skipRefactor) {
+  refactorResult = { mode: 'full', categoriesRun: ['resumed'], findingsFixed: 0, findingsFlagged: 0, testSuiteStillPassing: true, summary: 'Resumed — already done in prior run' }
+  log('⏭️ REFACTOR full skipped (already done)')
+} else {
+  log('🔧 Running REFACTOR full (6 categories + framework-specific)...')
 
-let refactorResult = null
-try {
-  refactorResult = await agent(refactorAgentPrompt('full', tcResults.filter(lightTcFilter), true), {
-    label: 'REFACTOR-full',
-    phase: 'REFACTOR Full',
-    agentType: REFACTOR,
-    schema: REFACTOR_RESULT,
-  })
-} catch (e) {
-  log(`REFACTOR error: ${e.message || e}`)
-  refactorResult = { mode: 'full', categoriesRun: [], findingsFixed: 0, findingsFlagged: 0, testSuiteStillPassing: false, summary: `Agent error: ${e.message || e}` }
-}
+  try {
+    refactorResult = await agent(refactorAgentPrompt('full', tcResults.filter(lightTcFilter), true), {
+      label: 'REFACTOR-full',
+      phase: 'REFACTOR Full',
+      agentType: REFACTOR,
+      schema: REFACTOR_RESULT,
+    })
+  } catch (e) {
+    log(`REFACTOR error: ${e.message || e}`)
+    refactorResult = { mode: 'full', categoriesRun: [], findingsFixed: 0, findingsFlagged: 0, testSuiteStillPassing: false, summary: `Agent error: ${e.message || e}` }
+  }
 
-if (!refactorResult) {
-  refactorResult = { mode: 'full', categoriesRun: [], findingsFixed: 0, findingsFlagged: 0, testSuiteStillPassing: false, summary: 'Agent returned null' }
+  if (!refactorResult) {
+    refactorResult = { mode: 'full', categoriesRun: [], findingsFixed: 0, findingsFlagged: 0, testSuiteStillPassing: false, summary: 'Agent returned null' }
+  }
 }
 
 log(`🔧 REFACTOR full: ${refactorResult.findingsFixed} fixed, ${refactorResult.findingsFlagged} flagged`)
@@ -639,62 +737,17 @@ if (refactorResult.findingsFlagged > 0) {
 // ── Phase 4: GATE Full ──
 phase('GATE Full')
 
-log('🔍 Running GATE full (10 gates)...')
+let gateFullResult, gateFullRetries
+if (skipGateFull) {
+  gateFullResult = { mode: 'full', status: 'PASS', passed: 10, total: 10, failures: [], summary: 'Resumed — already PASS in prior run' }
+  gateFullRetries = 0
+  log('⏭️ GATE full skipped (already PASS)')
+} else {
+  log('🔍 Running GATE full (10 gates)...')
 
-let gateFullResult = null
-try {
-  gateFullResult = await agent(gateAgentPrompt('full', tcResults.filter(lightTcFilter), techStackHint), {
-    label: 'GATE-full',
-    phase: 'GATE Full',
-    agentType: GATE,
-    schema: GATE_RESULT,
-  })
-} catch (e) {
-  log(`GATE full error: ${e.message || e}`)
-  gateFullResult = { mode: 'full', status: 'FAIL', passed: 0, total: 10, failures: [`Agent error: ${e.message || e}`], summary: 'GATE full failed to execute' }
-}
-
-if (!gateFullResult) {
-  gateFullResult = { mode: 'full', status: 'FAIL', passed: 0, total: 10, failures: ['Agent returned null'], summary: 'GATE full agent returned null' }
-}
-
-log(`${gateFullResult.status === 'PASS' ? '✅' : '❌'} GATE full: ${gateFullResult.status} (${gateFullResult.passed}/${gateFullResult.total})`)
-if (gateFullResult.failures && gateFullResult.failures.length > 0) {
-  gateFullResult.failures.forEach(f => log(`  ❌ ${f}`))
-}
-
-// ── GATE Full Retry (max 2) ──
-let gateFullRetries = 0
-while (gateFullResult.status === 'FAIL' && gateFullRetries < MAX_GATE_RETRIES) {
-  gateFullRetries++
-  log(`🔄 GATE full retry ${gateFullRetries}/${MAX_GATE_RETRIES}...`)
-
-  const fixPrompts = (gateFullResult.failures || []).map(f =>
-    `Fix this GATE full failure in the codebase:\n\n**Failure**: ${f}\n\n**Feature**: ${featureName} (${frId})\n**Service**: ${service}\n**Files changed**: ${allFiles.join(', ')}\n\nFix the issue while keeping all tests passing. Make minimal changes.`
-  )
-
-  if (fixPrompts.length > 0) {
-    await parallel(fixPrompts.map(p => () =>
-      agent(p, {
-        label: 'fix-gate-full',
-        phase: 'GATE Full',
-        agentType: GREEN,
-      })
-    ))
-  }
-
-  gateFullResult = await agent(gateAgentPrompt('full', tcResults.filter(lightTcFilter), techStackHint), {
-    label: `GATE-full-retry${gateFullRetries}`,
-    phase: 'GATE Full',
-    agentType: GATE,
-    schema: GATE_RESULT,
-  })
-
-  if (!gateFullResult) {
-    gateFullResult = { mode: 'full', status: 'FAIL', passed: 0, total: 10, failures: ['Agent returned null on retry'], summary: 'GATE full retry returned null' }
-  }
-
-  log(`${gateFullResult.status === 'PASS' ? '✅' : '❌'} GATE full retry ${gateFullRetries}: ${gateFullResult.status} (${gateFullResult.passed}/${gateFullResult.total})`)
+  const gateFull = await runGateWithRetry('full', 10, 'GATE Full', tcResults.filter(lightTcFilter))
+  gateFullResult = gateFull.result
+  gateFullRetries = gateFull.retries
 }
 
 if (gateFullResult.status !== 'PASS') {

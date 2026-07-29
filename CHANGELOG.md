@@ -2,6 +2,22 @@
 
 All notable changes to the skills-toolkit plugin are documented here.
 
+## [2.29.0] - 2026-07-29
+
+### Changed
+- **sdlc-cook 1.1.0:** Refine full flow kết hợp workflow-knowledge patterns:
+  - **Token efficiency:** Chuyển Python pseudocode (52 dòng) từ SKILL.md → flow-multi.md
+    thành mô tả ngắn 7 dòng — agent tự parse args không cần script mẫu
+  - **DRY:** Extract `runGateWithRetry()` helper — loại bỏ ~60 dòng retry logic trùng lặp
+    giữa GATE light và GATE full trong workflow script (820→825 dòng, thêm idempotent)
+  - **Structure:** Consolidate `tdd-cycle.md` → `pipeline-status.md` — giảm 1 file
+    reference, TDD orchestration + GATE protocol trong cùng 1 file
+  - **Resilience:** Idempotent phase skip qua `resumeFrom` args — workflow có thể resume
+    từ phase đã crash thay vì chạy lại từ đầu (skip completed TCs, GATE light, REFACTOR, GATE full)
+  - **UX:** Thêm `references/error-recovery.md` — centralized decision tree cho 10 error
+    scenarios (INTERFERENCE, GATE fail, merge conflict, PR closed, worktree crash...)
+  - **Maintainability:** Cập nhật tất cả cross-reference links sau khi xóa tdd-cycle.md
+
 ## [2.28.1] - 2026-07-28
 
 ### Fixed
