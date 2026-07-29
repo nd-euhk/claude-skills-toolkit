@@ -40,10 +40,10 @@ changelog:
 
 ## Features: Must / Should
 
-| Feature ID | Name | Priority | Description | Source (Roadmap) | Sprint | Services | Spec | Tasks | Status | CRs |
-|-----------|------|----------|--------------|-------------------|--------|----------|------|-------|--------|-----|
-| FEAT-{{NNN}} | {{Tên}} | Must | {{1 câu}} | Phase {{N}}, Task {{N.N}} | Sprint {{N}} | {{service}} | `FR-{DOM}-{NNN}` | {{N}} (board.md) | 🔲 Todo | — |
-| FEAT-{{NNN}} | {{Tên}} | Should | {{1 câu}} | Phase {{N}}, Task {{N.N}} | Sprint {{N}} | {{service}} | `FR-{DOM}-{NNN}` | — | 🔲 Todo | — |
+| Feature ID | Name | Priority | Description | Source (Roadmap) | Sprint | Services | Spec | Tasks | Depends On | Status | CRs |
+|-----------|------|----------|--------------|-------------------|--------|----------|------|-------|------------|--------|-----|
+| FEAT-{{NNN}} | {{Tên}} | Must | {{1 câu}} | Phase {{N}}, Task {{N.N}} | Sprint {{N}} | {{service}} | `FR-{DOM}-{NNN}` | {{N}} (board.md) | — | 🔲 Todo | — |
+| FEAT-{{NNN}} | {{Tên}} | Should | {{1 câu}} | Phase {{N}}, Task {{N.N}} | Sprint {{N}} | {{service}} | `FR-{DOM}-{NNN}` | — | FEAT-{{NNN}} | 🔲 Todo | — |
 
 ---
 

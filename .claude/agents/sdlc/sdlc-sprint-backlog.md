@@ -71,7 +71,8 @@ For each feature from `agent_docs/features/`:
 - **Services**: Comma-separated service names affected
 - **Spec**: `FR-{DOM}-{NNN}` — link to SRS feature spec
 - **Tasks**: Count of tasks in board.md (or "—" if not yet broken down)
-- **Status**: 🔲 Todo / 🚧 In Progress / ✅ Done / ⛔ Blocked
+- **Depends On**: Comma-separated FEAT-{NNN} IDs this feature depends on, or `—` if none
+- **Status**: 🔲 Todo / 🟢 Ready for Cook / 🚧 In Progress / 🚧 Cooking / 👀 In Review / ✅ Done / ⛔ Blocked
 - **CRs**: CR-{NNN} reference or "—" if none
 
 Must/Should features go in the combined "Features: Must / Should" table. Nice-to-Have features go in the simpler "Features: Nice-to-Have" table (no sprint/service/spec columns — they're future).
@@ -82,6 +83,9 @@ Must/Should features go in the combined "Features: Must / Should" table. Nice-to
 - Features depended on by many others go EARLY (critical path)
 - Break circular dependencies by splitting features if needed
 - Check `agent_docs/features/README.md` for declared dependencies
+- Ghi dependency vào cột `Depends On` trong Features table (vd: `FEAT-001, FEAT-003`)
+- `Depends On` = `—` nếu feature không phụ thuộc feature nào
+- sdlc-cook dispatcher dùng cột này để resolve dependency trước khi dispatch wave
 
 ### Step 4: Feature → Epic Mapping
 

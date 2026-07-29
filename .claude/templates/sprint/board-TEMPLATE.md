@@ -46,10 +46,10 @@ changelog:
 
 <!-- Task ID = FR ID + hậu tố -Tn để định danh duy nhất từng task con -->
 
-| Status | Task ID | Feature | Task | Assignee | SP | Updated |
-|--------|---------|---------|------|----------|-----|---------|
-| 🔲 Todo | FR-{DOM}-{NNN}-T1 | FEAT-{{NNN}} | {{mô tả task}} | {{name}} | {{SP}} | {{date}} |
-| 🚧 In Progress | FR-{DOM}-{NNN}-T2 | FEAT-{{NNN}} | {{mô tả task}} | {{name}} | {{SP}} | {{date}} |
+| Status | Task ID | Feature | Task | Assignee | Worktree | Cook Status | SP | Updated |
+|--------|---------|---------|------|----------|----------|-------------|-----|---------|
+| 🔲 Todo | FR-{DOM}-{NNN}-T1 | FEAT-{{NNN}} | {{mô tả task}} | {{name}} | — | — | {{SP}} | {{date}} |
+| 🚧 Cooking | FR-{DOM}-{NNN}-T2 | FEAT-{{NNN}} | {{mô tả task}} | {{agent}} | `.claude/worktrees/cook-{{service}}-FEAT-{{NNN}}/` | TC 3/8 | {{SP}} | {{date}} |
 
 ---
 
