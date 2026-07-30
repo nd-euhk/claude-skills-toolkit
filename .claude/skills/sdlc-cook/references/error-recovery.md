@@ -110,6 +110,8 @@ xác định change gây fail, revert thủ công.
 
 ## Merge Conflict
 
+> **PR-specific procedures** (gh pr create, push, cleanup sau conflict): → `references/merge-manager.md#conflict-handling`
+
 ### Conflict khi tạo PR
 
 ```
@@ -182,7 +184,7 @@ của các `agent()` call đã hoàn thành. Khi resume, những call có cùng
 
 ```js
 Workflow({
-  scriptPath: ".claude/workflows/automation/workflow-sdlc-cook.js",
+  scriptPath: ".claude/workflows/cook/workflow-sdlc-cook.js",
   resumeFromRunId: "wf_abc123",  // ID từ lần chạy trước
   args: { /* ... giữ nguyên args gốc ... */ }
 })

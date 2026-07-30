@@ -62,6 +62,12 @@ AskUserQuestion({
 
 ## Giai đoạn 3: Dispatch Automation Workflow
 
+**Trước khi dispatch, resolve `repoPath`:**
+```bash
+git rev-parse --show-toplevel
+```
+Lưu output vào biến `repoRoot` và pass vào args bên dưới.
+
 ```javascript
 Workflow({
   scriptPath: ".claude/workflows/automation/workflow-sdlc-automation.js",
@@ -83,7 +89,7 @@ Workflow({
       architecture: "[từ Round 3]",
       implementation: "[từ Round 4]"
     },
-    repoPath: "[git root]",
+    repoPath: repoRoot,   // output của git rev-parse --show-toplevel
     sprintUpdate: true
   }
 })
@@ -108,7 +114,29 @@ Workflow chạy autonomously. Khi complete, báo cáo:
    🚦 Gates (verified by sdlc-gate): [PASS/FAIL] per phase
    ⚠️  Issues: [list hoặc "Không có"]
    📋 Sprint: [board/backlog updates]
-   🔗 Next: flow cook để triển khai code
+```
+
+### Sau khi Pipeline Hoàn Thành
+
+Khi specs pipeline kết thúc thành công, hỏi human về bước tiếp theo:
+
+```
+AskUserQuestion({
+  questions: [{
+    question: "Automation pipeline đã hoàn thành specs. Bạn muốn làm gì tiếp?",
+    header: "Next Step",
+    options: [
+      { label: "Implement code", description: "Chạy sdlc-cook để thực thi TDD code từ specs vừa tạo." },
+      { label: "Tiếp tục task/CR khác", description: "Ở lại automation để làm task hoặc CR tiếp theo." },
+      { label: "Dừng", description: "Kết thúc pipeline ở đây." }
+    ],
+    multiSelect: false
+  }]
+})
+
+Nếu human chọn "Implement code" → Skill("sdlc-cook", "FR-xxx")
+Nếu "Tiếp tục" → quay lại SKILL.md Bước 2 (Flow Detection)
+Nếu "Dừng" → kết thúc
 ```
 
 Gate fail → workflow tự retry với previousFailure context (max 2 attempts). Nếu vẫn fail → báo cáo phase nào fail + lý do + đề xuất orchestrator. Xem `references/error-handling.md#e4`.

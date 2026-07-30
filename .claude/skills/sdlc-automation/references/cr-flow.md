@@ -19,7 +19,11 @@ và re-spec có chọn lọc thay vì full pipeline.
 
 ## Giai đoạn 2: Grilling CR (rút gọn)
 
-Chỉ tập trung vào **delta** — cái gì thay đổi so với hiện tại. Invoke `Skill(grilling)`:
+Chỉ tập trung vào **delta** — cái gì thay đổi so với hiện tại. Invoke `Skill(grilling)`.
+
+> Nếu CR phức tạp (ảnh hưởng ≥3 services hoặc có architecture change), tham khảo thêm
+> `references/grilling-templates.md` để có AskUserQuestion templates chuẩn (Round 3
+> cho architecture, Round 4 cho implementation context).
 
 1. **Thay đổi chính xác**: "Thay đổi cái gì? Tại sao cần thay đổi? Urgency?"
 2. **Phạm vi ảnh hưởng**: "Services, APIs, features nào bị ảnh hưởng?"
@@ -67,6 +71,12 @@ AskUserQuestion({
 
 ## Giai đoạn 5: Dispatch
 
+**Trước khi dispatch, resolve `repoPath`:**
+```bash
+git rev-parse --show-toplevel
+```
+Lưu output vào biến `repoRoot` và pass vào args bên dưới.
+
 Dispatch workflow script với `flow: "cr"`:
 
 ```javascript
@@ -89,7 +99,7 @@ Workflow({
       delta: "[thay đổi chính xác từ grilling]",
       impact: "[impact analysis results]"
     },
-    repoPath: "[git root]",
+    repoPath: repoRoot,   // output của git rev-parse --show-toplevel
     sprintUpdate: true
   }
 })

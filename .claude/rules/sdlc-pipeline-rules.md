@@ -47,6 +47,14 @@ Scout → HLD → LLD → LLD-Synthesis → SRS → SRS-Verify → SRS-Synthesis
 
 ## TDD Cycle (cook flow + quick flow)
 
+<EXTREMELY-IMPORTANT>
+**Cook prerequisites**: IMP specs + TST specs phải tồn tại trong `agent_docs/features/<feature>/`
+trước khi cook chạy. Cook thực thi code từ specs có sẵn — nó không tạo specs. Nếu thiếu
+IMP hoặc TST → escalate lên orchestrator với flow=`task` (tạo specs từ đầu) hoặc
+flow=`cr` (bổ sung specs cho feature hiện có). Cook standalone giả định specs đã sẵn
+sàng và đã qua gate.
+</EXTREMELY-IMPORTANT>
+
 ```
 Baseline capture → per-TC RED → GREEN → INTERFERENCE-LIGHT → REFACTOR-light → GATE-light
                                                                                          ↘ INTERFERENCE-FULL → REFACTOR-full → GATE-full

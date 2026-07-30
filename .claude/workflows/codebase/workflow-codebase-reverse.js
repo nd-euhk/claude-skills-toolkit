@@ -31,6 +31,8 @@ const {
   workDir,
   adversarial = true,
   runDate,  // ISO date string for deterministic execution (workflow-knowledge: no new Date())
+  // ── Idempotent resume ──
+  resumeFrom = null,  // { completedPhases: ['HLD','LLD'], phaseResults: { HLD: '...', LLD: [...] } }
 } = _args
 
 // -- Phase Selection --
@@ -49,6 +51,13 @@ const domainCount = domains.length
 const MAX_RETRIES = 3
 const MAX_VERIFY_RETRIES = 2
 let skipRemaining = false
+
+// ── Idempotent resume state ──
+const completedPhases = new Set(resumeFrom?.completedPhases || [])
+const resumeResults = resumeFrom?.phaseResults || {}
+if (completedPhases.size > 0) {
+  log(`⏭️ Resuming: ${completedPhases.size} phases already done → ${[...completedPhases].join(', ')}`)
+}
 const gateResults = []  // accumulated gate results for final report
 
 
@@ -272,62 +281,75 @@ function verifySRSPrompt(domain, frGlob) {
  * Returns consolidated verdicts per domain, passed to SRS synthesis.
  */
 async function verifySRSForDomains(domains, srsResults) {
-  const allVerdicts = {}
-  const verificationStats = { total: 0, confirmed: 0, uncertain: 0, rejected: 0 }
+  // Run all domain verifications in parallel — each domain reads disjoint FR files
+  const results = await parallel(
+    domains.map((domain, i) => async () => {
+      const result = srsResults[i]
+      if (!result) {
+        log(`SRS-Verify: ${domain.name} — skipped (no SRS result)`)
+        return { domainName: domain.name, skipped: true }
+      }
 
-  for (let i = 0; i < domains.length; i++) {
-    const domain = domains[i]
-    const result = srsResults[i]
-    if (!result) {
-      log(`SRS-Verify: ${domain.name} — skipped (no SRS result)`)
-      continue
-    }
+      log(`SRS-Verify: ${domain.name} — dispatching codebase-srs-verify agent...`)
 
-    log(`SRS-Verify: ${domain.name} — dispatching codebase-srs-verify agent...`)
+      // Try to extract FR file paths from SRS output (for logging)
+      const frFiles = extractOutputs(result).filter(f => f.match(new RegExp(`FR-${domain.name.toUpperCase()}-\\d+`)))
+      const frGlob = `${foundationPath}features/FR-${domain.name.toUpperCase()}-*.md`
+      log(`SRS-Verify: ${domain.name} — FR glob: ${frGlob} (${frFiles.length} path(s) extracted from SRS output)`)
 
-    // Try to extract FR file paths from SRS output (for logging)
-    const frFiles = extractOutputs(result).filter(f => f.match(new RegExp(`FR-${domain.name.toUpperCase()}-\\\\d+`)))
-    const frGlob = `${foundationPath}features/FR-${domain.name.toUpperCase()}-*.md`
-    log(`SRS-Verify: ${domain.name} — FR glob: ${frGlob} (${frFiles.length} path(s) extracted from SRS output)`)
+      // Single codebase-srs-verify agent applies all 3 lenses + spawns Explore subagents
+      const verifyResult = await agent(verifySRSPrompt(domain, frGlob), {
+        label: `verify:srs:${domain.name}`,
+        phase: 'SRS-Verify',
+        agentType: 'codebase-srs-verify',
+        schema: SRS_VERIFY_SCHEMA,
+      })
 
-    // Single codebase-srs-verify agent applies all 3 lenses + spawns Explore subagents
-    const verifyResult = await agent(verifySRSPrompt(domain, frGlob), {
-      label: `verify:srs:${domain.name}`,
-      phase: 'SRS-Verify',
-      agentType: 'codebase-srs-verify',
-      schema: SRS_VERIFY_SCHEMA,
-    })
+      if (!verifyResult) {
+        log(`SRS-Verify: ${domain.name} — WARNING: codebase-srs-verify agent returned no results`)
+        return { domainName: domain.name, skipped: true }
+      }
 
-    if (!verifyResult) {
-      log(`SRS-Verify: ${domain.name} — WARNING: codebase-srs-verify agent returned no results`)
-      continue
-    }
+      // Agent produces final verdicts directly (all 3 lenses applied internally, no majority vote needed)
+      const consolidatedFRs = (verifyResult.fr_verdicts || []).map(frv => ({
+        fr_id: frv.fr_id,
+        verdict: frv.verdict,
+        reasonings: [frv.reasoning],
+        concerns: frv.concerns || [],
+      }))
 
-    // Agent produces final verdicts directly (all 3 lenses applied internally, no majority vote needed)
-    const consolidatedFRs = (verifyResult.fr_verdicts || []).map(frv => ({
-      fr_id: frv.fr_id,
-      verdict: frv.verdict,
-      reasonings: [frv.reasoning],
-      concerns: frv.concerns || [],
-    }))
-
-    for (const fr of consolidatedFRs) {
-      verificationStats.total++
-      if (fr.verdict === 'CONFIRMED') verificationStats.confirmed++
-      else if (fr.verdict === 'UNCERTAIN') verificationStats.uncertain++
-      else verificationStats.rejected++
-      log(`  ${fr.fr_id}: ${fr.verdict}`)
-    }
-
-    allVerdicts[domain.name] = {
-      frs: consolidatedFRs,
-      stats: {
+      // Per-domain stats (no shared mutation across parallel thunks)
+      const domainStats = {
         total: consolidatedFRs.length,
         confirmed: consolidatedFRs.filter(f => f.verdict === 'CONFIRMED').length,
         uncertain: consolidatedFRs.filter(f => f.verdict === 'UNCERTAIN').length,
         rejected: consolidatedFRs.filter(f => f.verdict === 'REJECTED').length,
-      },
-    }
+      }
+
+      for (const fr of consolidatedFRs) {
+        log(`  ${fr.fr_id}: ${fr.verdict}`)
+      }
+
+      return {
+        domainName: domain.name,
+        skipped: false,
+        frs: consolidatedFRs,
+        stats: domainStats,
+      }
+    })
+  )
+
+  // Merge parallel results
+  const allVerdicts = {}
+  const verificationStats = { total: 0, confirmed: 0, uncertain: 0, rejected: 0 }
+
+  for (const r of results.filter(Boolean)) {
+    if (r.skipped) continue
+    allVerdicts[r.domainName] = { frs: r.frs, stats: r.stats }
+    verificationStats.total += r.stats.total
+    verificationStats.confirmed += r.stats.confirmed
+    verificationStats.uncertain += r.stats.uncertain
+    verificationStats.rejected += r.stats.rejected
   }
 
   log(`SRS-Verify complete: ${verificationStats.total} FRs — ${verificationStats.confirmed} CONFIRMED, ${verificationStats.uncertain} UNCERTAIN, ${verificationStats.rejected} REJECTED`)
@@ -993,7 +1015,11 @@ log(`🚦 Gate mode: retry up to ${MAX_RETRIES}x, skip-to-report on exhaustion`)
 
 let hldResult = null
 let hldGatePassed = false
-if (runHLD && serviceCount > 0 && !skipRemaining) {
+if (completedPhases.has('HLD')) {
+  log('⏭️ HLD — already DONE (resumed)')
+  hldResult = resumeResults.HLD
+  hldGatePassed = true
+} else if (runHLD && serviceCount > 0 && !skipRemaining) {
   phase('HLD')
   log('Extracting architecture from code (single agent — cross-cutting)...')
   hldResult = await agent(hldPrompt(), {
@@ -1020,7 +1046,11 @@ if (runHLD && serviceCount > 0 && !skipRemaining) {
 let lldResults = []
 let lldSynthesisResult = null
 let lldGatePassed = false
-if (runLLD && serviceCount > 0 && !skipRemaining) {
+if (completedPhases.has('LLD')) {
+  log('⏭️ LLD — already DONE (resumed)')
+  lldResults = resumeResults.LLD || []
+  lldGatePassed = true
+} else if (runLLD && serviceCount > 0 && !skipRemaining) {
   phase('LLD')
   log(`Fanning out LLD to ${serviceCount} service(s)...`)
 
@@ -1068,7 +1098,11 @@ if (runLLD && serviceCount > 0 && !skipRemaining) {
 let srsResults = []
 let srsSynthesisResult = null
 let srsGatePassed = false
-if (runSRS && domainCount > 0 && !skipRemaining) {
+if (completedPhases.has('SRS')) {
+  log('⏭️ SRS — already DONE (resumed)')
+  srsResults = resumeResults.SRS || []
+  srsGatePassed = true
+} else if (runSRS && domainCount > 0 && !skipRemaining) {
   phase('SRS')
   log(`Fanning out SRS to ${domainCount} domain(s)...`)
 
@@ -1246,7 +1280,11 @@ ${[...new Set(allConcerns)].map(c => `- ${c}`).join('\n')}
 let ccResults = { 'error-handling': null, 'caching-strategy': null, 'performance-test': null, 'frontend-architecture': null, 'frontend-test-strategy': null }
 let ccGatePassed = false
 
-if (!skipRemaining) {
+if (completedPhases.has('CROSS_CUTTING')) {
+  log('⏭️ CROSS-CUTTING — already DONE (resumed)')
+  ccResults = resumeResults.CROSS_CUTTING || ccResults
+  ccGatePassed = true
+} else if (!skipRemaining) {
 
   // --- Scope Detection ---
   // Determine which cross-cutting agents to run based on available artifacts
@@ -1381,7 +1419,13 @@ let impResults = []
 let tstResults = []
 let impGatePassed = false
 let tstGatePassed = false
-if ((runIMP || runTST) && domainCount > 0 && !skipRemaining) {
+if (completedPhases.has('IMP') && completedPhases.has('TST')) {
+  log('⏭️ IMP+TST — already DONE (resumed)')
+  impResults = resumeResults.IMP || []
+  tstResults = resumeResults.TST || []
+  impGatePassed = true
+  tstGatePassed = true
+} else if ((runIMP || runTST) && domainCount > 0 && !skipRemaining) {
   phase('IMP+TST')
 
   const impTasks = runIMP

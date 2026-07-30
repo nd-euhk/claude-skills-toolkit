@@ -16,7 +16,7 @@ những từ khác nhau phải resolve về cùng flow.
 | Build new feature, greenfield work, major change, tạo specs từ scratch | `task` | orchestrator, automation | Full forward pipeline: SRS → HLD → LLD → CROSS-CUTTING → IMP∥TST |
 | Change existing behavior, modify feature, update specs cho code hiện có | `cr` | orchestrator, automation | Impact analysis + selective re-spec: scout → analyze → re-spec affected phases |
 | Fix defect, repair broken behavior, resolve bug | `fixbug` | **orchestrator only** | Root-cause diagnosis + targeted fix: scout → diagnose → fix → verify |
-| Write code từ ready specs, implement từ agent_docs, execute TDD cycle | `cook` | orchestrator, automation | TDD execution: baseline → per-TC RED→GREEN→INTERFERENCE→REFACTOR→GATE |
+| Write code từ ready specs, implement từ agent_docs, execute TDD cycle | `cook` | sdlc-cook skill | TDD execution: worktree isolation → baseline → per-TC RED→GREEN→INTERFERENCE→REFACTOR→GATE → PR → cleanup |
 | Reverse-engineer specs từ existing codebase, document what code does | `reverse` | orchestrator, sdlc-codebase skill | Reverse pipeline: scout → HLD → LLD → SRS → VERIFY → CROSS-CUTTING → IMP∥TST |
 
 ## Entry Point Selection
@@ -29,6 +29,7 @@ involvement cần thiết.
 | Domain mới, requirement chưa rõ, high-risk change, hoặc human muốn review từng phase | **orchestrator** — human-in-the-loop tại mọi phase gate |
 | Requirement đã rõ, human muốn một upfront interview rồi autonomous execution | **automation** — grill once, dispatch workflow, monitor |
 | Change bounded ≤2 files, no API/schema/security/auth/billing impact, no new service boundary | **quick** — triage grill, guard test only, GATE-light |
+| Đã có specs (SRS + IMP + TST hoặc ít nhất IMP + TST) và chỉ cần implement code theo specs có sẵn | **cook** — TDD execution: worktree isolation, RED→GREEN→REFACTOR→GATE per-TC |
 
 ## Priority Rules
 
@@ -69,3 +70,4 @@ Floor (từ `sdlc-fable-thinking-rules.md`), viết ít nhất 2 flow khả dĩ.
 5. Chọn entry point skill từ live installed-skill catalog
 6. Load hoàn chỉnh skill instructions đó trước khi hành động
 7. Nếu skill được chọn không installed, escalate lên entry point nặng hơn kế tiếp
+8. **Cook escalation**: nếu TDD cycle phát hiện IMP/TST spec không đủ, sai, hoặc thiếu edge case → escalate về orchestrator với flow=`cr` (nếu là feature hiện có) hoặc flow=`task` (nếu cần tạo specs từ đầu). Cook không tự sửa specs.

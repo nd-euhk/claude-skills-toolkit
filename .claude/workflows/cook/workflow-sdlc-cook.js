@@ -408,7 +408,7 @@ Return a REFACTOR_RESULT with: mode, categoriesRun, findingsFixed, findingsFlagg
 
 const MAX_GATE_RETRIES = 2
 
-async function runGateWithRetry(mode, totalChecks, phaseName, tcResultsFiltered) {
+async function runGateWithRetry(mode, totalChecks, phaseName, tcResultsFiltered, techStackHint, allFiles) {
   const modeLabel = mode.toUpperCase()
   const phaseDisplay = `GATE ${modeLabel}`
 
@@ -631,7 +631,7 @@ if (skipGateLight) {
   log(`🔍 Running GATE light (4 critical checks + INTERFERENCE-FULL baseline comparison)...`)
   log(`  Baseline: ${BASELINE_PATH || 'MISSING — interference detection skipped'}`)
 
-  const gateLight = await runGateWithRetry('light', 4, 'GATE Light', tcResults.filter(lightTcFilter))
+  const gateLight = await runGateWithRetry('light', 4, 'GATE Light', tcResults.filter(lightTcFilter), techStackHint, allFiles)
   gateLightResult = gateLight.result
   gateLightRetries = gateLight.retries
 }
@@ -703,7 +703,7 @@ if (skipGateFull) {
 } else {
   log('🔍 Running GATE full (10 gates)...')
 
-  const gateFull = await runGateWithRetry('full', 10, 'GATE Full', tcResults.filter(lightTcFilter))
+  const gateFull = await runGateWithRetry('full', 10, 'GATE Full', tcResults.filter(lightTcFilter), techStackHint, allFiles)
   gateFullResult = gateFull.result
   gateFullRetries = gateFull.retries
 }

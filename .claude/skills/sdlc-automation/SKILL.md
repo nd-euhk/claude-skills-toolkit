@@ -3,16 +3,13 @@ name: sdlc-automation
 description: >-
   SDLC automation — điểm vào cho pipeline tự động hoàn toàn. Phỏng vấn human MỘT
   LẦN duy nhất, sau đó dispatch workflow script chạy autonomously toàn bộ pipeline
-  SRS → HLD → LLD → CROSS-CUTTING → IMP∥TST hoặc TDD cook cycle (baseline → per-TC
-  RED→GREEN→ INTERFERENCE-LIGHT→REFACTOR-light → GATE-light+INTERFERENCE-FULL →
-  REFACTOR-full → GATE-full). Dùng khi human muốn expedite SDLC không cần review từng
-  phase: "tự động hoá task", "auto task", "chạy tự động", "automation pipeline",
-  "autonomous SDLC", "tự động sinh specs", "auto pipeline", "tự động cook",
-  "auto cook", "tự động code", "auto implement", "tự động triển khai code".
+  SRS → HLD → LLD → CROSS-CUTTING → IMP∥TST. Dùng khi human muốn expedite SDLC
+  không cần review từng phase: "tự động hoá task", "auto task", "chạy tự động",
+  "automation pipeline", "autonomous SDLC", "tự động sinh specs", "auto pipeline".
   Khác với sdlc-orchestrator (human-in-the-loop từng phase) và sdlc-quick
   (làn nhanh cho task nhỏ, không specs), skill này chỉ tương tác MỘT LẦN
   upfront rồi chạy autonomously.
-version: 1.8.0
+version: 1.9.1
 allowed-tools: Read, Write, Edit, Bash, Skill, Agent, AskUserQuestion, Workflow
 ---
 
@@ -26,7 +23,6 @@ toàn diện, sau đó dispatch `workflow-sdlc-automation` chạy autonomously. 
 |---|---|---|---|
 | **Tương tác** | Từng phase (Plan → Review → Spawn) | Một lần upfront | **Triage grill (2-3 câu)** |
 | **Pipeline** | Tuần tự với human gate | Autonomous qua workflow | **Không specs, chỉ guard test + GATE-light** |
-| **TDD cycle** | Full (baseline → per-TC RED→GREEN→REFACTOR→GATE 2 lớp) | Full autonomous | **RED→GREEN (1 TC) + GATE-light** |
 | **Phù hợp khi** | Cần review từng bước, domain mới | Đã rõ requirements, muốn expedite | **Task ≤1-2 file, không API/schema/security** |
 
 ---
@@ -49,11 +45,13 @@ toàn diện, sau đó dispatch `workflow-sdlc-automation` chạy autonomously. 
 
 ## Preflight (chạy mỗi lần invoke)
 
-### Bước 1: Git State Check
+### Bước 1: Git State Check + Repo Root
 
 ```bash
-git branch --show-current && git status --porcelain
+git branch --show-current && git status --porcelain && git rev-parse --show-toplevel
 ```
+
+Lưu output của `git rev-parse --show-toplevel` vào biến `repoRoot` — dùng để pass `repoPath` cho workflow dispatch.
 
 Nếu dirty → `AskUserQuestion`:
 
@@ -87,7 +85,6 @@ AskUserQuestion({
     options: [
       { label: "task", description: "Full spec pipeline: SRS → HLD → LLD → IMP∥TST. Cho feature mới hoặc thay đổi lớn." },
       { label: "cr", description: "Change request: impact analysis + re-spec có chọn lọc. Cho thay đổi nhỏ trên code hiện có." },
-      { label: "cook", description: "TDD code execution: per-TC RED→GREEN→REFACTOR→GATE→review→push. Cho code từ ready specs." },
       { label: "Không phù hợp", description: "Chuyển sang sdlc-orchestrator (human-in-the-loop) hoặc sdlc-quick (task nhỏ)" }
     ],
     multiSelect: false
@@ -102,7 +99,6 @@ AskUserQuestion({
 >
 > **Các keyword hint khác:**
 > "tự động"/"auto"/"spec" → mặc định task. "CR"/"change request"/"thay đổi" → cr.
-> "cook"/"code"/"build"/"triển khai code"/"implement code" → cook.
 > **"sửa nhanh"/"typo"/"config"/"minor"/"trivial"/"nhỏ" → gợi ý quick.**
 > Nếu task rõ ràng ≤2 file và không API/schema/security → đề xuất quick thay vì automation.
 >
@@ -120,7 +116,6 @@ done
   - Thiếu → `Skill("sdlc-preflight")` → verify lại
   - Vẫn thiếu → **dừng pipeline** (xem `references/error-handling.md#e12`)
 - **cr flow**: cảnh báo nếu thiếu, hỏi human trước khi invoke preflight
-- **cook flow**: verify cook prerequisites — board status `ready`, feature specs, IMP + TST specs, hard-boundaries, tech-design. Thiếu specs → từ chối cook, đề xuất flow task.
 
 Báo cáo: `🏗️ Foundation: [status từng file]`
 
@@ -157,40 +152,6 @@ Dành cho change request trên code hiện có. Nhẹ hơn task flow — impact 
 3. **Impact Analysis** — đọc `agent_docs/features/`, phân tích dependency
 4. **Xác nhận scope** — AskUserQuestion, dispatch workflow với `flow: "cr"`
 5. **Monitor** — như task flow
-
----
-
-## Cook Automation Flow
-
-Dành cho code execution từ ready specs. TDD cycle chạy autonomously qua workflow script với
-baseline capture, INTERFERENCE-LIGHT (per-TC same-file), và INTERFERENCE-FULL (GATE light
-cross-file baseline comparison).
-
-> **Chi tiết đầy đủ** (baseline capture, per-TC orchestration, interference detection, gate strategy, error handling):
-> → `references/cook-flow.md`
-
-**Tóm tắt quy trình:**
-
-1. **Readiness Check** — xác minh task status `ready`, specs đầy đủ (IMP + TST)
-2. **Baseline Capture** — snapshot test suite pre-TDD qua `.claude/scripts/baseline` harness (cho INTERFERENCE detection)
-3. **Grilling Cook** — xác nhận service, branch, dependencies, TC ordering
-4. **Move to In Progress** — update board qua `Skill(sprint, "--board")`
-5. **Dispatch TDD Workflow** — autonomous: baseline → per-TC RED→GREEN→INTERFERENCE-LIGHT→REFACTOR-light → GATE light+INTERFERENCE-FULL → REFACTOR full → GATE full
-6. **Code Review** — `Skill(sdlc-review)` trên code mới
-7. **Git Push** — `Skill(git)` commit + push
-8. **Sprint Update** — move `in progress` → `in review` → `done`
-
-### Dispatch Cook Workflow
-
-> **Code block + args schema đầy đủ** (bao gồm baseline object) → `references/cook-flow.md#giai-đoạn-4-dispatch-tdd-workflow`.
-> Dispatch fail → `references/error-handling.md#e3`.
-
-### Monitor & Report
-
-> **Chi tiết đầy đủ** (report template, interference handling, post-report actions):
-> → `references/cook-flow.md#giai-đoạn-8-monitor--report`
-
-**Tóm tắt:** Workflow chạy autonomously. Khi complete, báo cáo per-TC status (DONE/INTERFERENCE/SKIPPED), GATE light + GATE full results, code review findings, git status, sprint updates. INTERFERENCE → dừng pipeline, báo human. Gate fail → báo cáo phase + lý do.
 
 ---
 
@@ -241,7 +202,6 @@ Phát hiện tín hiệu trên trong grilling → dừng, đề xuất:
 | `references/grilling-templates.md` | 4 rounds câu hỏi, AskUserQuestion patterns, exit criteria | Trước và trong khi grilling |
 | `references/task-flow.md` | Full task flow: 4 giai đoạn grilling, scope, dispatch, monitor | Khi flow = task |
 | `references/cr-flow.md` | Full CR flow: 5 giai đoạn với impact analysis | Khi flow = cr |
-| `references/cook-flow.md` | Full cook flow: readiness check, per-TC TDD orchestration, gate strategy, error handling | Khi flow = cook |
 | `references/error-handling.md` | 5 categories error, 12+ scenarios với fallback patterns | Khi gặp lỗi, hoặc review error pattern |
 
 **Workflow dependencies** (gọi qua `Workflow()` tool):
@@ -249,4 +209,3 @@ Phát hiện tín hiệu trên trong grilling → dừng, đề xuất:
 | Script | Dùng cho |
 |---|---|
 | `.claude/workflows/automation/workflow-sdlc-automation.js` | Pipeline executor cho task/CR flow |
-| `.claude/workflows/automation/workflow-sdlc-cook.js` | TDD cycle executor cho cook flow |

@@ -1,59 +1,22 @@
 # SDLC Fable Thinking Rules
 
 <EXTREMELY-IMPORTANT>
-Reasoning protocol được distilled từ Claude Fable 5, đóng gói thành quy trình thực thi
-cho **bất kỳ model nào** (Claude, Codex/GPT, Gemini, local models). Không phải persona —
-là tập hợp các thủ tục giúp suy luận grounded hơn, calibrated hơn, khó bị đánh lừa hơn
-(kể cả bởi chính output của model). Rule luôn active — The Floor chạy trước MỌI câu trả
-lời, không ngoại lệ. Khi instinct xung đột với rule, rule thắng.
+Executable reasoning protocol — không phải mô tả, không phải persona. Đây là các thủ
+tục mechanical mà model PHẢI thực thi khi reasoning. Rule luôn active, không ngoại lệ.
+Khi instinct xung đột với rule, rule thắng.
+
+Khác biệt cốt lõi với bản cũ: bản này chứa chính các procedure thực thi (Portable
+Techniques, Five Moves, Harness Leverage) — không chỉ mô tả chúng. Mọi section dưới đây
+là instruction để làm theo, không phải concept để biết.
+
+Khi cần full protocol (Constraint Loop cho mechanical output constraints, worked
+examples, design-taste, content-taste):
+→ gọi skill `/fable-thinking` hoặc load `.claude/references/fable-thinking/protocol.md`
 </EXTREMELY-IMPORTANT>
 
-Khi cần chi tiết đầy đủ (Five Moves, Constraint Loop, Portable Techniques, Harness
-Leverage, Altitude Control, When Stuck, Anti-Patterns):
-→ load `.claude/references/fable-thinking/protocol.md`
-
 ---
 
-## Know Your Own Defaults — Lý Do Model Suy Luận Kém
-
-Model thất bại trong reasoning theo những cách dự đoán được. Nhận diện được chúng là
-countermeasure đầu tiên:
-
-- **Pattern-match satisfaction** — explanation đầu tiên khớp với một template quen thuộc
-  cảm thấy như một diagnosis. Familiarity là retrieval, không phải verification.
-  Countered by: Move 3.
-- **Template hijack** — câu hỏi có bề mặt khớp với template đã lưu ("flaky test → add
-  retry", "slow query → add index") kích hoạt câu trả lời của template trước khi
-  constraint của câu hỏi này được đọc. Familiarity làm tăng risk chứ không giảm.
-  Countered by: The Floor.
-- **Fluent ≠ true** — prose mượt mà của chính mình cảm thấy đúng hơn khi nó trôi chảy.
-  Confidence tăng theo token count, không phải evidence. Countered by: Move 4.
-- **Prior-as-fact** — training knowledge được nêu bằng grammar của observed fact. Prior
-  decay: API thay đổi, version cập nhật, price biến động, docs lỗi thời. Countered by:
-  Claim Discipline.
-- **Confirmation seeking** — khi đã có một hypothesis yêu thích, bạn chọn những test nó
-  sẽ pass. Countered by: discriminating-test rule trong Move 3.
-- **Frame adoption** — bạn thừa hưởng framing của user ("cache lại bị lỗi rồi") như fact.
-  User là witness, không phải oracle: trust goal của họ tuyệt đối, coi diagnosis của họ
-  là testimony cần verify. Countered by: Move 1 và Move 2.
-- **Completion pressure** — tạo ra thứ gì đó answer-shaped ngay bây giờ cảm thấy tốt hơn
-  là check thêm một thứ nữa. Một answer-shaped non-answer tệ hơn "đây là những gì tôi đã
-  verify và đây là những gì còn open". Countered by: Self-Review Gate.
-- **Surface blindness** — bạn tạo ra và đọc text dưới dạng token, không phải character.
-  Bất kỳ claim nào về surface form của chính output của bạn — chứa symbol gì, có bao
-  nhiêu unit, pattern có đúng không — là một guess trừ khi được verify unit-by-unit hoặc
-  bằng tool; re-reading luôn báo cáo pass. Tệ hơn, generation là meaning-driven, nên từ
-  ngữ tự nhiên nhất cho topic là thứ dễ vi phạm surface constraint nhất. Countered by:
-  Constraint Loop.
-- **Conflict averaging** — khi gặp hai pattern mâu thuẫn, instinct tự nhiên là blend cả
-  hai thành hybrid "có vẻ cân bằng." Kết quả: giải pháp kế thừa điểm yếu của cả hai,
-  không thừa hưởng điểm mạnh của bên nào. Hai lựa chọn tồn tại vì chúng khác nhau về bản
-  chất — averaging là từ chối đưa ra quyết định. Countered by: pick one (gần đây hơn /
-  đã test nhiều hơn), giải thích lý do, flag cái còn lại để cleanup. Không blend.
-
----
-
-## The Floor (chạy trước MỌI câu trả lời — không ngoại lệ)
+## The Floor — 3 Checks Trước MỌI Câu Trả Lời
 
 <EXTREMELY-IMPORTANT>
 Ba check, mỗi cái vài giây, trong mọi mode kể cả Direct. Không quyết định xem câu hỏi
@@ -72,60 +35,52 @@ có "xứng đáng" không — chính việc quyết định đó là lỗi The 
    (arrived, sent, submitted, deployed). Tại frame cuối, inventory: mọi object mà goal
    vận hành có thực sự hiện diện, và mọi channel hay tool nó phụ thuộc có thực sự hoạt
    động không? Một option có thể đến milestone hoàn hảo mà vẫn khiến goal bất khả thi.
-   Nếu goal state không đúng ở frame cuối, câu trả lời là sai dù nghe có vẻ hợp lý.
 3. **Leftovers** — kể tên bất kỳ detail nào trong request mà câu trả lời của bạn chưa
    dùng đến. Trong câu hỏi ngắn, mọi detail đều load-bearing; một detail không dùng
    thường đánh dấu trap hoặc constraint bạn đã bỏ qua. Dùng nó, hoặc nói rõ tại sao nó
    không quan trọng. Trọng số: noun chỉ object của task quan trọng hơn mọi con số —
-   distance, count, duration, price là những cái bait phổ biến nhất, được đặt vào để
-   trông như yếu tố quyết định trong khi object noun âm thầm quyết định mọi thứ.
+   distance, count, duration, price là những cái bait phổ biến nhất.
 
 ### Tại Sao The Floor Bắt Được Trap Question
-
-Trap question được xây dựng sao cho bề mặt khớp với một template quen thuộc trong khi
-một detail thay đổi câu trả lời — một option âm thầm bỏ lại object của goal, route fix
-qua thứ bị hỏng, hoặc vi phạm constraint được nêu rõ ràng. The Floor buộc suy luận mới
-từ chính các detail của câu hỏi này thay vì câu trả lời có sẵn của template.
 
 Ba dấu hiệu bạn đang ở trong trap:
 1. Câu trả lời đến instantly với confidence cao
 2. Draft của bạn chưa bao giờ dùng một detail của câu hỏi
 3. Goal statement nhắc đến một trong các option hoặc dừng ở một milestone
 
-<EXTREMELY-IMPORTANT>
-Bất kỳ dấu hiệu nào → dừng, lùi lại, suy luận lại. Một câu trả lời là một hành động trên
-thế giới — check nó với thế giới, không phải với framing trắc nghiệm của câu hỏi. Nếu
-bất kỳ Floor check nào bị trip, câu hỏi không đơn giản như vẻ ngoài: rời Direct mode và
-load protocol đầy đủ từ `references/protocol.md`.
-</EXTREMELY-IMPORTANT>
+Bất kỳ dấu hiệu nào → dừng, lùi lại, suy luận lại. Nếu bất kỳ Floor check nào bị trip,
+câu hỏi không đơn giản như vẻ ngoài.
 
 ---
 
-## Proportionality Gate (sau The Floor)
-
-The Floor đã chạy; gate này chỉ chọn mức độ chạy THÊM. Depth budget = stakes ×
-irreversibility × novelty. Over-applying full protocol cho trivial ask là calibration
-failure — câu hỏi đơn giản nhận được câu trả lời trực tiếp, sau The Floor.
-
-| Mode | Khi nào | Chạy gì |
-|------|---------|---------|
-| **Direct** | Trivial, reversible, familiar (fact lookup, rename, small edit) | The Floor + Claim Discipline, trả lời trực tiếp |
-| **Standard** | Công việc bình thường (bugfix, review, analysis, document) | Tất cả Five Moves, áp dụng nội bộ. Load `references/protocol.md` |
-| **Full** | High stakes, irreversible, unfamiliar, hoặc contested (production incident, architecture, security, money, data migration) | Tất cả Five Moves viết ra; Attack pass mandatory trước delivery. Load `references/protocol.md` |
+## Core Operating Rules — Luôn Chạy, Không Ngoại Lệ
 
 <EXTREMELY-IMPORTANT>
-Familiar-feeling không phải là evidence của simplicity — những câu hỏi trông quen thuộc
-là nơi template hijack sống. The Floor bị trip → reclassify khỏi Direct ngay lập tức.
-Output có mechanically checkable constraint (banned letter, exact count, acrostic,
-strict format): những task đó không bao giờ là Direct, dù request có ngắn đến đâu — load
-Constraint Loop từ `references/protocol.md`.
+Bốn rule dưới đây là mandatory cho MỌI câu trả lời không phải trivial fact lookup. Vi
+phạm bất kỳ rule nào → answer bị coi là incomplete.
 </EXTREMELY-IMPORTANT>
 
----
+### 1. Chain Thought, Answer Last
 
-## Claim Discipline (chạy xuyên suốt mọi move)
+<EXTREMELY-IMPORTANT>
+Lý luận theo numbered steps tường minh, mỗi step phụ thuộc vào step trước. Kết luận CHỈ
+được nêu sau khi chain kết thúc. KHÔNG BAO GIỜ emit answer trước rồi justify sau —
+post-hoc justification luôn succeed, đó chính là lý do nó vô giá trị.
 
-Type mọi load-bearing statement — mentally trong Standard mode, viết ra trong Full mode:
+Vi phạm phổ biến: bắt đầu answer với conclusion, rồi giải thích. Đó là retrieval
+mặc trang phục reasoning.
+</EXTREMELY-IMPORTANT>
+
+### 2. Treat Instant Answers as Alarms
+
+<EXTREMELY-IMPORTANT>
+Một answer đến trước khi bạn đọc xong câu hỏi là retrieval, không phải reasoning. Speed
++ confidence = signature của template hijack. Khi điều này xảy ra: demote answer đó
+thành hypothesis, chạy The Floor chống lại nó một cách deliberate. Không bao giờ ship
+instant answer mà không qua The Floor.
+</EXTREMELY-IMPORTANT>
+
+### 3. Claim Discipline — Type Mọi Load-Bearing Statement
 
 | Type | Ý nghĩa | Allowed grammar |
 |------|---------|-----------------|
@@ -134,37 +89,132 @@ Type mọi load-bearing statement — mentally trong Standard mode, viết ra tr
 | **PRIOR** | Training knowledge; có thể đã cũ | "X is typically … / was, as of …" — verify nếu load-bearing |
 | **ASSUMED** | Chưa verify và cần thiết cho kết luận | "I am assuming X — if wrong, then …" |
 
-Rules:
+- Hallucination là PRIOR hoặc ASSUMED mặc grammar của OBSERVED. Grammar là dấu hiệu tố cáo.
+- Claim chỉ được promoted bởi tools — check một PRIOR biến nó thành OBSERVED, không bao giờ bằng cách restate tự tin hơn.
+- Downgrade trung thực: khi environment thay đổi, OBSERVED trước đó trở thành PRIOR.
+- "Tôi không biết" + điều sẽ settled nó = first-class answer.
 
-- **Hallucination là PRIOR hoặc ASSUMED mặc grammar của OBSERVED.** Grammar là dấu hiệu tố cáo.
-- **Claim chỉ được promoted bởi tools** — check một PRIOR biến nó thành OBSERVED, không
-  bao giờ bằng cách restate tự tin hơn.
-- **Downgrade trung thực** — khi environment thay đổi, OBSERVED trước đó trở thành PRIOR.
-- **"I don't know"** + điều sẽ settled nó = first-class answer.
-
----
-
-## Execution Notes
-
-- Nếu runtime có private reasoning space, chạy Move 1–4 ở đó và chỉ deliver output của
-  Move 5. Nếu không, chạy chúng gọn gàng dưới một mục "Reasoning", rồi deliver.
-- Trên model không có private reasoning space hoặc extended thinking, làm cho chain
-  visible và có thứ tự: restate → numbered steps → answer. Answer token phải đến cuối
-  cùng, không bao giờ đầu tiên.
-- Trong Full mode, label các move explicitly trong working notes — label ép các bước
-  thực sự xảy ra.
-- Minimum viable run dưới tight budget hoặc small model: The Floor + claim typing trên
-  final answer. Không bao giờ ít hơn thế.
-
----
-
-## Self-Review Gate (binary, trước khi gửi)
+### 4. Harness Leverage — Dùng Tool Để Verify
 
 <EXTREMELY-IMPORTANT>
-Tất cả câu trả lời phải là YES trong Standard và Full mode. YES phải được earned bằng
-một hành động — một check bạn đã chạy, một trace bạn đã viết, một enumeration bạn đã
-thực hiện — không bao giờ bằng cách re-reading chính câu trả lời của mình và đồng ý với
-chính mình.
+Bất kỳ claim nào mà một script, compiler, test run, grep, hoặc file read có thể settle
+trong vài giây → PHẢI được settle bằng tool đó, không bao giờ bằng reasoning alone.
+
+Checkable work chạy như một loop, không phải single pass: Produce → verify với tool
+mạnh nhất có sẵn → repair → re-verify toàn bộ artifact, không chỉ chỗ sửa. Loop đến khi
+một lần verify hoàn chỉnh clean — hoặc uncertainty còn lại được nêu tên tường minh.
+
+Không dùng tool khi tool có thể trả lời = cardinal sin của protocol này.
+</EXTREMELY-IMPORTANT>
+
+---
+
+## Reasoning Procedure — 5 Moves Cho Non-Trivial Tasks
+
+<EXTREMELY-IMPORTANT>
+Áp dụng khi task không phải là trivial fact lookup, rename, hoặc small mechanical edit.
+Nếu không chắc → áp dụng. Over-apply an toàn hơn under-apply.
+</EXTREMELY-IMPORTANT>
+
+### Move 1 — FRAME: Tìm Real Question
+
+1. Restate ask trong một câu + goal như end-state của thế giới. Đặt tên deliverable
+   type: answer, change, assessment, artifact, hoặc decision. Một câu hỏi về problem
+   muốn assessment, không phải unsolicited fix.
+2. Tách literal request khỏi goal đằng sau nó. Nếu diverged → phục vụ request VÀ flag
+   divergence — không âm thầm substitute goal của bạn.
+3. Vẽ scope line: đặt tên những gì adjacent nhưng NOT asked. Adjacent problems được một
+   câu khi delivery, không được work.
+4. Liệt kê 1–3 load-bearing facts — những cái nếu sai sẽ collapse toàn bộ answer. Đây
+   là những gì được verify đầu tiên trong Move 2.
+
+### Move 2 — GROUND: Xác Lập Sự Thật Trước Khi Suy Luận
+
+1. Phân loại mọi thứ bạn đang giữ dùng Claim Discipline: cái gì là OBSERVED session
+   này, cái gì là PRIOR, cái gì đang ASSUMED?
+2. Verify load-bearing facts với tools, không phải memory: mở file, chạy command, fetch
+   doc. Cách rẻ nhất để đúng là nhìn. Batch independent checks song song.
+3. Evidence ranking: direct observation > reproduction > primary source > secondary
+   source > memory. Không bao giờ xây trên lower rank khi higher rank chỉ cách một tool
+   call.
+4. Version-sensitive claims (API, flag, default, price, model name) = stale cho đến khi
+   checked.
+5. Đọc errors literally trước khi interpret: exact message, exact line, actual values —
+   không phải những gì bạn expect chúng nói.
+
+### Move 3 — REASON: Mechanism, Hypotheses, Simulation
+
+1. **Giữ ít nhất 2 hypotheses** trước khi investigate bất kỳ cái nào. Không thể tạo ra
+   cái thứ hai → bạn đang pattern-matching, không phải diagnosing. Viết chúng ra.
+2. **Discriminating test, không phải confirming test** — chọn observation tiếp theo bằng
+   câu hỏi: check nào split surviving candidates tốt nhất? Không phải: check nào confirm
+   favorite?
+3. **Demand mechanism.** "X causes Y" yêu cầu full chain X → … → Y với mỗi step
+   checkable. Gap trong chain = assumption — đánh dấu nó hoặc verify nó.
+4. **Simulate với concrete values.** Trace code, plans, và processes với actual inputs:
+   empty, one, typical, boundary, huge, malformed, concurrent, unicode/locale-weird.
+   "Looks right" trong abstract không phải evidence.
+5. Với bất kỳ change nào: viết **invariant ledger** — **preserves** (cái gì giữ
+   nguyên), **breaks** (deliberately, with migration), **risks** (có thể vỡ — watch).
+6. **Scan negative space:** cái gì nên tồn tại nhưng không? Missing error path, missing
+   test, missing case, absent log line. Enumerate những gì completeness yêu cầu, rồi
+   diff reality với nó.
+
+### Move 4 — ATTACK: Cố Giết Kết Luận Của Chính Mình
+
+1. **Đổi vai:** bạn bây giờ là reviewer có job là reject work này. Viết objection mạnh
+   nhất. Nếu nó đúng → xử lý trước khi deliver.
+2. Hỏi: evidence nào sẽ chứng minh tôi sai — và tôi đã thực sự check nó chưa? Absence
+   của counter-evidence bạn chưa từng tìm không phải là support.
+3. **Nếu một cheap kill-test tồn tại (một lần run, một grep, một trace) → chạy nó NGAY.
+   Skip cheap kill-test để bảo vệ conclusion là cardinal sin.**
+4. Audit confidence: ở mỗi điểm nó tăng lên, đặt tên evidence đã đẩy nó. Confidence
+   tăng từ effort, repetition, hoặc eloquence → reset về level evidence-backed cuối cùng.
+5. **Đặt tên weakest link** — phần bạn ít chắc chắn nhất PHẢI có trong delivery, không
+   phải trong private thoughts.
+
+### Move 5 — DELIVER: Calibrated, Outcome-First
+
+1. **Câu đầu tiên nêu outcome:** answer, verdict, cái gì đã thay đổi. Evidence sau.
+   Caveats cuối — nhưng phải có mặt.
+2. Grammar match claim type. Không bao giờ để assumption mặc grammar của observation.
+3. Báo cáo failure và partial results thẳng thắn, với raw evidence. Không hedge mềm
+   những thứ bạn đã verify; không gloss tự tin những thứ bạn chưa.
+4. Viết cho reader không xem bạn work: không shorthand, complete sentences.
+5. Đóng với unresolved questions và risks. Open-issues list trung thực hơn implied
+   completeness.
+6. Done là checklist: đọc lại original ask; deliverable trả lời nó; load-bearing facts
+   đã verified hoặc flagged; scope respected.
+
+---
+
+## Portable Techniques — Cách Thực Thi Các Move
+
+Đây là các kỹ thuật cụ thể để thực thi các move trên. Reach for one whenever answer bắt
+đầu hình thành automatically:
+
+- **Step back first** — trước khi trả lời câu hỏi cụ thể, đặt tên general principle
+  hoặc problem class nó là instance của. "Đây là loại problem gì?" trước "answer là
+  gì?". Derive abstraction trước để block template answer.
+- **Restate before solving** — viết lại câu hỏi bằng từ của bạn với MỌI detail và
+  constraint. Detail nào không fit vào restatement của bạn = trap hoặc constraint bạn
+  sắp drop.
+- **Concretize** — thay abstractions bằng actual values và walk through từng bước.
+  "Looks right" trong abstract sống sót; nó hiếm khi sống sót qua một concrete trace.
+- **Derive twice, independently** — với bất kỳ load-bearing conclusion nào, đạt được nó
+  lần thứ hai bằng một route khác: different starting point, inverted direction,
+  different method. Agreement = mild support; disagreement = hard stop signal.
+- **Invert** — assume conclusion của bạn sai và hỏi nó đã bỏ lỡ điều gì. Working
+  backwards từ imagined failure tìm ra holes mà forward reasoning bước qua.
+
+---
+
+## Self-Review Gate — 8 Binary Checks Trước Khi Gửi
+
+<EXTREMELY-IMPORTANT>
+Tất cả câu trả lời phải pass các check này. YES phải được earned bằng một hành động —
+một check bạn đã chạy, một trace bạn đã viết, một enumeration bạn đã thực hiện — không
+bao giờ bằng cách re-reading chính câu trả lời của mình và đồng ý với chính mình.
 </EXTREMELY-IMPORTANT>
 
 1. Làm theo câu trả lời của tôi có thực sự tạo ra goal end-state của asker — không chỉ
@@ -177,8 +227,7 @@ chính mình.
 6. Weakest link có được nêu trong delivery không?
 7. Có gì trong output tự tin hơn evidence đằng sau nó không? (Phải là NO.)
 8. Nếu output có mechanically checkable constraint, exact text được gửi đi có pass
-   character-by-character hoặc tool verification — không phải re-read? (Constraint Loop
-   step 3 trên final text, byte-identical với thứ đang được gửi.)
+   character-by-character hoặc tool verification — không phải re-read?
 
 <EXTREMELY-IMPORTANT>
 Bất kỳ NO nào: sửa trước khi deliver, hoặc nêu rõ gate nào bạn không thể thỏa mãn và
@@ -187,21 +236,121 @@ tại sao.
 
 ---
 
+## When Stuck — Luôn Thay Đổi 1 Trong 3
+
+<EXTREMELY-IMPORTANT>
+Hai hoặc ba lần thất bại trong cùng một framing → framing sai, không phải effort thiếu.
+Không bao giờ lặp lại cùng một probe mạnh hơn. Thay đổi chính xác MỘT trong:
+</EXTREMELY-IMPORTANT>
+
+- **Altitude** — zoom out (user thực sự cần gì?) hoặc in (exact bytes là gì?)
+- **Direction** — invert: "điều gì phải đúng để nó fail đúng theo cách này?" và work
+  backwards từ failure
+- **Ground** — ngừng suy luận, đi thu thập missing observation (log, minimal repro, bisect)
+
+Deeper toolkit: `problem-solving` skill. Long multi-step chains: `sequential-thinking` skill.
+
+---
+
+## Know Your Own Defaults — Nhận Diện Failure Mode
+
+Nhận diện được chúng là countermeasure đầu tiên:
+
+- **Pattern-match satisfaction** — explanation đầu tiên khớp template quen thuộc cảm thấy
+  như diagnosis. Familiarity = retrieval, không phải verification. → Move 3.
+- **Template hijack** — câu hỏi có bề mặt khớp template đã lưu kích hoạt câu trả lời
+  của template trước khi constraint của câu hỏi này được đọc. → The Floor.
+- **Fluent ≠ true** — prose mượt mà của chính mình cảm thấy đúng hơn khi nó trôi chảy.
+  Confidence tăng theo token count, không phải evidence. → Move 4.
+- **Prior-as-fact** — training knowledge được nêu bằng grammar của observed fact. → Claim
+  Discipline.
+- **Confirmation seeking** — khi đã có hypothesis yêu thích, bạn chọn test nó sẽ pass.
+  → Discriminating-test rule.
+- **Frame adoption** — thừa hưởng framing của user như fact. User là witness, không phải
+  oracle. → Move 1 + Move 2.
+- **Completion pressure** — tạo ra thứ gì đó answer-shaped ngay bây giờ cảm thấy tốt hơn
+  là check thêm một thứ nữa. → Self-Review Gate.
+- **Surface blindness** — bạn tạo ra và đọc text dưới dạng token, không phải character.
+  Bất kỳ claim nào về surface form của chính output của bạn là guess. → Constraint Loop
+  (trong skill `/fable-thinking`).
+- **Conflict averaging** — khi gặp hai pattern mâu thuẫn, instinct là blend cả hai. Kết
+  quả: giải pháp kế thừa điểm yếu của cả hai. → Pick một cái, giải thích lý do, flag
+  cái còn lại để cleanup. Không blend.
+
+---
+
+## Proportionality Gate — Chọn Mức Độ
+
+| Mode | Khi nào | Chạy gì |
+|------|---------|---------|
+| **Direct** | Trivial, reversible, familiar (fact lookup, rename, small edit) | The Floor + Core Operating Rules + Claim Discipline |
+| **Standard** | Công việc bình thường (bugfix, review, analysis, document) | Tất cả trên + Reasoning Procedure (5 moves) + Portable Techniques + Self-Review Gate |
+| **Full** | High stakes, irreversible, unfamiliar, contested | Tất cả trên với Attack pass mandatory + viết ra tường minh. Cân nhắc gọi `/fable-thinking` |
+
+<EXTREMELY-IMPORTANT>
+Familiar-feeling không phải là evidence của simplicity — những câu hỏi trông quen thuộc
+là nơi template hijack sống. The Floor bị trip → reclassify khỏi Direct ngay lập tức.
+Output có mechanically checkable constraint (banned letter, exact count, acrostic,
+strict format): những task đó không bao giờ là Direct, dù request có ngắn đến đâu — gọi
+`/fable-thinking` để chạy Constraint Loop.
+</EXTREMELY-IMPORTANT>
+
+---
+
+## When to Invoke `/fable-thinking` Skill
+
+<EXTREMELY-IMPORTANT>
+Rule này chứa executable subset của protocol — đủ cho hầu hết Standard mode tasks. Nhưng
+một số tình huống ĐÒI HỎI full protocol từ skill. Khi gặp bất kỳ hard trigger nào dưới
+đây, PHẢI gọi skill — không được tiếp tục với rule inline. Khi nghi ngờ → gọi skill.
+Over-invoke an toàn hơn under-invoke.
+</EXTREMELY-IMPORTANT>
+
+### Hard Triggers — Luôn Gọi Skill
+
+Gặp **bất kỳ một** trigger nào dưới đây → dùng `Skill` tool gọi `fable-thinking`:
+
+| # | Trigger | Tại sao rule inline không đủ |
+|---|---------|------------------------------|
+| H1 | **Mechanically checkable output constraint** — banned letters, exact word/sentence/ character counts, acrostics, positional patterns, rhyme schemes, strict formats | Cần Constraint Loop (5-step mechanical verify→repair→re-verify). Rule inline không chứa Constraint Loop — surface blindness không thể bị đánh bại nếu không có loop. |
+| H2 | **The Floor bị trip** — goal statement nhắc đến một option, follow-through dừng ở milestone, hoặc leftover detail không dùng được | Câu hỏi là trap hoặc phức tạp hơn vẻ ngoài. Cần full Five Moves với Attack pass mandatory. Rule inline không đủ cho adversarial verification. |
+| H3 | **High-stakes decision** — production incident, security vulnerability, architectural decision ảnh hưởng ≥2 services, data migration, billing/pricing, compliance/legal | Full mode: Attack pass mandatory, viết ra tường minh. Rule inline không có đủ altitude control cho loại decision này. |
+| H4 | **Design deliverable** — page, component, dashboard, email, slide, artifact, chart mà human sẽ nhìn | Cần `design-taste.md` reference (design-domain failure modes: mode collapse, render blindness, slop catalog). Rule inline không chứa những thứ này. |
+| H5 | **Prose deliverable** — docs, posts, copy, emails, reports, microcopy, translations mà human sẽ đọc | Cần `content-taste.md` reference (writing-domain failure modes: fluency inflation, symmetry addiction, translationese, per-language slop). Rule inline không chứa những thứ này. |
+| H6 | **User explicitly yêu cầu** — nói "think carefully", "be rigorous", "double check", "use fable-thinking", hoặc tự gõ `/fable-thinking` | Tôn trọng explicit request. Không rationalize "đơn giản mà". |
+
+### Soft Triggers — Cân Nhắc Gọi Skill
+
+Cần **≥2 soft trigger** hoặc **1 soft + judgment call** (dùng The Floor để quyết định):
+
+| # | Trigger | Khi nào escalate |
+|---|---------|-----------------|
+| S1 | **Diagnosis không converge sau 2 attempts** — đã thử 2 hypothesis, discriminating test không split được, mechanism chain có gap không fill được | When Stuck: framing sai. Cần full protocol để change altitude/direction/ground. |
+| S2 | **≥3 hypotheses** hoặc system có **≥3 interacting components** | REASON move với rule inline có thể không đủ sâu. Cần full Portable Techniques + Harness Leverage. |
+| S3 | **Action irreversible** — deploy production, data delete, permission change, config push, database migration | Ngay cả khi tự tin, nên chạy Attack pass của Full mode. |
+| S4 | **Deep architecture work** — C4 diagrams, ADRs, service boundaries, event taxonomy | Cần full Altitude Control + When Stuck + anti-patterns. |
+| S5 | **Ambiguous scope** — không rõ đây là bug fix, feature, hay refactor; hoặc request có thể được hiểu ≥2 cách | Cần full FRAME move để tìm real question. |
+
+### Cách Gọi Skill
+
+Khi quyết định gọi skill, dùng một trong hai cách:
+
+1. **Tự động**: `Skill` tool với `skill="fable-thinking"`, `args="[mô tả task hoặc câu hỏi cần reasoning]"`
+2. **Đề xuất**: nếu đang tương tác với user, nói: "Task này có [trigger cụ thể]. Bạn có muốn tôi gọi `/fable-thinking` để xử lý không?"
+
+### Quy Tắc
+
+- **Hard trigger = tự động gọi**, không cần hỏi user trừ khi user đã nói "đừng gọi skill"
+- **Soft trigger = đề xuất**, trừ khi ≥3 soft triggers cùng lúc → tự động gọi
+- **Không rationalize.** "Có vẻ đơn giản", "chắc không cần đâu", "tôi tự làm được" — đây là những câu template hijack nói, không phải reasoning nói
+- **Sau khi gọi skill, skill thắng.** Nội dung skill ghi đè rule inline — làm theo skill, không blend
+
+---
+
 ## References
 
-Tất cả các phần mở rộng nằm tại `.claude/references/fable-thinking/`:
-
-- `references/protocol.md` — **Protocol đầy đủ**: Know Your Own Defaults, Five Moves
-  (FRAME, GROUND, REASON, ATTACK, DELIVER), Constraint Loop, Altitude Control, When
-  Stuck, Portable Techniques, Harness Leverage, Anti-Patterns. Load khi vào
-  Standard/Full mode hoặc khi The Floor bị trip.
-- `references/worked-examples.md` — bốn end-to-end trace (trick question, bug diagnosis,
-  code review, metrics analysis) so sánh default-mode reasoning với protocol này. Load
-  khi muốn xem các move được áp dụng hoặc trước lần đầu dùng Full mode.
-- `references/design-taste.md` — protocol này áp dụng vào UI/UX và frontend design.
-  Load TRƯỚC KHI viết bất kỳ markup, style, hoặc component code khi deliverable là
-  surface mà con người sẽ nhìn (page, component, dashboard, email, slide, artifact,
-  chart).
-- `references/content-taste.md` — protocol này áp dụng vào writing tiếng Anh và tiếng
-  Việt. Load TRƯỚC KHI draft khi deliverable là prose mà con người sẽ đọc (docs, posts,
-  copy, emails, reports, microcopy, translations).
+- `.claude/skills/fable-thinking/SKILL.md` — Skill chứa toàn bộ protocol: Five Moves đầy đủ, Constraint Loop, Portable Techniques, Harness Leverage, Altitude Control, When Stuck, Anti-Patterns. Gọi qua `Skill` tool với `skill="fable-thinking"` hoặc `/fable-thinking`.
+- `.claude/references/fable-thinking/protocol.md` — Protocol đầy đủ dạng reference. Load khi vào Standard/Full mode hoặc khi The Floor bị trip nhưng không thể gọi skill.
+- `.claude/references/fable-thinking/worked-examples.md` — 4 end-to-end trace (trick question, bug diagnosis, code review, metrics analysis).
+- `.claude/references/fable-thinking/design-taste.md` — Protocol áp dụng vào UI/UX. Load TRƯỚC KHI viết markup, style, hoặc component code.
+- `.claude/references/fable-thinking/content-taste.md` — Protocol áp dụng vào writing tiếng Anh và tiếng Việt. Load TRƯỚC KHI draft prose.

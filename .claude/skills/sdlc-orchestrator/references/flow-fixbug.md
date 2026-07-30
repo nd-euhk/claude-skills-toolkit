@@ -246,8 +246,8 @@ Entry Decision ─────────┤
                         └──────────────────┘
 ```
 
-**Khác biệt chính với cook flow:**
-- **1 bug = 1 TDD cycle** (không per-TC)
+**Đặc điểm TDD fix cycle:**
+- **1 bug = 1 TDD cycle** (không per-TC như feature cook trong sdlc-cook skill)
 - **Regression test** thay vì feature test
 - **Chỉ GATE light** (4 checks) — không REFACTOR full, không GATE full
 - **Fix tối thiểu** — không implement feature mới

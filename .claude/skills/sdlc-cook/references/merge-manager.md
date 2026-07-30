@@ -14,6 +14,12 @@ Workflow done
 └──────┬───────┘
        │ PASS
        ▼
+┌──────────────────┐
+│ sdlc-review      │  ← Non-blocking: AskUserQuestion
+│ Gợi Ý (optional) │     "Chạy sdlc-review --code?"
+└──────┬───────────┘
+       │
+       ▼
 ┌──────────────┐
 │ Create PR    │  ← gh pr create: worktree branch → target branch
 └──────┬───────┘
@@ -61,6 +67,97 @@ if [ -n "$(git status --porcelain)" ]; then
   exit 1
 fi
 ```
+
+## sdlc-review Gợi Ý (--code)
+
+Sau khi pre-merge check pass, gợi ý human chạy sdlc-review --code để kiểm tra
+source code trong worktree trước khi tạo PR. Đây là bước không chặn (non-blocking)
+— human có thể skip và chuyển thẳng sang tạo PR.
+
+### Flow
+
+```
+Pre-merge Check PASS
+     │
+     ▼
+┌──────────────────────┐
+│ AskUserQuestion:     │
+│ Chạy sdlc-review     │
+│ --code trên worktree?│
+└──────┬───────────────┘
+       │
+  ┌────┴────┐
+  │         │
+  ▼         ▼
+Review    Skip
+--code    (tiếp tục
+worktree  tạo PR)
+  │
+  ▼
+┌────────────────────────┐
+│ Skill("sdlc-review",    │
+│   "--code --full " +    │
+│   worktree_path)        │
+└────────────────────────┘
+  │
+  ▼
+sdlc-review tự chạy:
+  scout → 7-dimension review
+  → report → return
+  │
+  ▼
+Tiếp tục PR Creation
+```
+
+### AskUserQuestion Template
+
+```javascript
+AskUserQuestion({
+  questions: [{
+    question: "Code đã sẵn sàng (tests pass, GATE verified). Bạn có muốn "
+      + "chạy sdlc-review --code để kiểm tra source code trong worktree "
+      + "trước khi tạo PR không?",
+    header: "Code Review",
+    options: [
+      { label: "Review code",
+        description: "Chạy sdlc-review --code --full trên worktree. "
+          + "7 dimension: architecture, security, bugs, conventions, "
+          + "feature impact, operational, test quality." },
+      { label: "Bỏ qua",
+        description: "Không chạy review, chuyển sang tạo PR luôn." }
+    ],
+    multiSelect: false
+  }]
+})
+```
+
+### Gọi sdlc-review
+
+Nếu human chọn "Review code":
+
+```javascript
+// worktree_path đã có từ Bước 4 (Create Worktree) trong SKILL.md
+Skill("sdlc-review", "--code --full " + worktree_path)
+```
+
+sdlc-review sẽ:
+1. Chạy scout trên `worktree_path` để phát hiện project structure
+2. Dispatch code review workflow (7 dimension agents song song)
+3. Tạo report trong `.work/review/REVIEW-CODE-YYYYMMDD--{sanitized-path}.md`
+4. Return về sdlc-cook kèm summary findings
+
+### Xử lý lỗi
+
+Tất cả lỗi đều non-blocking — tạo PR luôn có thể tiếp tục:
+
+| Lỗi | Hành động |
+|-----|-----------|
+| sdlc-review skill không tìm thấy | Cảnh báo: "Plugin cần cài đặt lại." → tiếp tục tạo PR |
+| sdlc-review workflow script không tồn tại | sdlc-review tự báo lỗi "Plugin cần cài đặt lại" → tiếp tục tạo PR |
+| sdlc-review partial failure (1-2 dimensions fail) | sdlc-review báo cáo dimensions bị fail, vẫn tạo report → tiếp tục tạo PR |
+| sdlc-review total failure | sdlc-review return verdict=ERROR → báo "sdlc-review không tạo được kết quả" → tiếp tục tạo PR |
+
+---
 
 ## PR Creation
 
@@ -194,15 +291,12 @@ Agent({
 
 ## Conflict Handling
 
-### Conflict Detected Khi Tạo PR
+Xử lý conflict toàn diện (decision tree, resolution options, worktree recovery):
+→ `references/error-recovery.md#merge-conflict`
 
-```
-FEAT-001 sửa UserService.ts method A (đã cook, đang PR)
-FEAT-003 sửa UserService.ts method B (đã merge trước)
-→ FEAT-001 PR có merge conflict với target branch
-```
+Phần này chỉ cover PR-specific procedures sau khi conflict đã được resolve.
 
-Xử lý:
+### Sau Khi Conflict Được Resolve
 
 ```bash
 # 1. Fetch latest target branch
@@ -212,19 +306,16 @@ git fetch origin "$target_branch"
 # 2. Merge target branch vào worktree branch
 git merge "origin/$target_branch"
 
-# 3. Nếu conflict → báo human:
-#    "PR #42 conflict với target branch (UserService.ts).
-#     Options:
-#     (a) Resolve conflict trong worktree rồi push lại → PR tự update
-#     (b) Tạo worktree mới từ target branch, cherry-pick FEAT-001 changes → PR mới"
+# 3. Push lại → PR tự update
+git push origin "$BRANCH" --force-with-lease
 ```
 
-### Conflict Khi Merge (human gặp conflict trên GitHub)
+### Conflict Khi Merge Trên GitHub
 
 ```
 Human click "Merge" → GitHub báo conflict
 → Báo human: "PR #42 không merge được do conflict.
-   ./sdlc-cook FEAT-001 --resolve-conflict"
+   Xem error-recovery.md#merge-conflict để có resolution options."
 ```
 
 ## PR Status Polling

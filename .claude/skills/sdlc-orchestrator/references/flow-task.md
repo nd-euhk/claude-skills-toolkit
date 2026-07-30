@@ -239,7 +239,7 @@ Orchestrator:
        → Stage 1 ∥ 2 agents → Gate PASS
        → error-handling.md + caching-strategy.md
      - IMP∥TST: spawn song song → cả hai Gate PASS
-     - Report: "✅ Pipeline hoàn thành. Next: flow cook để code."
+     - Report: "✅ Pipeline hoàn thành. Next: sdlc-cook để code."
   5. Sprint: board moved TODO → ready, backlog updated
 ```
 

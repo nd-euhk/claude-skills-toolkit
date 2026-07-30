@@ -2,6 +2,74 @@
 
 All notable changes to the skills-toolkit plugin are documented here.
 
+## [2.33.0] - 2026-07-30
+
+### Changed
+- **sdlc-cook 2.2.0:** MINOR — refine skill với fable-thinking analysis:
+  - **Merge flow.md → SKILL.md:** Core execution flow (10 bước) giờ nằm trong
+    body chính (298 dòng, dưới limit 500). flow.md bị xóa — nội dung đã merge.
+  - **Deduplicate board update:** Transition map canonicalized về
+    tdd-orchestration.md, xóa bản copy ở SKILL.md và flow.md cũ.
+  - **Rename pipeline-status.md → tdd-orchestration.md:** Tên mới phản ánh đúng
+    nội dung (TDD cycle, baseline, GATE, board update).
+  - **Trim merge-manager.md:** 342→335 dòng. Conflict handling trỏ về
+    error-recovery.md cho decision tree, giữ PR-specific procedures.
+  - **Cross-references:** merge-manager.md ↔ error-recovery.md có
+    bidirectional links cho conflict handling.
+  - **Validation pass:** 7/7 phases. Script tests 7/7 PASS. Không broken links,
+    không orphaned references.
+
+## [2.32.1] - 2026-07-30
+
+### Changed
+- **sdlc-automation 1.9.1:** PATCH — refine sau khi xóa cook flow:
+  - **grilling-templates.md:** Rút gọn 304→263 dòng (-41). Gộp các section nhỏ:
+    Round 1 (Tổng quan & Users, AC & Business Rules), Round 2 (Performance &
+    Availability, Security & Scale), Round 3 (Services & APIs, Data & External
+    Dependencies). Giảm verbosity trong AskUserQuestion template descriptions.
+  - **cr-flow.md:** Thêm cross-reference đến grilling-templates.md cho CR phức tạp.
+
+## [2.32.0] - 2026-07-30
+
+### Changed
+- **sdlc-cook 2.1.0:** MINOR — thêm gợi ý sdlc-review --code trước khi tạo PR:
+  - **merge-manager.md:** Chèn section mới "sdlc-review Gợi Ý (--code)" giữa
+    Pre-merge Check và PR Creation. AskUserQuestion non-blocking hỏi human có
+    muốn chạy `sdlc-review --code --full` trên worktree trước khi tạo PR không.
+    Nếu đồng ý → `Skill("sdlc-review", "--code --full " + worktree_path)`.
+    Tất cả lỗi đều non-blocking — tạo PR luôn có thể tiếp tục.
+  - **flow.md:** Cập nhật Bước 10 — thêm item 2 (gợi ý review) vào numbered list.
+  - **SKILL.md:** Version bump + cập nhật flow diagram.
+  - Tham khảo pattern AskUserQuestion từ sdlc-orchestrator Section 6.2b.
+
+## [2.31.0] - 2026-07-30
+
+### Changed
+- **sdlc-orchestrator 1.14.0:** MINOR — xóa cook flow khỏi orchestrator:
+  - **Xóa `references/flow-cook.md`** — toàn bộ 441 dòng TDD cook procedure.
+    sdlc-cook skill (v2.0.0) là điểm vào chuyên biệt cho TDD code execution.
+  - **SKILL.md:** Xóa cook khỏi description (3 flow thay vì 4), keyword table,
+    keyword overlap rules, flow selection UI, foundation gate cook section,
+    flow routing table. Đổi tên TDD agent tables từ "(cook flow)" thành
+    generic — các agent này vẫn được fixbug flow sử dụng.
+  - **procedures.md:** Xóa Section 1.3 (TDD Agent Templates) và Section 3.6
+    (TDD Per-TC Cycle). Cập nhật tất cả cook references. Thêm post-completion
+    prompt: sau task/CR xong, hỏi human có muốn implement qua sdlc-cook không.
+  - **flow-cr.md:** Cập nhật cook reference, thêm post-completion prompt.
+  - **flow-fixbug.md:** Đổi "Khác biệt với cook flow" → "Đặc điểm TDD fix cycle".
+
+- **sdlc-automation 1.9.0:** MINOR — xóa cook flow khỏi automation:
+  - **Xóa `references/cook-flow.md`** — toàn bộ 440 dòng cook automation flow.
+    sdlc-cook skill đã có workflow dispatch riêng trong worktree isolation.
+  - **SKILL.md:** Xóa cook khỏi description, flow selection UI, keyword hints,
+    foundation gate, toàn bộ Cook Automation Flow section, cook-flow.md khỏi
+    reference index, workflow-sdlc-cook.js khỏi dependency table.
+  - **task-flow.md:** Xóa "Next: flow cook" line, thêm post-completion prompt.
+  - **Trọng tâm hóa:** automation giờ chỉ focus vào specs pipeline (task/CR).
+
+- **sdlc-routing-rules.md:** Cập nhật Intent→Flow table — cook "Available via"
+  từ "orchestrator, automation" thành "sdlc-cook skill".
+
 ## [2.30.0] - 2026-07-30
 
 ### Changed

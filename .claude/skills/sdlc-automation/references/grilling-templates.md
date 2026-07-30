@@ -14,17 +14,11 @@ trước khi dispatch workflow. Mỗi round hỏi tuần tự — không hỏi n
 
 ## Round 1: Business Requirements (cho SRS)
 
-### 1.1 Tổng quan
+### 1.1 Tổng quan & Users
 
-> "Tính năng này làm gì? Nó giải quyết vấn đề gì cho ai?"
+> "Tính năng này làm gì? Giải quyết vấn đề gì cho ai? Những ai sẽ dùng? Có những role nào?"
 
-Mục tiêu: Hiểu được **value proposition** và **problem statement**.
-
-### 1.2 Users & Personas
-
-> "Những ai sẽ dùng tính năng này? Có những role nào? Mỗi role có quyền gì?"
-
-Dùng `AskUserQuestion` nếu cần chọn giữa các role:
+Dùng `AskUserQuestion` nếu cần chọn role:
 
 ```javascript
 AskUserQuestion({
@@ -42,12 +36,9 @@ AskUserQuestion({
 })
 ```
 
-### 1.3 User Flows
+### 1.2 User Flows
 
-> "Luồng chính xác thế nào? Mô tả từng bước user làm gì, hệ thống phản hồi ra sao.
-> Có những happy path và alternative path nào?"
-
-Template ghi nhận:
+> "Luồng chính xác thế nào? Mô tả từng bước user làm gì, hệ thống phản hồi ra sao."
 
 ```
 Happy Path: [từng bước]
@@ -55,11 +46,12 @@ Alternative Path 1: [điều kiện → các bước]
 Alternative Path 2: [điều kiện → các bước]
 ```
 
-### 1.4 Acceptance Criteria
+### 1.3 Acceptance Criteria & Business Rules
 
-> "Làm sao biết feature đã hoàn thành? Tiêu chí cụ thể, đo lường được?"
+> "Làm sao biết feature đã hoàn thành? Tiêu chí cụ thể, đo lường được?
+> Có những quy tắc nghiệp vụ nào? Validation rules? Constraints?"
 
-Yêu cầu ít nhất 3 criteria cụ thể. Dùng AskUserQuestion để xác nhận:
+Yêu cầu ít nhất 3 criteria. Dùng AskUserQuestion để xác nhận:
 
 ```javascript
 AskUserQuestion({
@@ -67,27 +59,20 @@ AskUserQuestion({
     question: "Xác nhận acceptance criteria đã đủ chưa?",
     header: "AC",
     options: [
-      { label: "Đủ", description: "Các criteria trên đã cover đầy đủ yêu cầu" },
-      { label: "Thêm nữa", description: "Tôi muốn bổ sung thêm criteria" }
+      { label: "Đủ", description: "Cover đầy đủ yêu cầu" },
+      { label: "Thêm nữa", description: "Bổ sung thêm criteria" }
     ],
     multiSelect: false
   }]
 })
 ```
 
-### 1.5 Business Rules
+### 1.4 Edge Cases
 
-> "Có những quy tắc nghiệp vụ nào? Validation rules? Constraints? Business invariants?"
+> "Trường hợp đặc biệt? Input không hợp lệ? Timeout? Concurrent users?"
 
-### 1.6 Edge Cases
-
-> "Trường hợp đặc biệt? Input không hợp lệ thì sao? Timeout? Concurrent users?"
-
-Gợi ý nếu human chưa nghĩ ra:
-- "Điều gì xảy ra nếu 2 users cùng thao tác một lúc?"
-- "Điều gì xảy ra nếu external service bị down?"
-- "Input dài nhất/ngắn nhất có thể là gì?"
-- "Có rate limit không?"
+Gợi ý: "Điều gì xảy ra nếu 2 users cùng thao tác? External service down?
+Input dài nhất/ngắn nhất? Có rate limit không?"
 
 ### Round 1 Exit Criteria
 
@@ -100,12 +85,10 @@ Gợi ý nếu human chưa nghĩ ra:
 
 ## Round 2: Non-Functional Requirements (cho SRS + HLD)
 
-### 2.1 Performance
+### 2.1 Performance & Availability
 
 > "p95 latency target cho các operations chính? Throughput (RPS) dự kiến?
-> Concurrent users tối đa?"
-
-Dùng `AskUserQuestion` để chọn tier:
+> Concurrent users tối đa? Uptime yêu cầu (99.X%)? RTO/RPO nếu có disaster?"
 
 ```javascript
 AskUserQuestion({
@@ -123,18 +106,11 @@ AskUserQuestion({
 })
 ```
 
-### 2.2 Availability
-
-> "Uptime yêu cầu (99.X%)? RTO/RPO nếu có disaster? Có cần multi-region không?"
-
-### 2.3 Security
+### 2.2 Security & Scale
 
 > "AuthZ model? Data classification (public/internal/confidential/restricted)?
-> Compliance requirements (GDPR, PCI, HIPAA, SOC2)?"
-
-### 2.4 Scale
-
-> "Data volume dự kiến? Growth rate? Peak traffic patterns (theo giờ/ngày/mùa)?"
+> Compliance requirements (GDPR, PCI, HIPAA, SOC2)?
+> Data volume dự kiến? Growth rate? Peak traffic patterns?"
 
 ### Round 2 Exit Criteria
 
@@ -146,26 +122,20 @@ AskUserQuestion({
 
 ## Round 3: Architecture & Integration (cho HLD + LLD)
 
-### 3.1 Services
+### 3.1 Services & APIs
 
-> "Có service mới không? Service nào bị ảnh hưởng? Giao tiếp giữa chúng (sync/async)?"
+> "Có service mới không? Service nào bị ảnh hưởng? Giao tiếp sync/async?
+> API contracts mới? Thay đổi API hiện có? Versioning strategy?"
 
-### 3.2 APIs
+### 3.2 Data & External Dependencies
 
-> "API contracts mới? Thay đổi API hiện có? Versioning strategy?"
-
-### 3.3 Data
-
-> "Schema mới hoặc thay đổi? Migration cần thiết? Loại database (SQL/NoSQL/Cache)?"
-
-### 3.4 External Dependencies
-
-> "Third-party services? Message queues (Kafka/RabbitMQ)? Caches (Redis)?
+> "Schema mới hoặc thay đổi? Migration cần thiết? Loại database (SQL/NoSQL/Cache)?
+> Third-party services? Message queues (Kafka/RabbitMQ)? Caches (Redis)?
 > Có dependency nào critical path không?"
 
-### 3.5 Cross-Cutting Concerns
+### 3.3 Cross-Cutting Concerns
 
-> "Dự án có frontend app (Next.js/React) không? Nếu có, cần kiến trúc frontend riêng?"
+> "Dự án có frontend app không? Cần caching infrastructure (Redis) không? Có NFR performance targets không?"
 
 ```javascript
 AskUserQuestion({
@@ -173,16 +143,14 @@ AskUserQuestion({
     question: "Dự án có frontend application không?",
     header: "Frontend",
     options: [
-      { label: "Có — Next.js", description: "Có frontend Next.js app — cần frontend-architecture.md + frontend-test-strategy.md" },
-      { label: "Có — Khác", description: "Có frontend nhưng framework khác (Vue, Svelte, etc.)" },
-      { label: "Không", description: "Backend-only — không cần frontend cross-cutting files" }
+      { label: "Có — Next.js", description: "Có frontend Next.js app" },
+      { label: "Có — Khác", description: "Frontend framework khác (Vue, Svelte...)" },
+      { label: "Không", description: "Backend-only" }
     ],
     multiSelect: false
   }]
 })
 ```
-
-> "Cần caching infrastructure (Redis) không? Dùng local cache (Caffeine) hay distributed cache?"
 
 ```javascript
 AskUserQuestion({
@@ -190,7 +158,7 @@ AskUserQuestion({
     question: "Cache infrastructure cho dự án?",
     header: "Cache",
     options: [
-      { label: "Redis Cluster", description: "Distributed cache — cần caching-strategy.md" },
+      { label: "Redis Cluster", description: "Distributed cache" },
       { label: "Local only (Caffeine)", description: "In-memory cache per pod" },
       { label: "Không cần cache", description: "Không có cache infrastructure" }
     ],
@@ -199,16 +167,14 @@ AskUserQuestion({
 })
 ```
 
-> "Có NFR performance cụ thể không? (p95 latency, QPS targets, concurrent users?)"
-
 ```javascript
 AskUserQuestion({
   questions: [{
     question: "Performance test requirements?",
     header: "Perf Test",
     options: [
-      { label: "Có NFR targets", description: "Đã có p95/QPS targets — cần performance-test.md" },
-      { label: "Chưa có NFR", description: "Chưa xác định targets — skip performance test plan" },
+      { label: "Có NFR targets", description: "Có p95/QPS targets" },
+      { label: "Chưa có NFR", description: "Skip performance test plan" },
       { label: "Không cần perf test", description: "Performance testing ngoài scope" }
     ],
     multiSelect: false
@@ -216,7 +182,7 @@ AskUserQuestion({
 })
 ```
 
-### 3.6 Deployment
+### 3.4 Deployment
 
 > "Infrastructure thay đổi? Environment variables mới? Feature flags cần thiết?"
 
@@ -224,9 +190,7 @@ AskUserQuestion({
 
 - [ ] Service/API inventory (mới + affected) đã liệt kê
 - [ ] Data requirements (schema + migration) đã xác định
-- [ ] Frontend requirement đã xác định (có/không)
-- [ ] Cache infrastructure đã xác định
-- [ ] Performance test requirements đã xác định
+- [ ] Frontend, cache, performance test requirements đã xác định
 
 ---
 
@@ -238,7 +202,8 @@ AskUserQuestion({
 
 ### 4.2 Test Requirements
 
-> "Coverage target? Loại tests cần (unit, integration, E2E, performance)?"
+> "Coverage target? Loại tests cần (unit, integration, E2E, performance)?
+> Nếu có frontend app: cần test strategy riêng không?"
 
 ```javascript
 AskUserQuestion({
@@ -247,24 +212,22 @@ AskUserQuestion({
     header: "Tests",
     options: [
       { label: "Standard", description: "Unit + Integration, 80% line coverage" },
-      { label: "High", description: "Unit + Integration + E2E, 90% line coverage" },
+      { label: "High", description: "Unit + Integration + E2E, 90%+" },
       { label: "Critical", description: "Full suite + Performance + Security, 95%+" },
-      { label: "Custom", description: "Tự định nghĩa test requirements" }
+      { label: "Custom", description: "Tự định nghĩa" }
     ],
     multiSelect: false
   }]
 })
 ```
 
-> "Nếu có frontend app: cần test strategy riêng cho frontend không? (Vitest + Playwright + MSW setup, test pyramid, coverage targets)"
-
 ```javascript
 AskUserQuestion({
   questions: [{
-    question: "Cần frontend test strategy không?",
+    question: "Cần frontend test strategy riêng không?",
     header: "FE Test",
     options: [
-      { label: "Có", description: "Tạo frontend-test-strategy.md — test pyramid, MSW, E2E patterns" },
+      { label: "Có", description: "Tạo frontend-test-strategy.md" },
       { label: "Không", description: "Không cần test strategy riêng cho frontend" }
     ],
     multiSelect: false
@@ -272,13 +235,10 @@ AskUserQuestion({
 })
 ```
 
-### 4.3 Constraints
+### 4.3 Constraints & Existing Code
 
-> "Deadline? Team size? Dependency giữa các task khác? Có blocked bởi team khác không?"
-
-### 4.4 Existing Code
-
-> "Có code hiện có cần refactor không? File nào bị ảnh hưởng?
+> "Deadline? Team size? Dependency giữa các task? Có blocked bởi team khác không?
+> Có code hiện có cần refactor không? File nào bị ảnh hưởng?
 > Có technical debt cần giải quyết trong scope này không?"
 
 ### Round 4 Exit Criteria

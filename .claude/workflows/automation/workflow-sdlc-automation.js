@@ -25,9 +25,11 @@ const {
   featureDescription = '',
   phases = ['SRS', 'HLD', 'LLD', 'IMP', 'TST'],
   requirements = {},
-  repoPath = process.env.HOME + '/projects/AI/Kit/toolkit',
+  repoPath = '.',
   sprintUpdate = true,
   crossCutting = {},
+  // ── Idempotent resume ──
+  resumeFrom = null,  // { completedPhases: ['SRS','HLD'], phaseResults: { SRS: {...}, HLD: {...} } }
 } = _args
 
 // ── Phase Selection ──
@@ -49,6 +51,13 @@ const ccScope = {
 }
 const ccEnabled = Object.values(ccScope).some(v => v === true)
 
+// ── Idempotent resume state ──
+const completedPhases = new Set(resumeFrom?.completedPhases || [])
+const resumeResults = resumeFrom?.phaseResults || {}
+if (completedPhases.size > 0) {
+  log(`⏭️ Resuming: ${completedPhases.size} phases already done → ${[...completedPhases].join(', ')}`)
+}
+
 // ═══════════════════════════════════════════
 // SCHEMAS
 // ═══════════════════════════════════════════
@@ -66,7 +75,7 @@ const PHASE_RESULT = {
     issues: { type: 'array', items: { type: 'string' } },
     retries: { type: 'number' },
   },
-  required: ['phase', 'status', 'gate'],
+  required: [],
 }
 
 const PIPELINE_REPORT = {
@@ -123,8 +132,13 @@ ${requirements.nfrs || 'Define measurable thresholds for performance, availabili
 - Use domain-specific FR-ID prefix based on feature area (AUTH, ORDER, PAYMENT, etc.)
 - Assign FR-NNN sequentially starting from existing FRs in agent_docs/features/
 
-Return structured output with list of created files and FR-IDs.`
-}
+## Output Format (REQUIRED — return as JSON)
+Return a JSON object with:
+- **outputs**: array of created file paths (e.g. ["agent_docs/features/FR-AUTH-001.md", ...])
+- **frIds**: array of FR-IDs covered (e.g. ["FR-AUTH-001", ...])
+- **phase**: "SRS"
+- **status**: "completed" (or "failed" if no FRs could be created)`
+}}
 
 function hldPrompt(srsOutputs) {
   const srsSummary = srsOutputs
@@ -155,8 +169,13 @@ ${srsSummary}`)}
 - Define event taxonomy if async communication is used
 - Hard boundaries between services — no direct DB access across services
 
-Return structured output with list of created files.`
-}
+## Output Format (REQUIRED — return as JSON)
+Return a JSON object with:
+- **outputs**: array of created file paths (e.g. ["agent_docs/adrs/ADR-001--use-event-driven.md", ...])
+- **frIds**: array of FR-IDs covered (use empty array if no FR-IDs)
+- **phase**: "HLD"
+- **status**: "completed" (or "failed" if no ADRs could be created)`
+}}
 
 function lldPrompt(srsOutputs, hldOutputs) {
   const contextParts = []
@@ -201,8 +220,13 @@ ${contextParts.join('\n\n')}`)}
 - Circuit breaker configs: concrete thresholds (failureRate ≥ 50%, waitDuration ≥ 30s)
 - All .md files MUST have YAML frontmatter
 
-Return structured output with list of created files and enriched FR-IDs.`
-}
+## Output Format (REQUIRED — return as JSON)
+Return a JSON object with:
+- **outputs**: array of created file paths (e.g. ["agent_docs/tech-design/user-service.md", ...])
+- **frIds**: array of enriched FR-IDs (e.g. ["FR-AUTH-001", ...])
+- **phase**: "LLD"
+- **status**: "completed" (or "failed" if no tech-design files could be created)`
+}}
 
 function impPrompt(srsOutputs, lldOutputs) {
   const contextParts = []
@@ -238,7 +262,12 @@ For EACH feature (FR-ID), create:
 - Error mapping must be exhaustive (all exception types covered)
 - Security section must address: authz, input validation, data sanitization
 
-Return structured output with list of created files and FR-IDs.`
+## Output Format (REQUIRED — return as JSON)
+Return a JSON object with:
+- **outputs**: array of created file paths (e.g. ["agent_docs/backend/user-service/implementation/FR-AUTH-001-impl.md", ...])
+- **frIds**: array of FR-IDs covered (e.g. ["FR-AUTH-001", ...])
+- **phase**: "IMP"
+- **status**: "completed" (or "failed" if no IMP specs could be created)`
 }
 
 function tstPrompt(srsOutputs, impOutputs) {
@@ -275,7 +304,12 @@ For EACH feature (FR-ID), create:
 - Integration tests: specify Docker images, WireMock mappings, DB seed data
 - Performance thresholds must be quantitative
 
-Return structured output with list of created files and FR-IDs.`
+## Output Format (REQUIRED — return as JSON)
+Return a JSON object with:
+- **outputs**: array of created file paths (e.g. ["agent_docs/backend/user-service/test-specs/FR-AUTH-001-test.md", ...])
+- **frIds**: array of FR-IDs covered (e.g. ["FR-AUTH-001", ...])
+- **phase**: "TST"
+- **status**: "completed" (or "failed" if no TST specs could be created)`
 }
 
 function crossCuttingPrompt(agentType, srsOutputs, hldOutputs, lldOutputs) {
@@ -313,7 +347,12 @@ ${contextParts.join('\n\n')}`)}
 - All sections must be populated — no "TODO" or placeholder text
 - Be consistent with per-service LLD outputs — no contradictions
 
-Return structured output with path to the created file.`
+## Output Format (REQUIRED — return as JSON)
+Return a JSON object with:
+- **outputs**: array with the path to the created file (e.g. ["agent_docs/error-handling.md"])
+- **frIds**: array of FR-IDs covered (use empty array if no FR-IDs)
+- **phase**: "CROSS-CUTTING"
+- **status**: "completed" (or "failed" if the file could not be created)`
 }
 
 // ── Gate Result Parser (sdlc-gate structured output) ──
@@ -442,6 +481,7 @@ async function runPhase(phaseName, agentType, prompt, dependsOn = null, opts = {
         phase: phaseName,
         agentType: agentType,
         model: 'fable',
+        schema: PHASE_RESULT,
       })
 
       if (!result) {
@@ -463,9 +503,14 @@ async function runPhase(phaseName, agentType, prompt, dependsOn = null, opts = {
         }
       }
 
-      const reportText = typeof result === 'string' ? result : JSON.stringify(result)
-      const outputs = extractOutputs(reportText)
-      const frIds = extractFrIds(reportText)
+      // Structured output (schema validated) — use directly; string result → regex fallback
+      const isStructured = typeof result === 'object' && !Array.isArray(result)
+      const outputs = isStructured
+        ? (result.outputs || [])
+        : extractOutputs(typeof result === 'string' ? result : JSON.stringify(result))
+      const frIds = isStructured
+        ? (result.frIds || [])
+        : extractFrIds(typeof result === 'string' ? result : JSON.stringify(result))
 
       log(`${agentType} complete — ${outputs.length} output(s), ${frIds.length} FR(s)`)
 
@@ -576,7 +621,11 @@ const warnings = []
 
 // ── Phase 1: SRS ──
 let srsResult = null
-if (runSRS) {
+if (runSRS && completedPhases.has('SRS')) {
+  log('⏭️ SRS — already DONE (resumed)')
+  srsResult = resumeResults.SRS || { phase: 'SRS', status: 'completed', gate: 'PASS', outputs: [], frIds: [], issues: [] }
+  results.SRS = srsResult
+} else if (runSRS) {
   phase('SRS')
   srsResult = await runPhase('SRS', 'sdlc-srs', srsPrompt())
   results.SRS = srsResult
@@ -591,7 +640,11 @@ if (runSRS) {
 
 // ── Phase 2: HLD ──
 let hldResult = null
-if (runHLD) {
+if (runHLD && completedPhases.has('HLD')) {
+  log('⏭️ HLD — already DONE (resumed)')
+  hldResult = resumeResults.HLD || { phase: 'HLD', status: 'completed', gate: 'PASS', outputs: [], frIds: [], issues: [] }
+  results.HLD = hldResult
+} else if (runHLD) {
   phase('HLD')
   hldResult = await runPhase('HLD', 'sdlc-hld', hldPrompt(srsResult), srsResult)
   results.HLD = hldResult
@@ -605,7 +658,11 @@ if (runHLD) {
 
 // ── Phase 3: LLD ──
 let lldResult = null
-if (runLLD) {
+if (runLLD && completedPhases.has('LLD')) {
+  log('⏭️ LLD — already DONE (resumed)')
+  lldResult = resumeResults.LLD || { phase: 'LLD', status: 'completed', gate: 'PASS', outputs: [], frIds: [], issues: [] }
+  results.LLD = lldResult
+} else if (runLLD) {
   phase('LLD')
   lldResult = await runPhase('LLD', 'sdlc-lld', lldPrompt(srsResult, hldResult), srsResult)
   results.LLD = lldResult
@@ -619,67 +676,46 @@ if (runLLD) {
 
 // ── Phase 4: CROSS-CUTTING ──
 let ccResults = {}
-if (runCROSS_CUTTING && ccEnabled) {
+if (runCROSS_CUTTING && completedPhases.has('CROSS_CUTTING')) {
+  log('⏭️ CROSS-CUTTING — already DONE (resumed)')
+  results.CROSS_CUTTING = resumeResults.CROSS_CUTTING || { phase: 'CROSS-CUTTING', status: 'completed', gate: 'PASS', outputs: [], frIds: [], issues: [] }
+} else if (runCROSS_CUTTING && ccEnabled) {
   phase('CROSS-CUTTING')
 
+  // ── CC Stage 1 config ──
+  // Mỗi entry định nghĩa scope key, label, agent type, và cảnh báo nếu prerequisite phase bị skip
+  const CC_STAGE1_AGENTS = [
+    { scopeKey: 'errorHandling',        label: 'CC-error-handling',         agentType: 'sdlc-lld-error-handling',         warnOnSkip: 'LLD', warnMsg: 'error-handling được yêu cầu nhưng LLD bị skip — agent sẽ thiếu per-service error flows' },
+    { scopeKey: 'cachingStrategy',      label: 'CC-caching-strategy',       agentType: 'sdlc-lld-caching-strategy',       warnOnSkip: 'LLD', warnMsg: 'caching-strategy được yêu cầu nhưng LLD bị skip — agent sẽ thiếu per-service cache plans' },
+    { scopeKey: 'performanceTest',      label: 'CC-performance-test',       agentType: 'sdlc-lld-performance-test',        warnOnSkip: 'SRS', warnMsg: 'performance-test được yêu cầu nhưng SRS bị skip — agent sẽ thiếu NFR-PERF targets' },
+    { scopeKey: 'frontendArchitecture',  label: 'CC-frontend-architecture',  agentType: 'sdlc-lld-frontend-architecture',  warnOnSkip: null,  warnMsg: null },
+  ]
+
   // ── Scope Detection & Validation ──
-  // Nếu LLD bị skip nhưng CROSS-CUTTING được yêu cầu, cảnh báo
-  if (!runLLD && ccScope.errorHandling) {
-    warnings.push('CROSS-CUTTING: error-handling được yêu cầu nhưng LLD bị skip — agent sẽ thiếu per-service error flows')
-  }
-  if (!runLLD && ccScope.cachingStrategy) {
-    warnings.push('CROSS-CUTTING: caching-strategy được yêu cầu nhưng LLD bị skip — agent sẽ thiếu per-service cache plans')
-  }
-  if (!runSRS && ccScope.performanceTest) {
-    warnings.push('CROSS-CUTTING: performance-test được yêu cầu nhưng SRS bị skip — agent sẽ thiếu NFR-PERF targets')
+  for (const agent of CC_STAGE1_AGENTS) {
+    if (agent.warnOnSkip && ccScope[agent.scopeKey]) {
+      const prerequisiteSkipped = (agent.warnOnSkip === 'LLD' && !runLLD) || (agent.warnOnSkip === 'SRS' && !runSRS)
+      if (prerequisiteSkipped) {
+        warnings.push(`CROSS-CUTTING: ${agent.warnMsg}`)
+      }
+    }
   }
 
-  // ── Stage 1: Spawn 4 agents song song (chỉ spawn những agent được chọn) ──
+  // ── Stage 1: Spawn agents song song (chỉ spawn những agent được chọn) ──
   const stage1Tasks = []
   const stage1AgentTypes = []
 
-  if (ccScope.errorHandling) {
-    stage1AgentTypes.push('sdlc-lld-error-handling')
-    stage1Tasks.push(async () => {
-      const result = await runPhase('CC-error-handling', 'sdlc-lld-error-handling',
-        crossCuttingPrompt('sdlc-lld-error-handling', srsResult, hldResult, lldResult), null, { skipGate: true })
-      ccResults.errorHandling = result
-    })
-  } else {
-    ccResults.errorHandling = { phase: 'CC-error-handling', status: 'skipped', gate: 'PASS', outputs: [], frIds: [], issues: [] }
-  }
-
-  if (ccScope.cachingStrategy) {
-    stage1AgentTypes.push('sdlc-lld-caching-strategy')
-    stage1Tasks.push(async () => {
-      const result = await runPhase('CC-caching-strategy', 'sdlc-lld-caching-strategy',
-        crossCuttingPrompt('sdlc-lld-caching-strategy', srsResult, hldResult, lldResult), null, { skipGate: true })
-      ccResults.cachingStrategy = result
-    })
-  } else {
-    ccResults.cachingStrategy = { phase: 'CC-caching-strategy', status: 'skipped', gate: 'PASS', outputs: [], frIds: [], issues: [] }
-  }
-
-  if (ccScope.performanceTest) {
-    stage1AgentTypes.push('sdlc-lld-performance-test')
-    stage1Tasks.push(async () => {
-      const result = await runPhase('CC-performance-test', 'sdlc-lld-performance-test',
-        crossCuttingPrompt('sdlc-lld-performance-test', srsResult, hldResult, lldResult), null, { skipGate: true })
-      ccResults.performanceTest = result
-    })
-  } else {
-    ccResults.performanceTest = { phase: 'CC-performance-test', status: 'skipped', gate: 'PASS', outputs: [], frIds: [], issues: [] }
-  }
-
-  if (ccScope.frontendArchitecture) {
-    stage1AgentTypes.push('sdlc-lld-frontend-architecture')
-    stage1Tasks.push(async () => {
-      const result = await runPhase('CC-frontend-architecture', 'sdlc-lld-frontend-architecture',
-        crossCuttingPrompt('sdlc-lld-frontend-architecture', srsResult, hldResult, lldResult), null, { skipGate: true })
-      ccResults.frontendArchitecture = result
-    })
-  } else {
-    ccResults.frontendArchitecture = { phase: 'CC-frontend-architecture', status: 'skipped', gate: 'PASS', outputs: [], frIds: [], issues: [] }
+  for (const agent of CC_STAGE1_AGENTS) {
+    if (ccScope[agent.scopeKey]) {
+      stage1AgentTypes.push(agent.agentType)
+      stage1Tasks.push(async () => {
+        const result = await runPhase(agent.label, agent.agentType,
+          crossCuttingPrompt(agent.agentType, srsResult, hldResult, lldResult), null, { skipGate: true })
+        ccResults[agent.scopeKey] = result
+      })
+    } else {
+      ccResults[agent.scopeKey] = { phase: agent.label, status: 'skipped', gate: 'PASS', outputs: [], frIds: [], issues: [] }
+    }
   }
 
   if (stage1Tasks.length > 0) {
@@ -762,19 +798,29 @@ if (runIMP || runTST) {
   const parallelTasks = []
 
   if (runIMP) {
-    parallelTasks.push(async () => {
-      const result = await runPhase('IMP', 'sdlc-imp', impPrompt(srsResult, lldResult))
-      results.IMP = result
-    })
+    if (completedPhases.has('IMP')) {
+      log('⏭️ IMP — already DONE (resumed)')
+      results.IMP = resumeResults.IMP || { phase: 'IMP', status: 'completed', gate: 'PASS', outputs: [], frIds: [], issues: [] }
+    } else {
+      parallelTasks.push(async () => {
+        const result = await runPhase('IMP', 'sdlc-imp', impPrompt(srsResult, lldResult))
+        results.IMP = result
+      })
+    }
   } else {
     results.IMP = { phase: 'IMP', status: 'skipped', gate: 'PASS', outputs: [], frIds: [], issues: [] }
   }
 
   if (runTST) {
-    parallelTasks.push(async () => {
-      const result = await runPhase('TST', 'sdlc-tst', tstPrompt(srsResult, null))
-      results.TST = result
-    })
+    if (completedPhases.has('TST')) {
+      log('⏭️ TST — already DONE (resumed)')
+      results.TST = resumeResults.TST || { phase: 'TST', status: 'completed', gate: 'PASS', outputs: [], frIds: [], issues: [] }
+    } else {
+      parallelTasks.push(async () => {
+        const result = await runPhase('TST', 'sdlc-tst', tstPrompt(srsResult, null))
+        results.TST = result
+      })
+    }
   } else {
     results.TST = { phase: 'TST', status: 'skipped', gate: 'PASS', outputs: [], frIds: [], issues: [] }
   }

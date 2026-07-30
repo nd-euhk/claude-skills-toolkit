@@ -130,7 +130,7 @@ Agent({
 
 ### 1.2 TDD Fix Cycle — fixbug
 
-Fix bug dùng TDD mini-cycle (per-bug, không per-TC như cook flow).
+Fix bug dùng TDD mini-cycle (per-bug, không per-TC như feature cook trong sdlc-cook skill).
 Thay vì spawn developer agent đơn lẻ, orchestrator điều phối TDD subagents:
 
 ```
@@ -173,7 +173,7 @@ Agent({
 })
 ```
 
-**Khác biệt với cook flow TDD:**
+**Khác biệt với feature cook (sdlc-cook skill):**
 - **1 bug = 1 TDD cycle** (không per-TC)
 - **Regression test** thay vì feature test
 - **Fix tối thiểu** — không implement feature mới
@@ -186,11 +186,7 @@ Agent({
 3. Regression test cover đúng root cause
 4. IMP/TST specs nhất quán với fix
 
-### 1.3 TDD Agent Templates (cook flow)
-
-Tất cả template spawn TDD agents (RED, GREEN, REFACTOR, GATE) và BE+FE ordering nằm trong
-`references/flow-cook.md` Bước 4. **Flow cook là canonical source duy nhất cho mọi TDD procedure.**
-Không duplicate template ở đây — load `flow-cook.md` khi vào cook flow.
+### 1.3 [REMOVED — TDD Agent Templates đã chuyển về SKILL.md agent tables]
 
 ---
 
@@ -263,7 +259,7 @@ pipeline: task | cr
 - **Last Cross-Cutting run**: YYYY-MM-DD
 - **Last IMP run**: YYYY-MM-DD
 - **Last TST run**: YYYY-MM-DD
-- **Last cook**: YYYY-MM-DD (FR-xxx, commit abc123)
+- **Last implementation**: YYYY-MM-DD (FR-xxx, commit abc123)
 
 ## Bug Registry
 
@@ -343,7 +339,7 @@ Cho mỗi bug:
 - Chạy lại GATE light (max 2 lần)
 - Nếu vẫn fail → human quyết định: skip gate, manual verify, hoặc abort
 
-**Khác biệt với cook flow verify:**
+**Khác biệt với full feature TDD verify:**
 - **Chỉ GATE light** (4 checks) — không REFACTOR full, không GATE full
 - **Regression-focused** — verify bug không tái xuất + không regression
 - **Fix area only** — không kiểm tra toàn bộ feature code
@@ -355,11 +351,7 @@ Cho mỗi bug:
 
 **⚠️ Orchestrator KHÔNG BAO GIỜ tự sửa `.work/board.md`, `.work/backlog.md`, `agent_docs/roadmap.md`.**
 
-### 3.6 TDD Per-TC Cycle (cook flow)
-
-Procedure chi tiết cho TDD per-testcase cycle — trích xuất TCs, quyết định tuần tự/song song,
-spawn RED agent, parse kết quả, tổng hợp, GATE→REFACTOR→GATE sequence, và error recovery —
-nằm trong `references/flow-cook.md` Bước 4. **Flow cook là canonical source.**
+### 3.6 [REMOVED — TDD Per-TC Cycle đã chuyển về sdlc-cook skill]
 
 ---
 
@@ -502,8 +494,6 @@ Nếu human chọn tiếp tục với dirty working tree:
 | Flow + Status | Hành động |
 |---|---|
 | task + in-progress | "Đang in-progress. Chuyển sang CR?" |
-| cook + TODO | "Chưa có specs. Chạy flow task trước." |
-| cook + done | "Đã done. Nếu cần sửa → fixbug." |
 
 ### 5.5 Pipeline Abort & Cleanup
 
@@ -576,12 +566,34 @@ Sau khi pipeline hoàn thành (tất cả phases):
    ✅ IMP: [spec files]
    ✅ TST: [spec files]
    📋 Sprint: [board/backlog updates]
-   🔗 Next step: flow cook để triển khai code
+```
+
+### 6.2b Post-Pipeline Completion
+
+Sau khi task hoặc CR pipeline specs hoàn thành, hỏi human về bước tiếp theo:
+
+```
+AskUserQuestion({
+  questions: [{
+    question: "Specs đã hoàn thành. Bạn muốn làm gì tiếp?",
+    header: "Next Step",
+    options: [
+      { label: "Implement code", description: "Chạy sdlc-cook để thực thi TDD code từ specs vừa tạo." },
+      { label: "Tiếp tục task/CR khác", description: "Ở lại orchestrator để làm task hoặc CR tiếp theo." },
+      { label: "Dừng", description: "Kết thúc pipeline ở đây." }
+    ],
+    multiSelect: false
+  }]
+})
+
+Nếu human chọn "Implement code" → Skill("sdlc-cook", "FR-xxx")
+Nếu "Tiếp tục" → quay lại SKILL.md Bước 2 (Flow Detection)
+Nếu "Dừng" → kết thúc
 ```
 
 ### 6.3 Flow Completion Report
 
-Khi flow kết thúc (bao gồm cả fixbug và cook):
+Khi flow kết thúc (bao gồm cả fixbug):
 
 ```
 ✅ Flow [flow] hoàn thành
@@ -637,17 +649,14 @@ không cần load vào production context trừ khi routing hoạt động sai.
 | "Sửa bug login bị crash khi nhập password dài" | fixbug (Sub-Flow B — crash report) |
 | "Fix lỗi OrderService timeout — root cause là connection pool cạn, cần tăng pool size" | fixbug (Sub-Flow A — known cause) |
 | "Thay đổi yêu cầu: thêm field phone_number vào form đăng ký" | cr |
-| "Triển khai code cho FR-AUTH-001 từ ready specs" | cook |
 | "Làm task đăng nhập bằng OAuth2" | task |
 
 ### 8.2 Ambiguous → AskUserQuestion
 
 | Input | Overlap |
 |---|---|
-| "Implement chức năng login" | "implement" khớp task (priority 4), không khớp cook (không có "code"/"build") → task |
-| "Triển khai tính năng thanh toán" | "triển khai" khớp cả task và cook → ambiguous |
-| "Sửa lỗi và cập nhật lại docs" | "sửa lỗi" → fixbug (priority 1), "cập nhật" → cr (priority 2). fixbug wins |
-| "Tài liệu API mới cho payment service" | "tài liệu" → task (priority 4), nhưng nghe giống LLD → AskUserQuestion |
+| "Làm task đăng nhập bằng OAuth2" | task |
+| "Tài liệu API mới cho payment service" | "tài liệu" → task, nhưng nghe giống LLD → AskUserQuestion |
 
 ### 8.3 Edge Cases
 
@@ -655,5 +664,4 @@ không cần load vào production context trừ khi routing hoạt động sai.
 |---|---|
 | Input rỗng hoặc "help" | AskUserQuestion hiển thị tất cả flow |
 | Input chỉ có "bug" (1 từ) | fixbug, Sub-Flow B (thiếu context → grill) |
-| Input có "code" + "bug" | fixbug wins (priority 1 > 3) |
 | Input có "CR bug" | fixbug wins (priority 1 > 2), nhưng có thể là CR-related bug → AskUserQuestion |

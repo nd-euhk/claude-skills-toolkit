@@ -117,7 +117,7 @@ Giống flow task Bước 4. Dùng template: `references/procedures.md` → Sect
 | Tình huống | Hành động |
 |---|---|
 | Impact analysis phát hiện breaking change | Cảnh báo human: "CR này là BREAKING CHANGE. Cần version bump + migration plan." |
-| CR ảnh hưởng code đã cook (done/review) | "Code đã tồn tại cho feature này. Sau khi update specs → cần flow cook để sync code với specs mới." |
+| CR ảnh hưởng code đã implement (done/review) | "Code đã tồn tại cho feature này. Sau khi update specs → cần implement code để sync. Dùng sdlc-cook skill." |
 | CR gây conflict với task đang in-progress | "Task {X} đang in-progress sẽ bị ảnh hưởng. Đề xuất: hoàn thành task hiện tại trước CR, hoặc merge CR vào task đang làm." |
 | Subagent fail giữa pipeline | Xem `references/procedures.md` → Section 5.1. Retry (max 2), skip, hoặc abort. |
 | Pipeline abort | Xem `references/procedures.md` → Section 5.5 |
@@ -127,7 +127,7 @@ Giống flow task Bước 4. Dùng template: `references/procedures.md` → Sect
 Sau khi specs được update, xác nhận rollback plan với human:
 
 1. **Specs rollback:** git revert commit của spec changes
-2. **Code rollback (nếu đã cook):** git revert + re-run test suite
+2. **Code rollback (nếu đã implement):** git revert + re-run test suite
 3. **Database migration rollback (nếu có):** down migration scripts
 4. **Ghi nhận:** `agent_docs/README.md` Open Issues — "CR-{NNN} rollback plan: [link hoặc mô tả]"
 
@@ -199,4 +199,33 @@ Bước 1: Xác định Task → Bước 2: Đánh giá Status
                                               │
                                               ▼
                                Bước 7: Sprint Update
+                                              │
+                                              ▼
+                               Sau khi Pipeline Hoàn Thành
+                               (hỏi human có muốn implement không)
+```
+
+---
+
+## Sau khi Pipeline Hoàn Thành
+
+Khi CR specs pipeline kết thúc thành công, hỏi human về bước tiếp theo:
+
+```
+AskUserQuestion({
+  questions: [{
+    question: "CR specs đã hoàn thành. Bạn muốn làm gì tiếp?",
+    header: "Next Step",
+    options: [
+      { label: "Implement code", description: "Chạy sdlc-cook để thực thi TDD code từ specs vừa cập nhật." },
+      { label: "Tiếp tục task/CR khác", description: "Ở lại orchestrator để làm task hoặc CR tiếp theo." },
+      { label: "Dừng", description: "Kết thúc pipeline ở đây." }
+    ],
+    multiSelect: false
+  }]
+})
+
+Nếu human chọn "Implement code" → Skill("sdlc-cook", "FR-xxx")
+Nếu "Tiếp tục" → quay lại SKILL.md Bước 2 (Flow Detection)
+Nếu "Dừng" → kết thúc
 ```

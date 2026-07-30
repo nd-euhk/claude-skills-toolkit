@@ -7,12 +7,16 @@ produce artifact.
 ## Controller Responsibilities
 
 <EXTREMELY-IMPORTANT>
-Entry point skill (orchestrator, automation, quick) là thành phần **duy nhất** được phép:
+Entry point skill (orchestrator, automation, quick, cook) là thành phần **duy nhất** được phép:
 - Tương tác với human (grilling, confirmation, reporting)
 - Đưa ra flow routing decision
 - Dispatch agent và workflow
 - Xử lý escalation
 - Update sprint artifact (qua `sprint` skill)
+
+Cook là controller tự-orchestrate qua TDD cycle (RED→GREEN→REFACTOR→GATE) — nó dispatch
+TDD agents chứ không spawn phase agents. Cook **không được** sửa IMP/TST specs; nếu phát
+hiện thiếu sót trong specs → escalate về orchestrator.
 
 Controller **không bao giờ** được:
 - Viết spec content, test case, hoặc implementation code trực tiếp
@@ -152,6 +156,11 @@ quick → automation → orchestrator
 <EXTREMELY-IMPORTANT>
 **fixbug flow chỉ có qua orchestrator** — không escalate từ quick hoặc automation sang
 fixbug. Nếu phát hiện bug → escalate lên orchestrator với `flow=fixbug`.
+
+**cook flow là standalone** — cook không escalate lên automation. Nếu TDD gặp vấn đề specs
+(IMP/TST sai, thiếu edge case cần SRS thay đổi, test không khớp business rule) → escalate
+về orchestrator với flow=`cr` (thay đổi specs hiện có) hoặc flow=`task` (tạo specs mới).
+Nếu chỉ là implementation error → cook tự xử lý trong TDD cycle.
 </EXTREMELY-IMPORTANT>
 
 ### Escalation Triggers
@@ -160,6 +169,7 @@ fixbug. Nếu phát hiện bug → escalate lên orchestrator với `flow=fixbug
 |-----|---------|-----------|
 | **quick** | Trivial gate fail, GATE-light fail, review tìm thấy bug/security, human không chắc scope | Escalate lên orchestrator |
 | **automation** | Grilling không đạt exit criteria sau 2 rounds, workflow dispatch fail, phase gate FAIL, human muốn thêm control | Escalate lên orchestrator |
+| **cook** | IMP/TST spec không đủ hoặc sai (không phải implementation error), cần thay đổi business rule hoặc API contract, phát hiện missing spec scenario ở cấp SRS/HLD | Escalate lên orchestrator với flow=`cr` hoặc `task` |
 | **orchestrator** | Không có upward escalation. Missing foundation → `sdlc-preflight`. Unclear requirements → tiếp tục HITL. Technical blocker → báo cáo human với options cụ thể |
 
 ### Fail-Safe Principles
