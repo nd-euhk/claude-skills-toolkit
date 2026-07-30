@@ -1,7 +1,7 @@
 # Pipeline Status, TDD Cycle & GATE Protocol
 
-Baseline capture, TDD cycle orchestration, GATE protocol, pipeline status file format,
-và board update protocol. Dùng bởi single và multi cook flows.
+Baseline capture, TDD cycle orchestration, GATE protocol,
+và board update protocol. Dùng bởi cook flow.
 
 ## TDD Cycle Execution
 
@@ -65,94 +65,9 @@ Options:
 
 | Agent | Dùng khi |
 |-------|---------|
-| `sdlc-sprint-board` | Update task status, worktree info |
+| `sdlc-sprint-board` | Update task status |
 | `sdlc-sprint-backlog` | Update feature priority, dependency, ready gate |
 | `sdlc-sprint-roadmap` | Update feature-to-phase mapping |
-
----
-
-## Canonical Pipeline Status Schema
-
-Đây là schema DUY NHẤT cho `.pipeline/{frId}-status.json`. Mọi reference khác
-(SKILL.md, flow files) phải khớp schema này.
-
-```json
-{
-  "fr_id": "FR-AUTH-001",
-  "feature": "FEAT-001",
-  "service": "auth-service",
-  "layer": "backend",
-  "started_at": "2026-07-29T14:00:00Z",
-  "updated_at": "2026-07-29T14:12:00Z",
-  "phase": "TDD",
-  "status": "running",
-  "tc_current": 3,
-  "tc_total": 8,
-  "tc_statuses": {
-    "TC-1": "DONE",
-    "TC-2": "DONE",
-    "TC-3": "RUNNING",
-    "TC-4": "QUEUED"
-  },
-  "gate_light": {
-    "status": null,
-    "failed_checks": [],
-    "retry_count": 0
-  },
-  "gate_full": {
-    "status": null,
-    "failed_checks": [],
-    "retry_count": 0
-  },
-  "refactor_full": {
-    "status": null
-  },
-  "errors": []
-}
-```
-
-| Field | Type | Mô tả |
-|-------|------|-------|
-| `fr_id` | string | FR spec ID (vd: FR-AUTH-001) |
-| `feature` | string | Feature short ID (vd: FEAT-001) |
-| `service` | string | Tên service |
-| `layer` | string | `backend` hoặc `frontend` |
-| `status` | string | `running` / `completed` / `gate_light_pass` / `gate_light_fail` / `failed` |
-| `tc_current` | int | Số TCs đã chạy (auto-derived từ tc_statuses) |
-| `tc_total` | int | Tổng số TCs |
-| `tc_statuses` | object | Map TC-ID → DONE/SKIPPED/RUNNING/QUEUED/BLOCKED |
-| `gate_light` | object | Status + failed checks + retry count |
-| `gate_full` | object | Status + failed checks + retry count |
-| `refactor_full` | object | Status sau REFACTOR-full |
-| `errors` | array | Error messages nếu status=failed |
-
-### Atomic Write
-
-Workflow agent ghi progress qua script `scripts/update-pipeline-status.sh`:
-
-```bash
-# Init file mới
-./update-pipeline-status.sh FR-AUTH-001 --init feature=FEAT-001 service=auth layer=backend
-
-# Update từng milestone
-./update-pipeline-status.sh FR-AUTH-001 status=running tc_current=3 TC-3=DONE
-./update-pipeline-status.sh FR-AUTH-001 gate_light=PASS
-./update-pipeline-status.sh FR-AUTH-001 gate_full=PASS
-```
-
-Script đảm bảo atomic write (tmp + mv). Agent **không bao giờ** tự sửa JSON trực tiếp.
-
-`.pipeline/` dir được gitignore — runtime data, không commit.
-
-### Status Auto-Derivation
-
-Script tự derive:
-- `tc_current` từ `tc_statuses` (count DONE + SKIPPED + RUNNING)
-- `status` từ gate/errors state:
-  - Có errors → `failed`
-  - gate_full = PASS → `completed`
-  - gate_light = PASS → `gate_light_pass`
-  - gate_light = FAIL → `gate_light_fail`
 
 ---
 
@@ -264,51 +179,32 @@ Sau 2 retries vẫn fail → báo human với failure details
 
 ## Board Update Protocol
 
+sdlc-cook **không tự sửa board/backlog** — spawn subagent chuyên biệt:
+
+```javascript
+// Board: cập nhật task status
+Agent({
+  subagent_type: "sdlc-sprint-board",
+  description: "Update board for FEAT-001",
+  prompt: `FR-{DOM}-{NNN} → {status}. Feature FEAT-{NNN}. Assignee: sdlc-cook.`
+})
+
+// Backlog: cập nhật feature status (sau merge)
+Agent({
+  subagent_type: "sdlc-sprint-backlog",
+  description: "Update backlog for FEAT-001",
+  prompt: "FEAT-{NNN} status → ✅ Done."
+})
+```
+
 ### Status Transition Map
 
 | TDD Event | Board Status |
 |-----------|-------------|
-| Worktree created, workflow dispatched | 🚧 Cooking |
-| RED started | 🚧 Cooking (TC {N}/{total}) |
-| INTERFERENCE detected | ⛔ Blocked — interference |
-| GATE light PASS | 🚧 Cooking (GATE light ✅) |
-| GATE full PASS | 🚧 Cooking (GATE full ✅) |
+| Worktree created, workflow dispatched | 🚧 In Progress |
+| INTERFERENCE detected | ⛔ Blocked |
 | PR created | 👀 In Review |
 | PR merged | ✅ Done |
 | PR closed (not merged) | 🔲 Todo |
-| Workflow crash | ⛔ Blocked — crash |
+| Workflow crash | ⛔ Blocked |
 
-### Board Update Call
-
-```bash
-# Sau mỗi status change, dispatcher gọi:
-Skill(sprint, "--board")
-
-# Prompt: "Cập nhật board:
-#   FEAT-{NNN}: status = {new_status}, updated = {timestamp},
-#   worktree = {path}, progress = {tc_current}/{tc_total} TCs,
-#   gate_light = {pass/fail}, gate_full = {pass/fail}"
-```
-
-### Sau Merge
-
-Sau khi human merge PR, gọi cả board + backlog:
-
-```bash
-Skill(sprint, "--board --backlog")
-# Board: FEAT-{NNN} → ✅ Done
-# Backlog: FEAT-{NNN} status → ✅ Done
-```
-
----
-
-## Dispatcher Polling
-
-Dispatcher ở main worktree poll pipeline status file để monitor:
-
-```bash
-cat .claude/worktrees/cook-auth-service-FEAT-001/.pipeline/FR-AUTH-001-status.json
-```
-
-Displatcher định kỳ check (mỗi ~60s hoặc khi có notification từ workflow completion),
-parse JSON, update board nếu có thay đổi.

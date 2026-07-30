@@ -1,7 +1,6 @@
 # Merge Manager
 
-Quy trình merge sau khi cook workflow hoàn thành. Áp dụng cho single và
-multi mode.
+Quy trình merge sau khi cook workflow hoàn thành. Áp dụng cho single feature cook.
 
 ## Merge Flow
 
@@ -49,8 +48,9 @@ cd "$worktree_path"
 
 ### Bước 2: Verify GATE Status
 
-Đọc `.pipeline/${FR_ID}-status.json` → xác nhận `gate_light` và
-`gate_full` = PASS.
+Xác nhận `gate_light` và `gate_full` = PASS từ `COOK_REPORT`
+do workflow trả về. Không cần đọc file riêng — workflow đã verify
+và trả về kết quả trong report.
 
 ### Bước 3: Verify Không Có Uncommitted Changes Sót
 
@@ -76,7 +76,7 @@ git log origin/main..HEAD --oneline
 ### Bước 2: Push Branch
 
 ```bash
-BRANCH="cook-${SERVICE}-${FEAT_ID}"
+BRANCH="feature/${FEAT_ID}-${SERVICE}"
 cd "$worktree_path"
 git push origin "$BRANCH" --force-with-lease
 ```
@@ -119,9 +119,6 @@ $(cd "$worktree_path" && git diff --stat origin/main)
 Human clicks "Merge" trên PR
      │
      ▼
-Meta-orchestrator detect merge (poll PR status hoặc webhook)
-     │
-     ▼
 ┌──────────────────┐
 │ Cleanup Worktree │
 └──────────────────┘
@@ -131,12 +128,6 @@ Meta-orchestrator detect merge (poll PR status hoặc webhook)
 │ Update Board     │
 │ FEAT → ✅ Done   │
 └──────────────────┘
-     │
-     ▼
-┌──────────────────┐
-│ Unblock Deps     │
-│ → Dispatch wave  │
-└──────────────────┘
 ```
 
 ### Changes Requested
@@ -145,7 +136,7 @@ Meta-orchestrator detect merge (poll PR status hoặc webhook)
 Human requests changes trên PR
      │
      ▼
-Meta-orchestrator báo: "PR #42: changes requested. Review comments: ..."
+Báo human: "PR #42: changes requested. Review comments: ..."
      │
      ▼
 ┌──────────────────────────┐
@@ -162,7 +153,7 @@ Meta-orchestrator báo: "PR #42: changes requested. Review comments: ..."
 Human closes PR
      │
      ▼
-Meta-orchestrator: "PR #42 closed without merge. Keep worktree? Delete?"
+Hỏi human: "PR #42 closed without merge. Keep worktree? Delete?"
      │
      ├─ Keep → worktree giữ nguyên, có thể mở lại PR sau
      └─ Delete → cleanup worktree, update board: FEAT → 🔲 Todo
@@ -173,7 +164,8 @@ Meta-orchestrator: "PR #42 closed without merge. Keep worktree? Delete?"
 ```bash
 FEAT_ID="FEAT-001"
 SERVICE="auth-service"
-WORKTREE_NAME="cook-${SERVICE}-${FEAT_ID}"
+BRANCH="feature/${FEAT_ID}-${SERVICE}"
+WORKTREE_NAME="feature-${FEAT_ID}-${SERVICE}"      # / → - cho directory
 WORKTREE_PATH="${WORKSPACE_ROOT}/.claude/worktrees/${WORKTREE_NAME}"
 
 # 1. Xóa worktree (từ project root)
@@ -181,16 +173,23 @@ cd "$project_root"
 git worktree remove "$WORKTREE_PATH" --force
 
 # 2. Xóa branch (đã merge, không cần nữa)
-git branch -D "$WORKTREE_NAME" 2>/dev/null || true
+git branch -D "$BRANCH" 2>/dev/null || true
 
 # 3. Xóa remote branch
-git push origin --delete "$WORKTREE_NAME" 2>/dev/null || true
+git push origin --delete "$BRANCH" 2>/dev/null || true
 
-# 4. Cleanup baseline files (optional — giữ lại cho lần cook sau)
-# rm -f .work/baselines/*-${FR_ID}-*.json
-
-# 5. Update board
-Skill(sprint, "--board --backlog")
+# 4. Update board + backlog
+# Spawn song song — mỗi agent chỉ ghi file riêng
+Agent({
+  subagent_type: "sdlc-sprint-board",
+  description: "Mark FEAT-001 done on board",
+  prompt: "FR-{DOM}-{NNN} → ✅ Done. PR merged."
+})
+Agent({
+  subagent_type: "sdlc-sprint-backlog",
+  description: "Mark FEAT-001 done on backlog",
+  prompt: "FEAT-{NNN} status → ✅ Done."
+})
 ```
 
 ## Conflict Handling
@@ -200,38 +199,37 @@ Skill(sprint, "--board --backlog")
 ```
 FEAT-001 sửa UserService.ts method A (đã cook, đang PR)
 FEAT-003 sửa UserService.ts method B (đã merge trước)
-→ FEAT-001 PR có merge conflict với main
+→ FEAT-001 PR có merge conflict với target branch
 ```
 
 Xử lý:
 
 ```bash
-# 1. Fetch latest main
+# 1. Fetch latest target branch
 cd "$worktree_path"
-git fetch origin main
+git fetch origin "$target_branch"
 
-# 2. Merge main vào worktree branch
-git merge origin/main
+# 2. Merge target branch vào worktree branch
+git merge "origin/$target_branch"
 
 # 3. Nếu conflict → báo human:
-#    "PR #42 conflict với main (UserService.ts).
+#    "PR #42 conflict với target branch (UserService.ts).
 #     Options:
 #     (a) Resolve conflict trong worktree rồi push lại → PR tự update
-#     (b) Tạo worktree mới từ main, cherry-pick FEAT-001 changes → PR mới"
+#     (b) Tạo worktree mới từ target branch, cherry-pick FEAT-001 changes → PR mới"
 ```
 
 ### Conflict Khi Merge (human gặp conflict trên GitHub)
 
 ```
 Human click "Merge" → GitHub báo conflict
-→ Meta-orchestrator detect PR status = "conflict"
 → Báo human: "PR #42 không merge được do conflict.
    ./sdlc-cook FEAT-001 --resolve-conflict"
 ```
 
 ## PR Status Polling
 
-Meta-orchestrator poll PR status định kỳ:
+Poll PR status định kỳ:
 
 ```bash
 gh pr view "$PR_URL" --json state,mergeable,reviews --jq '.'
@@ -241,7 +239,6 @@ gh pr view "$PR_URL" --json state,mergeable,reviews --jq '.'
 |----------|-----------|
 | `OPEN` + `mergeable=true` | Báo human: "PR ready to merge" |
 | `OPEN` + `mergeable=false` | Conflict → xử lý conflict |
-| `MERGED` | Cleanup + update board + unblock deps |
+| `MERGED` | Cleanup + update board |
 | `CLOSED` | Hỏi human: keep or delete worktree |
 | `OPEN` + review `CHANGES_REQUESTED` | Agent sửa trong worktree |
-

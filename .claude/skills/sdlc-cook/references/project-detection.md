@@ -89,7 +89,7 @@ classify_project() {
   "git_remote": "origin",
   "default_branch": "main",
   "workspace_root": "/home/user/workspace",
-  "worktree_path": "/home/user/workspace/.claude/worktrees/cook-auth-service-FEAT-001"
+  "worktree_path": "/home/user/workspace/.claude/worktrees/feature-FEAT-001-auth-service"
 }
 ```
 
@@ -98,29 +98,27 @@ classify_project() {
 Lý do: workspace `.gitignore` đã cover `.claude/worktrees/`, không cần sửa gitignore
 của submodule/subproject.
 
-## Dirty Check Theo Project Type
-
-| Type | Scope | Command |
-|------|-------|---------|
-| **submodule** | Toàn bộ submodule | `cd {project_root} && git status --porcelain` |
-| **gitignored-subproject** | Toàn bộ subproject | `cd {project_root} && git status --porcelain` |
-| **workspace-member** | Chỉ service dir của feature | `git status --porcelain -- {code_path}` |
-
-Lý do: submodule và gitignored-subproject là repo độc lập — mọi file dirty
-đều ảnh hưởng đến feature. Workspace-member chia sẻ repo với các service
-khác — chỉ quan tâm file trong service dir của feature hiện tại.
-
 ## Worktree Creation Theo Project Type
 
-Tất cả worktree được tạo ở **cùng một vị trí**: `.claude/worktrees/cook-{service}-{feat}/`
-dưới workspace root. `git worktree add` chạy từ project root tương ứng,
+Tất cả worktree được tạo ở **cùng một vị trí**: `.claude/worktrees/{branch-slug}/`
+dưới workspace root. `git worktree add -b` chạy từ project root tương ứng,
 nhưng path worktree luôn trỏ về workspace root (absolute path).
 
-| Type | Branch từ | Worktree path | Lệnh |
-|------|-----------|---------------|------|
-| **submodule** | HEAD của submodule | `{workspace}/.claude/worktrees/cook-{service}-{feat}/` | `cd {project_root} && git worktree add {workspace}/.claude/worktrees/cook-{service}-{feat} HEAD` |
-| **gitignored-subproject** | HEAD của subproject | `{workspace}/.claude/worktrees/cook-{service}-{feat}/` | `cd {project_root} && git worktree add {workspace}/.claude/worktrees/cook-{service}-{feat} HEAD` |
-| **workspace-member** | origin/main của workspace | `{workspace}/.claude/worktrees/cook-{service}-{feat}/` | `cd {project_root} && git worktree add {workspace}/.claude/worktrees/cook-{service}-{feat} origin/main` |
+Branch name được chuẩn hóa theo flow type:
+
+| Flow | Branch pattern | Ví dụ |
+|------|---------------|-------|
+| **cook** | `feature/{FEAT_ID}-{service}` | `feature/FEAT-001-auth-service` |
+| **cr** | `change/{CR_ID}-{service}` | `change/CR-005-payment-service` |
+| **fixbug** | `fix/{BUG_ID}-{service}` | `fix/BUG-042-auth-service` |
+
+Worktree directory name thay `/` bằng `-`: `feature-FEAT-001-auth-service`.
+
+| Type | Branch từ | Branch name | Lệnh |
+|------|-----------|-------------|------|
+| **submodule** | HEAD của submodule | `feature/{feat}-{svc}` | `cd {project_root} && git worktree add -b feature/{feat}-{svc} {workspace}/.claude/worktrees/feature-{feat}-{svc} HEAD` |
+| **gitignored-subproject** | HEAD của subproject | `feature/{feat}-{svc}` | `cd {project_root} && git worktree add -b feature/{feat}-{svc} {workspace}/.claude/worktrees/feature-{feat}-{svc} HEAD` |
+| **workspace-member** | origin/main của workspace | `feature/{feat}-{svc}` | `cd {project_root} && git worktree add -b feature/{feat}-{svc} {workspace}/.claude/worktrees/feature-{feat}-{svc} origin/main` |
 
 **Quy tắc branch point:**
 - Submodule/gitignored → branch từ HEAD (theo dõi state hiện tại của sub-repo)
@@ -128,21 +126,12 @@ nhưng path worktree luôn trỏ về workspace root (absolute path).
 
 **Tại sao unified path?**
 - Workspace `.gitignore` đã có `.claude/worktrees/` → không cần sửa gitignore của submodule
-- Board luôn hiển thị đúng path tương đối: `.claude/worktrees/cook-{service}-{feat}/`
+- Board luôn hiển thị đúng path tương đối: `.claude/worktrees/feature-{feat}-{svc}/`
 - `git worktree add` chấp nhận absolute path bất kỳ — worktree không cần nằm trong repo
 
-## Multi-Feature Detection
+## Detection Caching
 
-Khi cook nhiều feature cùng lúc, chạy detection cho từng feature. Kết quả
-được cache trong session — không scan lại feature đã detect.
-
-```python
-detected = {}
-for feature in features:
-    if feature.id not in detected:
-        detected[feature.id] = detect_project(feature)
-    # Dispatch dùng detected[feature.id] để tạo worktree đúng chỗ
-```
+Kết quả detection nên được cache trong session — không scan lại service đã detect.
 
 ## Edge Cases
 

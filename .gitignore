@@ -4,9 +4,6 @@
 # Claude Code worktrees (embedded git repos)
 .claude/worktrees/
 
-# Pipeline runtime status (per-feature progress, không commit)
-.pipeline/
-
 # Telemetry logs
 .logs/
 

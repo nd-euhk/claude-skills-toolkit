@@ -16,17 +16,10 @@ tags: [sdlc-cook, v4.5, multi-tasking]
 - **Files changed:** `SKILL.md` (parse args + routing), `references/flow-multi.md` (POOL_CAPACITY từ args)
 - **Rules:** min=1, max=10, warning nếu >5
 
-### P1-03: Cập nhật workflow ghi .pipeline-status.json ✅
-- **Status:** Done
-- **Files changed:**
-  - `scripts/update-pipeline-status.sh` (mới) — atomic JSON update
-  - `.claude/workflows/automation/workflow-sdlc-cook.js` — status instruction trong RED/GATE/REFACTOR prompts
-  - `references/procedures.md` — cập nhật schema path
-  - `references/merge-manager.md` — cập nhật path reference
-  - `references/flow-multi.md` — cập nhật monitor poll path
-  - `SKILL.md` — cập nhật integration points
-  - `.gitignore` — thêm `.pipeline/`
-- **Design:** `.pipeline/{frId}-status.json`, script atomic write, gitignored
+### P1-03: ~~Thêm script update-pipeline-status.json~~ (đã revert)
+- **Status:** Reverted — cơ chế pipeline status bị loại bỏ
+- **Lý do:** Write-only mechanism, không ai đọc file, resume dùng `resumeFromRunId` + `COOK_REPORT`
+- **Files changed:** Đã xóa `update-pipeline-status.{sh,js,py}`, dọn `workflow-sdlc-cook.js`, `pipeline-status.md`, `merge-manager.md`, `error-recovery.md`, `.gitignore`
 
 ### P1-04: Tích hợp sdlc-cook vào sprint system ✅
 - **Status:** Done

@@ -85,7 +85,8 @@ Must/Should features go in the combined "Features: Must / Should" table. Nice-to
 - Check `agent_docs/features/README.md` for declared dependencies
 - Ghi dependency vào cột `Depends On` trong Features table (vd: `FEAT-001, FEAT-003`)
 - `Depends On` = `—` nếu feature không phụ thuộc feature nào
-- sdlc-cook dispatcher dùng cột này để resolve dependency trước khi dispatch wave
+- sdlc-cook dùng cột này để check dependency trước khi cook — cảnh báo human nếu
+  dependency chưa Done, không chặn cứng
 
 ### Step 4: Feature → Epic Mapping
 

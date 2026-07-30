@@ -2,6 +2,38 @@
 
 All notable changes to the skills-toolkit plugin are documented here.
 
+## [2.30.0] - 2026-07-30
+
+### Changed
+- **sdlc-cook 2.0.0:** MAJOR — loại bỏ multi-feature dispatcher, đơn giản hóa về single-feature:
+  - **Xóa `references/flow-multi.md`** — toàn bộ dispatcher logic (scan board, topological sort,
+    pool management, monitor, wave continuation) không còn cần thiết. Claude Code agents view
+    đã cung cấp parallel execution visualization ở tầng platform.
+  - **Xóa auto mode** — không còn `/sdlc-cook` (no args) scan board. User gọi riêng từng feature.
+  - **Xóa `--pool <N>` flag** — không còn pool concept. Mỗi lần gọi = 1 worktree.
+  - **Đổi tên `flow-single.md` → `flow.md`** — chỉ còn một flow duy nhất.
+  - **Thêm dependency check** vào flow.md — cảnh báo nếu `depends_on` chưa Done, không chặn cứng.
+  - **Đơn giản hóa merge-manager.md** — bỏ wave continuation và unblock-deps dispatch.
+  - **Dọn `references/error-recovery.md`** — bỏ 3 references đến "dispatcher".
+  - **SKILL.md:** Giảm từ 190 dòng còn 110 dòng, mô tả rõ cách chạy song song qua agents view.
+  - **Tổng:** Xóa ~350 dòng dispatcher logic, skill giảm ~40% độ phức tạp. Single responsibility
+    rõ ràng: cook MỘT feature trong worktree isolation. Parallelism = platform concern.
+- **sdlc-cook:** Loại bỏ cơ chế pipeline status tracking:
+  - **Xóa `scripts/update-pipeline-status.{sh,js,py}`** — 3 script (~370 dòng) atomic-write
+    vào `.pipeline/{frId}-status.json`. Cơ chế này write-only: workflow không đọc file,
+    agent không được enforce gọi script, resume dùng `resumeFromRunId` (tool-level) và
+    `COOK_REPORT` return value thay vì đọc file JSON.
+  - **Dọn `workflow-sdlc-cook.js`** — xóa `statusUpdateCmd()`, `statusInstruction()`,
+    `STATUS_SCRIPT`, và tất cả embedded bash instructions trong RED/GATE/REFACTOR prompts.
+  - **Dọn `pipeline-status.md`** — xóa "Canonical Pipeline Status Schema" section và
+    "Pipeline Status Polling" section. Giữ TDD cycle, agent reference, baseline capture,
+    GATE protocol, board update.
+  - **Dọn `merge-manager.md`** — pre-merge check đọc từ `COOK_REPORT` thay vì JSON file.
+  - **Dọn `error-recovery.md`** — workflow crash recovery ưu tiên `resumeFromRunId`,
+    fallback `resumeFrom` từ COOK_REPORT/log output thay vì đọc file.
+  - **Xóa `.pipeline/` từ `.gitignore`** — không còn runtime data được ghi.
+  - **Tổng:** Xóa ~685 dòng code + documentation cho một cơ chế không được đọc bởi ai.
+
 ## [2.29.0] - 2026-07-29
 
 ### Changed

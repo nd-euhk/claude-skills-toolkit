@@ -102,25 +102,6 @@ const COOK_REPORT = {
 }
 
 // ═══════════════════════════════════════════
-// PIPELINE STATUS SCRIPT
-// ═══════════════════════════════════════════
-
-const STATUS_SCRIPT = '.claude/skills/sdlc-cook/scripts/update-pipeline-status.sh'
-
-function statusUpdateCmd(...updates) {
-  return `${STATUS_SCRIPT} ${frId} ${updates.join(' ')}`
-}
-
-function statusInstruction(updates) {
-  return `## Pipeline Status Update
-Sau khi hoàn thành công việc của bạn, chạy lệnh sau để cập nhật trạng thái pipeline:
-\`\`\`bash
-${statusUpdateCmd(...updates)}
-\`\`\`
-Script này atomic-write vào .pipeline/${frId}-status.json. Không tự sửa file JSON — luôn dùng script.`
-}
-
-// ═══════════════════════════════════════════
 // HELPER FUNCTIONS
 // ═══════════════════════════════════════════
 
@@ -235,17 +216,7 @@ Return a TC_RESULT object with:
 - testFile: path to the test file created
 - skipReason: if SKIPPED, explain why (accidental green details)
 - errorDetail: if BLOCKED/STALE/ERROR/INTERFERENCE, explain what went wrong
-
-${prevResults && prevResults.length === 0
-  ? statusInstruction([`--init`, `feature=${featureName}`, `service=${service}`, `layer=${layer}`, `tc_total=${testCases.length}`, `TC-${tc.id}=RUNNING`])
-  : statusInstruction([`TC-${tc.id}=RUNNING`])
-}
-
-**Sau khi hoàn thành tất cả các bước trên (RED verify + GREEN spawn + INTERFERENCE-LIGHT + REFACTOR-light), cập nhật status một lần nữa với kết quả cuối cùng:**
-\`\`\`bash
-${statusUpdateCmd(`TC-${tc.id}=DONE`)}
-\`\`\`
-(Nếu status khác DONE, thay DONE bằng status thực tế: SKIPPED, BLOCKED, STALE, ERROR, hoặc INTERFERENCE)`
+`
 
 }
 
@@ -368,15 +339,7 @@ Re-verify all 4 light gates still pass after refactoring.
 
 ## Return Structured Output
 Return a GATE_RESULT with: mode, status (PASS/FAIL), passed, total, failures array, summary.
-Include INTERFERENCE-FULL details in the result if applicable (broken test table: test name, file:line, baseline, now, likely culprit, files changed by culprit).
-
-${statusInstruction([`gate_${mode}=PENDING`])}
-
-**Sau khi hoàn thành tất cả gate checks, cập nhật status với kết quả cuối cùng:**
-\`\`\`bash
-${statusUpdateCmd(`gate_${mode}=PASS`)}
-\`\`\`
-(Nếu gate FAIL, thay PASS bằng FAIL)`
+Include INTERFERENCE-FULL details in the result if applicable (broken test table: test name, file:line, baseline, now, likely culprit, files changed by culprit).`
 
 }
 
@@ -436,12 +399,7 @@ IMPORTANT: Do NOT restructure architecture, change APIs, or modify test logic.
 ## Return Structured Output
 Return a REFACTOR_RESULT with: mode, categoriesRun, findingsFixed, findingsFlagged, testSuiteStillPassing, summary.
 
-${statusInstruction([`refactor_full=completed`])}
-
-**Sau khi hoàn thành refactoring, cập nhật status:**
-\`\`\`bash
-${statusUpdateCmd(`refactor_full=completed`)}
-\`\`\``
+`
 }
 
 // ═══════════════════════════════════════════

@@ -37,9 +37,9 @@ INTERFERENCE count > 0.
 4. **Accept interference** — nếu test bị break đã obsolete, update test đó
    (cần human judgment)
 
-**Resume:** Sau khi fix → dispatcher set `resumeFrom.completedTcIds` với tất
-cả TCs đã DONE trước interference, workflow skip những TC đó và chạy lại TC bị
-interference + các TC sau.
+**Resume:** Sau khi fix → set `resumeFrom.completedTcIds` với tất cả TCs đã
+DONE trước interference, workflow skip những TC đó và chạy lại TC bị interference
++ các TC sau.
 
 ---
 
@@ -135,7 +135,7 @@ git merge origin/main
 
 ### Conflict trên GitHub (human gặp khi merge)
 
-→ Dispatcher detect PR status = "conflict" → báo human:
+→ Detect PR status = "conflict" → báo human:
 "PR #N không merge được do conflict. Options: [Resolve in worktree] [Rebase PR]"
 
 ---
@@ -161,9 +161,8 @@ git merge origin/main
 
 | Cause | Fix |
 |-------|-----|
-| Branch đã tồn tại | `git branch -D cook-{service}-{feat}` rồi thử lại |
+| Branch đã tồn tại | `git branch -D feature/{feat}-{svc}` rồi thử lại |
 | Worktree path đã tồn tại | `git worktree remove {path} --force` rồi thử lại |
-| Dirty working tree | Stash hoặc commit trước |
 | Permission denied | Kiểm tra quyền ghi `.claude/worktrees/` |
 | Disk full | Giải phóng disk space |
 
@@ -173,30 +172,44 @@ git merge origin/main
 
 **Symptom:** Workflow agent crash hoặc bị kill giữa chừng.
 
-**Recovery:** Workflow hỗ trợ idempotent resume qua `resumeFrom` args.
+**Recovery:** Có 2 cơ chế resume, dùng theo thứ tự ưu tiên:
 
-**Dispatcher procedure:**
+### 1. Tool-level resume (ưu tiên hàng đầu)
 
-1. Đọc `.pipeline/{frId}-status.json` trong worktree
-2. Parse `tc_statuses` → `completedTcIds` (TCs có status DONE/SKIPPED)
-3. Parse `gate_light.status` → `gateLightPass`
-4. Parse `refactor_full.status` → `refactorDone`
-5. Parse `gate_full.status` → `gateFullPass`
-6. Dispatch lại workflow với `resumeFrom`:
-   ```js
-   Workflow({
-     args: {
-       // ... all original args ...
-       resumeFrom: {
-         completedTcIds: ['1', '2', '3'],
-         gateLightPass: true,
-         refactorDone: false,
-         gateFullPass: false,
-       }
-     }
-   })
-   ```
-7. Workflow skip completed phases, resume từ phase đầu tiên chưa done
+Dùng `resumeFromRunId` của Workflow tool. Tool tự động cache kết quả
+của các `agent()` call đã hoàn thành. Khi resume, những call có cùng
+(prompt, opts) trả về cached result instantly — không cần chạy lại.
+
+```js
+Workflow({
+  scriptPath: ".claude/workflows/automation/workflow-sdlc-cook.js",
+  resumeFromRunId: "wf_abc123",  // ID từ lần chạy trước
+  args: { /* ... giữ nguyên args gốc ... */ }
+})
+```
+
+### 2. Script-level resume (fallback)
+
+Nếu tool-level resume không khả dụng (vd: prompt đã thay đổi), dùng
+`resumeFrom` arg để skip phase đã hoàn thành. Dữ liệu để build
+`resumeFrom` lấy từ `COOK_REPORT` của lần chạy trước (nếu workflow đã
+return partial) hoặc từ `log()` output:
+
+```js
+Workflow({
+  args: {
+    // ... all original args ...
+    resumeFrom: {
+      completedTcIds: ['1', '2', '3'],
+      gateLightPass: true,
+      refactorDone: false,
+      gateFullPass: false,
+    }
+  }
+})
+```
+
+Workflow skip completed phases, resume từ phase đầu tiên chưa done.
 
 **Giới hạn:** Resume không handle code changes giữa các lần chạy.
 Nếu human đã sửa code trong worktree giữa các lần chạy → kết quả có thể
