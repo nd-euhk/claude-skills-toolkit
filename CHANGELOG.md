@@ -2,6 +2,26 @@
 
 All notable changes to the skills-toolkit plugin are documented here.
 
+## [2.30.0] - 2026-07-30
+
+### Changed
+- **sdlc-cook 1.1.0:** Refine toàn diện — giảm SKILL.md từ 491 xuống 265 dòng (áp dụng
+  80% rule). Tách supplementary content ra 3 references mới: `preflight.md` (project
+  detection + worktree creation/cleanup), `cook-flow.md` (TDD orchestration details +
+  GATE specs), `error-handling.md` (error matrix + cleanup policy). Giữ nguyên TDD flow
+  logic, hard boundaries, và tất cả agent templates. Token load hiệu quả hơn — core
+  instructions trong SKILL.md, detail on-demand từ references.
+
+## [2.29.0] - 2026-07-30
+
+### Added
+- **sdlc-cook 1.0.0:** Skill mới — TDD code execution từ ready specs, luôn hoạt động
+  trên git worktree. Tự động phát hiện 3 loại cấu trúc project (submodule, sub-project
+  gitignored, workspace-as-project) và tạo worktree cô lập trước khi thực thi TDD cycle.
+  Controller điều phối subagents (RED→GREEN→REFACTOR→GATE), không tự viết code. Điểm vào
+  độc lập qua `/sdlc-cook` hoặc được route từ orchestrator/automation khi phát hiện cook
+  intent. Không check dirty state — worktree checkout từ branch.
+
 ## [2.28.1] - 2026-07-28
 
 ### Fixed
