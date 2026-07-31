@@ -13,7 +13,7 @@ description: >-
   files (project-overview, user-context, conventions) khi thiếu. Điều
   phối toàn bộ pipeline từ requirements qua documentation đến production
   code, coordinating subagents, skills, và sprint artifacts.
-version: 1.14.1
+version: 1.14.2
 allowed-tools: Read, Write, Edit, Bash, Glob, Skill, Agent, EnterPlanMode, ExitPlanMode
 ---
 

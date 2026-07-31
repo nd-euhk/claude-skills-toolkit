@@ -139,4 +139,4 @@ Nếu "Tiếp tục" → quay lại SKILL.md Bước 2 (Flow Detection)
 Nếu "Dừng" → kết thúc
 ```
 
-Gate fail → workflow tự retry với previousFailure context (max 2 attempts). Nếu vẫn fail → báo cáo phase nào fail + lý do + đề xuất orchestrator. Xem `references/error-handling.md#e4`.
+Gate fail → workflow tự retry với previousFailure context (max 3 attempts). Nếu vẫn fail → báo cáo phase nào fail + lý do + đề xuất orchestrator. Xem `references/error-handling.md#e4`.

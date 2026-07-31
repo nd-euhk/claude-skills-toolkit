@@ -152,7 +152,7 @@ Tương tự như orchestrator nhưng nhấn mạnh requirements đã rõ:
    Requirements đã rõ: [từ triage grill]
    Lý do escalate từ quick: [trigger]
 
-   Đề xuất flow: [task | cr | cook]
+   Đề xuất flow: [task | cr]
 ```
 
 ---

@@ -71,10 +71,10 @@ Nhưng nếu round đó là **bắt buộc** (Round 1) → không cho skip.
 
 #### E3.1 Workflow script not found
 
-**Detect**: `Workflow()` không tìm thấy `.claude/workflows/workflow-sdlc-automation.js`
+**Detect**: `Workflow()` không tìm thấy `.claude/workflows/automation/workflow-sdlc-automation.js`
 **Response**:
 ```
-🛑 Không tìm thấy workflow script: .claude/workflows/workflow-sdlc-automation.js
+🛑 Không tìm thấy workflow script: .claude/workflows/automation/workflow-sdlc-automation.js
    File này là required dependency của sdlc-automation skill.
    Đề xuất: Kiểm tra xem file có bị xóa hoặc di chuyển không.
 ```
@@ -99,10 +99,10 @@ Nhưng nếu round đó là **bắt buộc** (Round 1) → không cho skip.
 ⏱️  Workflow dường như bị treo — không có progress trong 15 phút.
    Options:
    1. Tiếp tục đợi
-   2. Kill workflow và chạy lại
+   2. Kill và resume workflow (xem section Workflow Crash & Resume ở cuối file)
    3. Kill và chuyển sang orchestrator cho các phase còn lại
 ```
-**Next step**: `AskUserQuestion` cho 3 options.
+**Next step**: `AskUserQuestion` cho 3 options. Nếu chọn resume → xem [Workflow Crash & Resume](#workflow-crash--resume).
 
 ---
 
@@ -144,6 +144,60 @@ Nhưng nếu round đó là **bắt buộc** (Round 1) → không cho skip.
    Đề xuất: Chạy /sprint thủ công sau khi review specs.
 ```
 **Next step**: Tiếp tục — đây là non-blocking error.
+
+---
+
+## Workflow Crash & Resume
+
+**Symptom:** Workflow agent crash, bị kill, hoặc timeout giữa chừng (API error, context overflow, machine restart).
+
+**Recovery:** Có 2 cơ chế resume, dùng theo thứ tự ưu tiên:
+
+### 1. Tool-level resume (ưu tiên hàng đầu)
+
+Dùng `resumeFromRunId` của Workflow tool. Tool tự cache kết quả các `agent()` call đã hoàn
+thành. Khi resume, những call có cùng (prompt, opts) trả về cached result instantly — không
+cần chạy lại phase đã done.
+
+```js
+Workflow({
+  scriptPath: ".claude/workflows/automation/workflow-sdlc-automation.js",
+  resumeFromRunId: "wf_abc123",  // ID từ lần chạy trước
+  args: { /* ... giữ nguyên args gốc ... */ }
+})
+```
+
+### 2. Script-level resume (fallback)
+
+Nếu tool-level resume không khả dụng (vd: prompt hoặc args đã thay đổi), dùng `resumeFrom`
+arg để skip phase đã hoàn thành. Dữ liệu build từ report của lần chạy trước: `report.phases`
+(keys: `SRS`, `HLD`, `LLD`, `CROSS-CUTTING`, `IMP`, `TST`):
+
+```js
+Workflow({
+  args: {
+    // ... tất cả args gốc ...
+    resumeFrom: {
+      completedPhases: ['SRS', 'HLD', 'LLD'],
+      phaseResults: {
+        SRS: { /* report.phases.SRS — giữ nguyên object */ },
+        HLD: { /* report.phases.HLD */ },
+        LLD: { /* report.phases.LLD */ },
+      },
+    },
+  },
+})
+```
+
+Workflow skip completed phases, resume từ phase đầu tiên chưa done.
+
+**⚠️ `completedPhases` PHẢI đi kèm `phaseResults` đầy đủ.** Nếu một phase nằm trong
+`completedPhases` mà thiếu `phaseResults.<phase>`, workflow coi phase đó là
+done-with-empty-outputs → downstream phases sẽ thiếu context (vd: SRS trống → HLD/IMP/TST
+mất FR-IDs). Luôn copy nguyên object phase từ `report.phases` của lần chạy trước.
+
+**Giới hạn:** Resume không handle changes giữa các lần chạy. Nếu `agent_docs/` bị sửa tay
+giữa chừng → kết quả có thể không nhất quán. Luôn verify gate pass sau resume.
 
 ---
 

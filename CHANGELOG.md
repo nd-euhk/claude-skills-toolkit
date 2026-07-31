@@ -2,6 +2,39 @@
 
 All notable changes to the skills-toolkit plugin are documented here.
 
+## [2.34.1] - 2026-07-31
+
+### Fixed
+- **sdlc-gate 1.0.2:** PATCH — LLD gate L1 criteria lệch với producer design (agent + workflow + template):
+  - Đổi 9 section headers từ gate-camp (Domain Model, API Contracts, REST Clients, Caching, Error Flows, Degraded Modes, Work Packages, Routing Overlay) sang producer-camp (Service Boundary, Internal Architecture, Domain Model, REST Clients, Transaction Boundaries, Integration Points, Caching Strategy, Performance & Scale, Error Flows & Degraded Mode).
+  - Grep header tolerant `N.` numbering (template headers); API contracts kiểm tra riêng ở `contracts/api-*.yaml`; work package + routing overlay thuộc FR files (L3 đã cover).
+- **sdlc-orchestrator 1.14.2:** PATCH — `procedures.md` §4.3 L1 mirror cùng 9 sections producer-camp.
+- **sdlc-automation 1.10.1:** PATCH — `lldPrompt` CRITICAL RULES pin exact `##` headers từ LLD template để gate grep deterministic; `sdlc-lld.md` agent thêm dòng tương tự (agent không có version field).
+
+## [2.34.0] - 2026-07-31
+
+### Changed
+- **sdlc-automation 1.10.0:** MINOR — production hardening với fable-thinking review:
+  - **Gate verdict qua structured output:** thêm `schema: GATE_RESULT` cho `sdlc-gate` call,
+    bỏ phụ thuộc regex trên text tự do. Gate agent trả explicit `critical` boolean thay vì
+    keyword-match `/CRITICAL/i`. Giữ `parseGateVerdict` làm fallback cho string result.
+  - **Unify phase naming:** `CROSS_CUTTING` (underscore) → `CROSS-CUTTING` xuyên suốt qua
+    bracket notation. Sửa resume-check `completedPhases.has('CROSS_CUTTING')` — entry
+    underscore không bao giờ khớp resume entry chuẩn (hyphen), khiến cross-cutting luôn
+    chạy lại dù đã done.
+  - **Retry budget:** `MAX_RETRIES` 1 → 2 (3 attempts), đồng bộ gate agent contract
+    (attempt 1-3) và prompt "Attempt: X/3". SKILL.md cập nhật "max 2 attempts" → "max 3 attempts".
+  - **Path fix:** error-handling.md E3.1 — `.claude/workflows/workflow-sdlc-automation.js` →
+    `.claude/workflows/automation/workflow-sdlc-automation.js`.
+  - **Resume docs:** thêm section "Workflow Crash & Resume" vào error-handling.md (tool-level
+    `resumeFromRunId` + script-level `resumeFrom` với caveat `phaseResults` đầy đủ). E3.3
+    option "Kill và chạy lại" → "Kill và resume".
+  - **Fix syntax error (critical):** srsPrompt/hldPrompt/lldPrompt đóng thừa `}}` → `}` —
+    workflow không parse được trước đó (node --check fail tại 3 function). Nay load được.
+  - **Retry docs đồng bộ:** task-flow.md "max 2 attempts" → "max 3 attempts".
+- **sdlc-gate 1.0.1:** PATCH — "Return Structured Result": ưu tiên structured output khi
+  orchestrator cung cấp schema, giữ text format `GATE_VERDICT` làm fallback.
+
 ## [2.33.0] - 2026-07-30
 
 ### Changed

@@ -9,7 +9,7 @@ description: >-
   Khác với sdlc-orchestrator (human-in-the-loop từng phase) và sdlc-quick
   (làn nhanh cho task nhỏ, không specs), skill này chỉ tương tác MỘT LẦN
   upfront rồi chạy autonomously.
-version: 1.9.1
+version: 1.10.1
 allowed-tools: Read, Write, Edit, Bash, Skill, Agent, AskUserQuestion, Workflow
 ---
 
@@ -32,7 +32,7 @@ toàn diện, sau đó dispatch `workflow-sdlc-automation` chạy autonomously. 
 - **Bạn grill, không thực thi** — không viết spec content, test cases, hoặc code
 - **Grilling toàn diện bắt buộc** — không dispatch automation khi chưa đủ thông tin
 - **Workflow script là executor** — pipeline chạy trong `.claude/workflows/automation/workflow-sdlc-automation.js`
-- **Gate verification qua sdlc-gate** — mỗi phase agent viết spec xong, workflow spawn `sdlc-gate` (read-only, model: sonnet) để verify độc lập. Agent viết spec **không** tự chấm bài. Gate failure → retry với previousFailure context (max 2 attempts). Cross-cutting dùng một gate check tập trung sau khi tất cả agents hoàn thành.
+- **Gate verification qua sdlc-gate** — mỗi phase agent viết spec xong, workflow spawn `sdlc-gate` (read-only, model: sonnet) để verify độc lập. Agent viết spec **không** tự chấm bài. Gate failure → retry với previousFailure context (max 3 attempts). Cross-cutting dùng một gate check tập trung sau khi tất cả agents hoàn thành.
 - **Không skip pipeline phases** — SRS → HLD → LLD → [CROSS-CUTTING] → IMP∥TST. HLD, LLD, và CROSS-CUTTING có thể được skip với human confirmation
 - **Không tự sửa sprint files** — luôn qua `Skill(sprint, "--all")`. Chỉ được Write `agent_docs/README.md`
 - **Không tự sửa feature specs** — chỉ sdlc-srs và sdlc-lld touch `agent_docs/features/`
@@ -135,7 +135,7 @@ Dành cho feature mới, greenfield work, hoặc major change. Full forward pipe
 3. **Dispatch Workflow** — `workflow-sdlc-automation.js` với `flow: "task"`
 4. **Monitor & Report** — workflow autonomously, báo cáo kết quả từng phase + gate status
 
-Gate fail → workflow tự retry với previousFailure context (max 2 attempts). Nếu retry exhausted + gate vẫn fail: spawn `advisor` subagent với context: reason thất bại sau retry, retry history, options (fallback orchestrator / skip phase / abort). Advisor phân tích đa giả thuyết, follow-through từng option, nêu weakest link. Trình bày phân tích cho human trước khi fallback. Xem `references/error-handling.md#e4`.
+Gate fail → workflow tự retry với previousFailure context (max 3 attempts). Nếu retry exhausted + gate vẫn fail: spawn `advisor` subagent với context: reason thất bại sau retry, retry history, options (fallback orchestrator / skip phase / abort). Advisor phân tích đa giả thuyết, follow-through từng option, nêu weakest link. Trình bày phân tích cho human trước khi fallback. Xem `references/error-handling.md#e4`.
 
 ---
 
@@ -165,7 +165,8 @@ Mọi error scenario có structured fallback pattern. Nguyên tắc chung: **fai
 | Preflight | Foundation missing | Preflight → verify → dừng nếu vẫn thiếu |
 | Grilling | Thiếu exit criteria | Hỏi thêm → fallback orchestrator sau 2 attempts |
 | Dispatch | Script not found | Dừng, báo cáo missing dependency |
-| Dispatch | Workflow timeout | AskUserQuestion: đợi/kill/fallback |
+| Dispatch | Workflow timeout | AskUserQuestion: đợi/kill-resume/fallback |
+| Dispatch | Workflow crash | Resume qua `resumeFromRunId` / `resumeFrom` — xem error-handling.md |
 | Gates | ≥1 phase FAIL | Báo cáo + đề xuất orchestrator |
 | Sprint | Update fails | Non-blocking — báo cáo, tiếp tục |
 

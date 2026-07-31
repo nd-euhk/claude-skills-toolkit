@@ -57,6 +57,8 @@ For each service in domain-service-mapping.yaml, create `agent_docs/tech-design/
 8. **Performance & Scale**: Expected QPS, bottleneck analysis, scaling strategy
 9. **Error Flows & Degraded Mode**: Error taxonomy, retry policies, graceful degradation, user-facing messages
 
+Write each section with the exact `##` header from `.claude/templates/lld/lld-TEMPLATE.md` (headers 1-9; `## 10. Observability` optional).
+
 ### Step 2: Cross-Cutting Design
 
 Create `agent_docs/tech-design/cross-cutting.md`:

@@ -411,7 +411,7 @@ Agent({
 
 | # | Criterion | Critical |
 |---|-----------|----------|
-| L1 | Đủ 9 sections: Domain Model, API Contracts, REST Clients, Caching, Transaction Boundaries, Error Flows, Degraded Modes, Work Packages, Routing Overlay | ✅ |
+| L1 | Đủ 9 sections: Service Boundary, Internal Architecture, Domain Model, REST Clients, Transaction Boundaries, Integration Points, Caching Strategy, Performance & Scale, Error Flows & Degraded Mode. API contracts kiểm tra riêng ở `contracts/api-*.yaml`; work package + routing overlay đã có L3 | ✅ |
 | L2 | Không có architectural decisions mới (thuộc HLD) | |
 | L3 | Mỗi FR có work package với routing overlay | |
 

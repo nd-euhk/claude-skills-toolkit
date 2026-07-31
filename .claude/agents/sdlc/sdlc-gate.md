@@ -8,7 +8,7 @@ description: >-
   artifacts meet minimum criteria. Read-only — never modifies files. Returns
   structured PASS/FAIL with specific failures for retry. Phase-aware — loads
   correct criteria set per phase.
-version: 1.0.0
+version: 1.0.2
 model: sonnet
 maxTurn: 20
 tools: Read, Bash, Glob, Agent
@@ -117,7 +117,7 @@ Read `agent_docs/tech-design/{service}-service.md` for each service, `agent_docs
 
 | # | Criterion | How to check | Critical |
 |---|-----------|--------------|----------|
-| L1 | All 9 sections present per service | grep for these exact section headers in each tech-design file: `## Domain Model`, `## API Contracts`, `## REST Clients`, `## Caching`, `## Transaction Boundaries`, `## Error Flows`, `## Degraded Modes`, `## Work Packages`, `## Routing Overlay`. All 9 required. | ✅ |
+| L1 | All 9 required sections present per service | grep tech-design headers (`grep -E "^## " file`), then verify all 9 present (tolerate `N.` numbering, e.g. `## 3. Domain Model`): Service Boundary, Internal Architecture, Domain Model, REST Clients, Transaction Boundaries, Integration Points, Caching Strategy, Performance & Scale, Error Flows & Degraded Mode. All 9 required. API contracts are separate files — also verify `agent_docs/contracts/api-*.yaml` exists for each service. `## Observability` (template section 10) is optional, not gate-required. | ✅ |
 | L2 | No new architectural decisions | grep -v for ADR patterns (`## Context`, `## Decision`, `## Rationale`) in tech-design files. Architecture decisions belong in HLD/ADRs. | |
 | L3 | Each FR has work package with routing overlay | Count work packages in tech-design vs FRs assigned to this service. Each work package must include endpoint paths or routing references. | |
 
@@ -188,7 +188,13 @@ If a criterion that PREVIOUSLY PASSED now fails on a retry (regression), flag it
 
 Return this directly to the orchestrator (do NOT write any files).
 
-First line of your response MUST be exactly one of:
+**If the orchestrator provides a structured output schema** (via StructuredOutput tool), return
+a GATE_RESULT object matching that schema: phase, status (PASS|FAIL), checked (total criteria
+evaluated), passed (criteria met), critical (true if any Critical-marked criterion failed —
+pipeline-stopping; false otherwise), failures (array of specific failures for retry context),
+summary (one-line verdict).
+
+**Otherwise** (text-only invocation), the first line of your response MUST be exactly one of:
 ```
 GATE_VERDICT: PASS
 ```

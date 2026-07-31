@@ -78,6 +78,20 @@ const PHASE_RESULT = {
   required: [],
 }
 
+const GATE_RESULT = {
+  type: 'object',
+  properties: {
+    phase: { type: 'string' },
+    status: { type: 'string', enum: ['PASS', 'FAIL'] },
+    checked: { type: 'number' },
+    passed: { type: 'number' },
+    critical: { type: 'boolean' },
+    failures: { type: 'array', items: { type: 'string' } },
+    summary: { type: 'string' },
+  },
+  required: ['status', 'checked', 'passed', 'critical'],
+}
+
 const PIPELINE_REPORT = {
   type: 'object',
   properties: {
@@ -138,7 +152,7 @@ Return a JSON object with:
 - **frIds**: array of FR-IDs covered (e.g. ["FR-AUTH-001", ...])
 - **phase**: "SRS"
 - **status**: "completed" (or "failed" if no FRs could be created)`
-}}
+}
 
 function hldPrompt(srsOutputs) {
   const srsSummary = srsOutputs
@@ -175,7 +189,7 @@ Return a JSON object with:
 - **frIds**: array of FR-IDs covered (use empty array if no FR-IDs)
 - **phase**: "HLD"
 - **status**: "completed" (or "failed" if no ADRs could be created)`
-}}
+}
 
 function lldPrompt(srsOutputs, hldOutputs) {
   const contextParts = []
@@ -219,6 +233,7 @@ ${contextParts.join('\n\n')}`)}
 - API contracts must be valid OpenAPI 3.0
 - Circuit breaker configs: concrete thresholds (failureRate ≥ 50%, waitDuration ≥ 30s)
 - All .md files MUST have YAML frontmatter
+- Use the exact \`##\` section headers from \`.claude/templates/lld/lld-TEMPLATE.md\` for the 9 required tech-design sections (headers 1-9; \`## 10. Observability\` optional)
 
 ## Output Format (REQUIRED — return as JSON)
 Return a JSON object with:
@@ -226,7 +241,7 @@ Return a JSON object with:
 - **frIds**: array of enriched FR-IDs (e.g. ["FR-AUTH-001", ...])
 - **phase**: "LLD"
 - **status**: "completed" (or "failed" if no tech-design files could be created)`
-}}
+}
 
 function impPrompt(srsOutputs, lldOutputs) {
   const contextParts = []
@@ -399,16 +414,35 @@ ${outputs.length > 0 ? outputs.map(f => `- ${f}`).join('\n') : '(auto-detect fro
     prompt += `\n\nPrevious gate failure (attempt ${attempt - 1}):\n${previousFailure}\nFocus on previously failed criteria. Flag any regression: criteria that passed before but fail now.`
   }
 
+  prompt += `\n\nReturn a GATE_RESULT structured output with: phase, status (PASS or FAIL), checked (total criteria evaluated), passed (criteria met), critical (true if any Critical-marked criterion failed — pipeline-stopping; false otherwise), failures (array of specific failures for retry context), summary (one-line verdict).`
+
   try {
     const result = await agent(prompt, {
       label: `gate-${phaseName}${attempt > 1 ? `-r${attempt}` : ''}`,
       phase: `Gate-${phaseName}`,
       agentType: 'sdlc-gate',
       model: 'sonnet',
+      schema: GATE_RESULT,
     })
 
     if (!result) {
       return { gate: 'FAIL', checked: 0, passed: 0, critical: false, details: 'sdlc-gate returned null' }
+    }
+
+    // Structured output (schema validated) — use directly; string → regex fallback
+    if (typeof result === 'object' && !Array.isArray(result)) {
+      const gate = result.status === 'PASS' ? 'PASS' : 'FAIL'
+      const checked = result.checked || 0
+      const passed = result.passed || 0
+      const failures = (result.failures || []).join('\n')
+      const details = [result.summary, failures].filter(Boolean).join('\n') || JSON.stringify(result)
+      return {
+        gate,
+        checked,
+        passed,
+        critical: result.critical === true || (gate === 'FAIL' && checked === 0),
+        details,
+      }
     }
 
     const reportText = typeof result === 'string' ? result : JSON.stringify(result)
@@ -466,7 +500,7 @@ async function runPhase(phaseName, agentType, prompt, dependsOn = null, opts = {
     }
   }
 
-  const MAX_RETRIES = 1
+  const MAX_RETRIES = 2
   let lastError = null
   let previousFailure = null
 
@@ -676,9 +710,9 @@ if (runLLD && completedPhases.has('LLD')) {
 
 // ── Phase 4: CROSS-CUTTING ──
 let ccResults = {}
-if (runCROSS_CUTTING && completedPhases.has('CROSS_CUTTING')) {
+if (runCROSS_CUTTING && completedPhases.has('CROSS-CUTTING')) {
   log('⏭️ CROSS-CUTTING — already DONE (resumed)')
-  results.CROSS_CUTTING = resumeResults.CROSS_CUTTING || { phase: 'CROSS-CUTTING', status: 'completed', gate: 'PASS', outputs: [], frIds: [], issues: [] }
+  results['CROSS-CUTTING'] = resumeResults['CROSS-CUTTING'] || { phase: 'CROSS-CUTTING', status: 'completed', gate: 'PASS', outputs: [], frIds: [], issues: [] }
 } else if (runCROSS_CUTTING && ccEnabled) {
   phase('CROSS-CUTTING')
 
@@ -766,7 +800,7 @@ if (runCROSS_CUTTING && completedPhases.has('CROSS_CUTTING')) {
     log('⚠️  Skipping CROSS-CUTTING gate — one or more agents failed')
   }
 
-  results.CROSS_CUTTING = {
+  results['CROSS-CUTTING'] = {
     phase: 'CROSS-CUTTING',
     status: ccAgentFailed ? 'failed'
       : ccValues.some(r => r.status === 'completed') ? 'completed' : 'skipped',
@@ -788,7 +822,7 @@ if (runCROSS_CUTTING && completedPhases.has('CROSS_CUTTING')) {
     }
   }
 } else {
-  results.CROSS_CUTTING = { phase: 'CROSS-CUTTING', status: 'skipped', gate: 'PASS', outputs: [], frIds: [], issues: [] }
+  results['CROSS-CUTTING'] = { phase: 'CROSS-CUTTING', status: 'skipped', gate: 'PASS', outputs: [], frIds: [], issues: [] }
 }
 
 // ── Phase 5: IMP ∥ TST ──

@@ -184,7 +184,7 @@ Sau khi triage grill xác nhận trivial, phân loại path:
 | Đặc điểm | Path |
 |---|---|
 | Chỉ sửa text, màu, CSS, config value, constant, comment | **Ultra-Trivial** (không guard test) |
-| Sửa validation message, error message, log statement | **Ultra-Trivial** (không guard test) |
+| Sửa nội dung text của message/log (không đổi điều kiện trigger) | **Ultra-Trivial** (không guard test) |
 | Thêm null check, sửa regex, sửa format, thêm field simple | **Logic-Trivial** (cần guard test) |
 | Sửa logic trong 1 function, thêm error handling đơn giản | **Logic-Trivial** (cần guard test) |
 
