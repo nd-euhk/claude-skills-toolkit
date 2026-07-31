@@ -8,7 +8,7 @@ description: >-
   → tạo file. Dùng khi bắt đầu SDLC pipeline, trước SRS phase, hoặc khi
   cần đảm bảo agent_docs/ sẵn sàng. Hỗ trợ CLI args: --project-overview,
   --user-context, --conventions.
-version: 1.0.1
+version: 1.0.2
 user-invocable: false
 allowed-tools: Read, Write, Bash, Skill, Agent, AskUserQuestion, EnterPlanMode, ExitPlanMode
 ---
@@ -177,11 +177,11 @@ Sau khi human chọn, grilling nội dung conventions theo procedure trong
 ## File Dependency Map
 
 ```
-project-overview.md (Phase 1) ──→ SRS cần: scope, glossary, NFRs, business rules
+project-overview.md ──→ SRS cần: scope, glossary, NFRs, business rules
          │
-user-context.md (Phase 3) ──→ SRS cần: personas, user journeys, a11y
+user-context.md ──→ SRS cần: personas, user journeys, a11y
          │
-conventions.md (Phase 8) ──→ IMP cần: package structure, naming, testing
+conventions.md ──→ IMP cần: package structure, naming, testing
 ```
 
 ---

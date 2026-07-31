@@ -2,6 +2,18 @@
 
 All notable changes to the skills-toolkit plugin are documented here.
 
+## [2.34.2] - 2026-07-31
+
+### Fixed
+- **sdlc-preflight 1.0.2:** PATCH — fix 2 drift từ consistency review:
+  - File Dependency Map: xóa numbering "Phase 1/3/8" không tồn tại trong hệ thống SDLC
+    (naming chuẩn: SRS → HLD → LLD → IMP); arrow vốn đã mang tên phase thật.
+  - `grilling-conventions.md`: thay khuôn "Tách 3 file" cứng (Shared + Backend +
+    Frontend tách rời — không khớp bảng Logic Gộp/Tách trong SKILL.md) bằng 2 nhánh
+    đúng kịch bản: tách-theo-stack (mỗi backend stack 1 file `backend/{stack}/conventions.md`)
+    và tách-FE-riêng (BE + Shared gộp `conventions.md`, FE riêng `frontend/conventions.md`).
+    Summary block cập nhật 3 lựa chọn tương ứng.
+
 ## [2.34.1] - 2026-07-31
 
 ### Fixed

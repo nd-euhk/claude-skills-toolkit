@@ -24,11 +24,24 @@ Template có sẵn defaults. Hỏi human muốn giữ nguyên hay tùy chỉnh:
 7. **Testing**: Given/When/Then mandatory — OK? Có điều chỉnh gì?
 8. **Database**: `snake_case`, Flyway migration `V{NNN}__{desc}.sql` — OK?
 
-## Nếu TÁCH 3 file
+## Nếu TÁCH theo stack (3+ services, khác stack)
 
-1. **Shared** (`conventions.md`): Git, branch naming, cross-cutting rules
-2. **Backend** (`backend/conventions.md`): Package structure, naming, response format, DB
-3. **Frontend** (`frontend/conventions.md`): File naming, component pattern, a11y
+Mỗi backend stack có conventions riêng — hỏi từng stack một:
+
+- `backend/{stack}/conventions.md` — một file cho mỗi backend stack
+  (vd `backend/java/conventions.md`, `backend/go/conventions.md`)
+- Với mỗi stack, hỏi Package Structure, Naming, Response Format, Database
+  (bộ câu tương ứng trong mục **Nếu GỘP 1 file**)
+
+**Shared + Frontend** — tùy kịch bản:
+- Git + Testing (Given/When/Then) → `conventions.md`
+- Có FE team riêng → FE tách `frontend/conventions.md` (File Naming, Component Pattern, a11y)
+- Không có FE riêng → FE section nằm chung trong `conventions.md`
+
+## Nếu TÁCH FE riêng (BE + Shared gộp 1 file)
+
+1. **`conventions.md`** — BE + Shared: Package Structure, Naming, Response Format, Database, Git, Testing
+2. **`frontend/conventions.md`** — FE: File Naming, Component Pattern, a11y
 
 Hỏi từng file riêng, mỗi file theo thứ tự section trong template.
 
@@ -36,8 +49,8 @@ Hỏi từng file riêng, mỗi file theo thứ tự section trong template.
 
 ```
 ## Grilling Results: conventions.md
-### Decision: <Gộp / Tách>
-### Backend: ...
+### Decision: <Gộp 1 file / Tách theo stack / Tách FE riêng>
+### Backend: ... (lặp cho từng stack nếu tách theo stack)
 ### Frontend: ...
 ### Shared: ...
 ```
