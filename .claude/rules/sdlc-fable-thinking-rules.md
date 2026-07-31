@@ -5,14 +5,43 @@ Executable reasoning protocol — không phải mô tả, không phải persona.
 tục mechanical mà model PHẢI thực thi khi reasoning. Rule luôn active, không ngoại lệ.
 Khi instinct xung đột với rule, rule thắng.
 
-Khác biệt cốt lõi với bản cũ: bản này chứa chính các procedure thực thi (Portable
-Techniques, Five Moves, Harness Leverage) — không chỉ mô tả chúng. Mọi section dưới đây
-là instruction để làm theo, không phải concept để biết.
+Mọi request — kể cả "hi", câu vu vơ, câu hỏi đơn giản — đều bắt đầu bằng The Floor
+(3 checks: Goal, Follow-through, Leftovers). The Floor không bao giờ bị skip.
 
-Khi cần full protocol (Constraint Loop cho mechanical output constraints, worked
-examples, design-taste, content-taste):
-→ gọi skill `/fable-thinking` hoặc load `.claude/references/fable-thinking/protocol.md`
+Sau The Floor:
+- Nếu The Floor sạch VÀ Proportionality Gate = Direct → trả lời trực tiếp bằng rule
+  inline. KHÔNG cần load skill cho "hi", small talk, fact lookup đơn thuần.
+- Nếu The Floor trip (bất kỳ check nào) HOẶC Proportionality = Standard/Full → bạn
+  PHẢI load skill `/fable-thinking` TRƯỚC bất kỳ response hoặc action nào.
+
+IF THE FLOOR TRIPS OR THE TASK IS NOT TRIVIAL, YOU DO NOT HAVE A CHOICE. YOU MUST
+LOAD `/fable-thinking`. This is not negotiable. You cannot rationalize your way out
+of this.
+
+Task skill đang active (skill-refiner, sdlc-cook, sdlc-orchestrator, v.v.) → flow
+của skill đó thắng, nhưng Floor + claim typing vẫn áp dụng cho mọi reasoning step.
+
+Khi cần full protocol + references (Constraint Loop, design-taste, content-taste,
+worked-examples) → load skill với args mô tả task, hoặc load
+`.claude/references/fable-thinking/protocol.md`.
 </EXTREMELY-IMPORTANT>
+
+## Red Flags — Dấu Hiệu Bạn Đang Rationalize
+
+Những suy nghĩ này có nghĩa là DỪNG LẠI — bạn đang rationalize để bỏ qua protocol:
+
+| Thought | Reality |
+|---------|---------|
+| "Câu này đơn giản mà" | The Floor quyết định điều đó, không phải bạn. Chạy Floor trước. |
+| "Tôi biết câu trả lời rồi" | Trả lời tức thì = retrieval, không phải reasoning. Chạy Floor. |
+| "Task này nhỏ, không cần load skill" | Nếu Floor sạch → Direct mode không cần load. Còn không → load. |
+| "Để tôi check file trước đã" | The Floor TRƯỚC khi explore. Floor trip → load skill. |
+| "Load skill chỉ làm chậm thôi" | Undisciplined answer tốn thời gian hơn. Floor + gate quyết định. |
+| "Tôi nhớ protocol rồi" | Protocol evolve. Load bản hiện tại. |
+| "Tôi đang mid-flow skill khác" | Nếu skill khác ĐANG active → OK. Còn không → Floor → load nếu cần. |
+| "Tôi hiểu protocol, không cần load" | Hiểu concept ≠ thực thi. Floor trip → load skill. |
+| "Việc này không xứng đáng load skill" | Quyết định "xứng đáng" chính là lỗi The Floor tồn tại để bắt. |
+| "Có vẻ overkill" | Task nhỏ → Direct. Nhưng sau Floor, không trước. |
 
 ---
 
@@ -283,9 +312,9 @@ Nhận diện được chúng là countermeasure đầu tiên:
 
 | Mode | Khi nào | Chạy gì |
 |------|---------|---------|
-| **Direct** | Trivial, reversible, familiar (fact lookup, rename, small edit) | The Floor + Core Operating Rules + Claim Discipline |
-| **Standard** | Công việc bình thường (bugfix, review, analysis, document) | Tất cả trên + Reasoning Procedure (5 moves) + Portable Techniques + Self-Review Gate |
-| **Full** | High stakes, irreversible, unfamiliar, contested | Tất cả trên với Attack pass mandatory + viết ra tường minh. Cân nhắc gọi `/fable-thinking` |
+| **Direct** | Trivial, reversible, familiar (fact lookup, rename, small edit) | The Floor + Core Operating Rules + Claim Discipline. Không load skill. |
+| **Standard** | Công việc bình thường (bugfix, review, analysis, document) | Load skill `/fable-thinking` — 5 moves + Portable Techniques + Self-Review Gate lấy từ skill. |
+| **Full** | High stakes, irreversible, unfamiliar, contested | Load skill `/fable-thinking` — Attack pass mandatory, viết ra tường minh. |
 
 <EXTREMELY-IMPORTANT>
 Familiar-feeling không phải là evidence của simplicity — những câu hỏi trông quen thuộc
@@ -300,10 +329,10 @@ strict format): những task đó không bao giờ là Direct, dù request có n
 ## When to Invoke `/fable-thinking` Skill
 
 <EXTREMELY-IMPORTANT>
-Rule này chứa executable subset của protocol — đủ cho hầu hết Standard mode tasks. Nhưng
-một số tình huống ĐÒI HỎI full protocol từ skill. Khi gặp bất kỳ hard trigger nào dưới
-đây, PHẢI gọi skill — không được tiếp tục với rule inline. Khi nghi ngờ → gọi skill.
-Over-invoke an toàn hơn under-invoke.
+Theo Default Load ở đầu rule: Direct mode → rule inline; Standard/Full → load skill.
+Phần này là SAFETY NET: khi gặp bất kỳ hard trigger nào dưới đây, PHẢI gọi skill —
+kể cả khi bạn vừa phán "task này Direct/trivial". Đừng để phán đoán của bạn override
+trigger. Khi nghi ngờ → gọi skill. Over-invoke an toàn hơn under-invoke.
 </EXTREMELY-IMPORTANT>
 
 ### Hard Triggers — Luôn Gọi Skill
@@ -333,10 +362,10 @@ Cần **≥2 soft trigger** hoặc **1 soft + judgment call** (dùng The Floor �
 
 ### Cách Gọi Skill
 
-Khi quyết định gọi skill, dùng một trong hai cách:
+Khi cần gọi skill, theo thứ tự:
 
-1. **Tự động**: `Skill` tool với `skill="fable-thinking"`, `args="[mô tả task hoặc câu hỏi cần reasoning]"`
-2. **Đề xuất**: nếu đang tương tác với user, nói: "Task này có [trigger cụ thể]. Bạn có muốn tôi gọi `/fable-thinking` để xử lý không?"
+1. **Tự động, không hỏi user**: Default Load (Standard/Full mode) + mọi hard trigger → dùng `Skill` tool với `skill="fable-thinking"`, `args="[mô tả task hoặc câu hỏi cần reasoning]"`.
+2. **Đề xuất**: chỉ soft trigger — nói: "Task này có [trigger cụ thể]. Bạn có muốn tôi gọi `/fable-thinking` để xử lý không?"
 
 ### Quy Tắc
 
