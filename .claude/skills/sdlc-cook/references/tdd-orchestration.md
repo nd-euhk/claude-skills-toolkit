@@ -73,17 +73,78 @@ Options:
 
 ## Baseline Capture
 
-Baseline là point-in-time snapshot của test suite trước TDD cycle.
-Được capture bởi workflow agent trong worktree.
+### Baseline là gì?
+
+Baseline là **ảnh chụp point-in-time** của toàn bộ test suite trước khi TDD cycle
+bắt đầu. Nó trả lời câu hỏi: *"Test này fail vì TC hiện tại chưa implement, hay vì
+code tôi vừa viết đã làm vỡ một test khác?"*
+
+Nếu không có baseline, agent chỉ biết "có test fail" — không phân biệt được nguyên nhân.
+
+### Ai capture? Khi nào?
+
+| Vai trò | Ai | Khi |
+|---------|----|-----|
+| **Capture** | Controller (`sdlc-cook`) | Sau khi tạo worktree (Bước 4), trước khi dispatch workflow (Bước 8) |
+| **Map keys** | Controller | snake_case (`tc_index`, `pre_existing_failures`, `by_file`) → camelCase trước khi truyền vào args |
+| **Truyền vào** | Controller | Qua `Workflow({ args: { baseline: {...} } })` |
+| **Đọc** | RED agent + GATE agent | Trong TDD cycle và GATE phase |
+| **Cập nhật** | **Không ai** | Baseline là **read-only** — không bao giờ sửa trong cùng lần cook |
+
+### Timeline
+
+```
+Bước 4:   Create Worktree
+              │
+Bước 4.5: CAPTURE BASELINE ← CONTROLLER chạy test + baseline parse
+              │
+Bước 8:   Dispatch Workflow(args: { baseline: {...} })
+              │
+              ├─ RED agent:   đọc baseline.tcIndex + baseline.byFile
+              │                → INTERFERENCE-LIGHT (same-file check mỗi TC)
+              │
+              └─ GATE agent:  đọc baseline.path + baseline.preExistingFailures
+                              → INTERFERENCE-FULL (cross-file check toàn bộ suite)
+```
+
+### Ai dùng field nào?
+
+| Consumer | Field dùng | Mục đích |
+|----------|-----------|---------|
+| **RED agent** | `tcIndex` | Biết TC nào đã PASS trước TDD → nếu giờ FAIL → interference |
+| **RED agent** | `byFile` | Biết file `.java/.ts` nào chứa những TC nào → chạy đúng file cho INTERFERENCE-LIGHT |
+| **RED agent** | `preExistingFailures` | Loại trừ: test đã fail từ trước không tính là interference |
+| **GATE agent** | `path` | Truyền cho `.claude/scripts/baseline compare` để so sánh toàn bộ baseline vs current |
+| **GATE agent** | `preExistingFailures` | Loại trừ khỏi INTERFERENCE-FULL |
+| **Workflow script** | Tất cả field | Nhúng vào prompt cho RED và GATE agent |
+
+### Khi nào cập nhật baseline?
+
+| Tình huống | Hành động |
+|------------|-----------|
+| Cook lần đầu | **Capture mới** — chạy `baseline parse` |
+| Resume sau crash (`resumeFrom`) | **Giữ nguyên** — dùng lại baseline đã capture lần đầu |
+| Cook lại từ đầu (worktree mới) | **Capture mới** — worktree clean state |
+| Cook feature khác | **Capture mới** — mỗi feature có test suite riêng |
+
+### Có cần baseline không?
+
+| Tình huống | Cần? | Lý do |
+|------------|------|-------|
+| **Thêm TC vào file test đã tồn tại** | ✅ Bắt buộc | Phải phân biệt interference vs chưa implement |
+| **Sửa business logic shared** (tax, auth, validation) | ✅ Bắt buộc | Cross-file interference rủi ro cao |
+| **Greenfield** — feature mới, test file mới, chưa có test nào | ⚠️ Không bắt buộc | Không có test cũ để interfere — nhưng vẫn nên capture để GATE full có dữ liệu |
+| **FE component mới** — test file riêng, không share state | ⚠️ Không bắt buộc | Rủi ro interference thấp |
 
 ### Capture Command
 
 ```bash
-# Detect framework + run tests:
-# Gradle:
+cd "$WORKTREE_PATH"
+
+# Backend (Gradle):
 ./gradlew :{service}:test
 
-# Sau đó parse với baseline.py:
+# Parse kết quả:
 .claude/scripts/baseline parse \
   --framework junit-xml \
   --test-output-dir {build/test-results/test/} \
@@ -92,6 +153,8 @@ Baseline là point-in-time snapshot của test suite trước TDD cycle.
   --service {service} \
   --test-command "./gradlew :{service}:test"
 ```
+
+Kết quả lưu vào `.work/baselines/{YYYYMMDD}-{FR-ID}-{BE|FE}.json`.
 
 ### Baseline File Format
 
@@ -106,15 +169,15 @@ Baseline là point-in-time snapshot của test suite trước TDD cycle.
   "passed": 43,
   "failed": 2,
   "skipped": 0,
-  "pre_existing_failures": [
+  "preExistingFailures": [
     "should_handle_expired_token",
     "should_log_security_event"
   ],
-  "tc_index": {
+  "tcIndex": {
     "1": { "method": "should_authenticate_valid_user", "file": "AuthServiceTest.java", "status": "PASS" },
     "2": { "method": "should_reject_invalid_password", "file": "AuthServiceTest.java", "status": "PASS" }
   },
-  "by_file": {
+  "byFile": {
     "AuthServiceTest.java": [
       { "tc_id": 1, "method": "should_authenticate_valid_user", "status": "PASS" },
       { "tc_id": 2, "method": "should_reject_invalid_password", "status": "PASS" }
@@ -125,9 +188,10 @@ Baseline là point-in-time snapshot của test suite trước TDD cycle.
 
 ### Pre-existing Failures
 
-Nếu baseline có `pre_existing_failures > 0`:
-- Báo cáo human: "⚠️ Có {N} tests đang fail trước TDD cycle. Không phải interference."
-- GATE light INTERFERENCE-FULL sẽ exclude những test này khi so sánh
+Nếu baseline có `preExistingFailures > 0`:
+- Báo cáo human: `"⚠️ Có {N} tests đang fail trước TDD cycle. Không phải interference."`
+- RED và GATE agent sẽ exclude những test này khi so sánh interference
+- Nếu số lượng lớn (>10% suite) → cân nhắc fix trước khi cook
 
 ---
 
@@ -153,12 +217,12 @@ Chạy sau REFACTOR-full, khi GATE light PASS.
 | Gate | Nội dung |
 |------|---------|
 | **L1-L4** | Như GATE light (trừ INTERFERENCE-FULL) |
-| **F5** | Security — input validation, auth check, sensitive data exposure |
-| **F6** | Data Integrity — transaction boundary, cascade, constraint |
-| **F7** | Observability — log level phù hợp, metric cho critical path |
-| **F8** | Error Handling — error code canonical, message không leak internal |
-| **F9** | Performance — không blocking I/O trên hot path, cache cho repeated query |
-| **F10** | Code Quality — naming convention, test readability, no dead code |
+| **F5** | Security — input validation at boundary, auth checks, sensitive data exposure, injection prevention |
+| **F6** | Data Integrity — transaction boundaries, cascade operations, DB constraints, idempotency keys |
+| **F7** | Observability — log level appropriate, correlation ID propagation, structured logging, metrics |
+| **F8** | Error Handling — error codes canonical, no internal leak, graceful degradation |
+| **F9** | Performance — no blocking I/O hot path, no N+1 queries, connection/pool leak, cache strategy |
+| **F10** | Code Quality — naming conventions, test readability (business intent), no dead code, no framework anti-patterns |
 
 Spawn: `sdlc-tdd-be-gate` hoặc `sdlc-tdd-fe-gate` với mode `full`.
 

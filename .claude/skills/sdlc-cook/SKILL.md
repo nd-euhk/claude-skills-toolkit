@@ -142,6 +142,35 @@ Verify specs có thể truy cập được trong worktree:
 ls "$WORKTREE_PATH/agent_docs/"
 ```
 
+### Bước 4.5: Capture Baseline
+
+Sau khi tạo worktree và verify specs, capture baseline trạng thái test suite
+hiện tại. **Baseline là bắt buộc** để INTERFERENCE-LIGHT (per-TC) và
+INTERFERENCE-FULL (GATE light) hoạt động — thiếu baseline, toàn bộ cơ chế
+phát hiện interference bị vô hiệu hóa.
+
+```bash
+cd "$WORKTREE_PATH"
+
+# Backend (Gradle):
+./gradlew :{service}:test
+
+# Sau đó parse với baseline.py:
+.claude/scripts/baseline parse \
+  --framework junit-xml \
+  --test-output-dir {build/test-results/test/} \
+  --fr-id {FR-ID} \
+  --layer {be|fe} \
+  --service {service} \
+  --test-command "./gradlew :{service}:test"
+```
+
+Kết quả lưu vào `.work/baselines/{YYYYMMDD}-{FR-ID}-{BE|FE}.json`.
+
+**Lưu ý:** Baseline JSON output dùng camelCase (`tcIndex`, `preExistingFailures`, `byFile`)
+— có thể truyền trực tiếp vào Workflow args không cần map key. Xác nhận field name
+khớp với `workflow-sdlc-cook.js` constants trước khi dispatch.
+
 ### Bước 5: Update Board — Bắt Đầu Cook
 
 ```javascript
@@ -174,25 +203,51 @@ Sắp xếp: CRITICAL → HIGH → MEDIUM → LOW.
 
 ### Bước 8: Dispatch Cook Workflow
 
+**Pre-dispatch (Bước 3-4.5 đã hoàn tất):** worktree đã được tạo, đã `cd` vào worktree,
+baseline đã được capture (Bước 4.5) — output camelCase, truyền trực tiếp vào args.
+
 ```javascript
 Workflow({
   scriptPath: ".claude/workflows/cook/workflow-sdlc-cook.js",
   args: {
+    // ── Định danh feature (required) ──
     featureName: "FEAT-001: User Login",
     frId: "FR-AUTH-001",
     service: "auth-service",
-    layer: "backend",
-    repoPath: "services/auth-service",     // ← path đến project root
-    projectType: "submodule",              // ← submodule | gitignored-subproject | workspace-member
-    worktreePath: worktree_path,           // ← absolute path đến worktree (đã tạo sẵn)
-    testCases: [...],                      // ← trích xuất từ TST spec
-    baseline: { path: "...", ... },        // ← baseline path trong worktree
+    layer: "backend",                    // "backend" | "frontend" — chọn agent family
+
+    // ── Test cases (required) — đã sắp xếp CRITICAL → HIGH → MEDIUM → LOW ──
+    testCases: [
+      { id: "TC-AUTH-001", name: "Login thành công", layer: "integration", risk: "CRITICAL" },
+      { id: "TC-AUTH-002", name: "Login thất bại sai password", layer: "unit", risk: "HIGH" },
+    ],
+
+    // ── Baseline (required) — đã capture + map snake_case→camelCase ──
+    // ⚠️ baseline.js ghi snake_case (tc_index, pre_existing_failures, by_file).
+    // Phải map sang camelCase (tcIndex, preExistingFailures, byFile) trước khi truyền.
+    baseline: {
+      path: ".work/baselines/20260731-FR-AUTH-001-BE.json",
+      tcIndex: {},                       // map từ tc_index
+      preExistingFailures: [],           // map từ pre_existing_failures
+      byFile: {},                        // map từ by_file
+    },
+
+    // ── Optional ──
+    flow: "cook",                        // default: "cook"
+    repoPath: "services/auth-service",   // traceability only — workflow không dùng
+    agents: {},                          // override agent types nếu cần
+    resumeFrom: null,                    // set khi resume sau partial failure
   }
 })
 ```
 
-Workflow tự capture baseline, chạy per-TC TDD cycle, GATE light, REFACTOR full,
-GATE full. Workflow chạy foreground — `Workflow()` return khi hoàn thành hoặc fail.
+**Lưu ý:** `projectType` và `worktreePath` từ Bước 3-4.5 **không** được truyền vào
+Workflow args — workflow không đọc chúng. Worktree phải được tạo và `cd` vào trước
+khi gọi `Workflow()`. Script chạy trong working directory hiện tại.
+
+Workflow chạy per-TC TDD cycle (RED→GREEN→INTERFERENCE-LIGHT→REFACTOR-light),
+GATE light (+ INTERFERENCE-FULL), REFACTOR full, GATE full.
+Workflow chạy foreground — `Workflow()` return khi hoàn thành hoặc fail.
 
 ### Bước 9: Nhận Kết Quả Workflow
 

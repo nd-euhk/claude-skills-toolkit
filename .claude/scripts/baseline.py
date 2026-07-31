@@ -61,11 +61,11 @@ Output — Standardized baseline JSON:
       "duration_ms": 120
     }
   ],
-  "tc_index": {"1": "TestClass.testMethodName (pass)", ...},
-  "pre_existing_failures": [
+  "tcIndex": {"1": "TestClass.testMethodName (pass)", ...},
+  "preExistingFailures": [
     {"id": 15, "method": "testFailing", "error": "AssertionError: ..."}
   ],
-  "by_file": {
+  "byFile": {
     "path/to/TestClass.java": [1, 2, 3]
   }
 }
@@ -383,9 +383,9 @@ def build_baseline(
         "test_command": test_command,
         "summary": summary,
         "tests": tests_sorted,
-        "tc_index": tc_index,
-        "pre_existing_failures": pre_existing_failures,
-        "by_file": by_file,
+        "tcIndex": tc_index,
+        "preExistingFailures": pre_existing_failures,
+        "byFile": by_file,
     }
     if service:
         baseline["service"] = service
@@ -422,7 +422,7 @@ def print_tc_index(baseline: dict) -> None:
     print()
 
     # Pre-existing failures warning
-    pre = baseline.get("pre_existing_failures", [])
+    pre = baseline.get("preExistingFailures", [])
     if pre:
         print(f"⚠️  PRE-EXISTING FAILURES ({len(pre)}):")
         for f in pre:
@@ -432,7 +432,7 @@ def print_tc_index(baseline: dict) -> None:
         print()
 
     # TC list by file
-    by_file = baseline.get("by_file", {})
+    by_file = baseline.get("byFile", {})
     for fname, tc_ids in by_file.items():
         print(f"📄 {fname} ({len(tc_ids)} tests)")
         for tid in tc_ids:
@@ -613,8 +613,8 @@ def main():
                   f"{baseline['summary']['passed']} pass, "
                   f"{baseline['summary']['failed']} fail, "
                   f"{baseline['summary']['skipped']} skip")
-            if baseline["pre_existing_failures"]:
-                print(f"   ⚠️  {len(baseline['pre_existing_failures'])} pre-existing failures")
+            if baseline["preExistingFailures"]:
+                print(f"   ⚠️  {len(baseline['preExistingFailures'])} pre-existing failures")
 
     # ── Mode: list-tcs ───────────────────────────────────────────
     elif args.mode == "list-tcs":

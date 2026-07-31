@@ -315,9 +315,9 @@ function buildBaseline(tests, opts) {
         test_command: opts.testCommand || '',
         summary,
         tests,
-        tc_index: tcIndex,
-        pre_existing_failures: preExistingFailures,
-        by_file: byFile,
+        tcIndex: tcIndex,
+        preExistingFailures: preExistingFailures,
+        byFile: byFile,
     };
 
     if (opts.service) baseline.service = opts.service;
@@ -350,7 +350,7 @@ function printTcIndex(baseline, filterFile, filterStatus) {
         + `${s.failed} failed, ${s.skipped} skipped`);
     console.log();
 
-    const pre = baseline.pre_existing_failures || [];
+    const pre = baseline.preExistingFailures || [];
     if (pre.length > 0 && !filterFile && !filterStatus) {
         console.log(`⚠️  PRE-EXISTING FAILURES (${pre.length}):`);
         for (const f of pre) {
@@ -360,7 +360,7 @@ function printTcIndex(baseline, filterFile, filterStatus) {
         console.log();
     }
 
-    const byFile = baseline.by_file || {};
+    const byFile = baseline.byFile || {};
     let shownCount = 0;
 
     for (const [fname, tcIds] of Object.entries(byFile)) {
@@ -566,8 +566,8 @@ function main() {
             console.log(`✅ Baseline captured: ${written}`);
             const s = baseline.summary;
             console.log(`   ${s.total} tests — ${s.passed} pass, ${s.failed} fail, ${s.skipped} skip`);
-            if (baseline.pre_existing_failures.length > 0) {
-                console.log(`   ⚠️  ${baseline.pre_existing_failures.length} pre-existing failures`);
+            if (baseline.preExistingFailures.length > 0) {
+                console.log(`   ⚠️  ${baseline.preExistingFailures.length} pre-existing failures`);
             }
         }
 

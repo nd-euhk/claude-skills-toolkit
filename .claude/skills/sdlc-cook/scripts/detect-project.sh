@@ -13,7 +13,7 @@
 #
 # Exit codes:
 #   0 — classification successful
-#   1 — cannot classify (ambiguous or error)
+#   1 — cannot classify (ambiguous or error — unreachable paths)
 # ─────────────────────────────────────────────────────────────
 
 # Walk up từ directory để tìm .git gần nhất (git root)
@@ -54,9 +54,22 @@ classify_project() {
   git_root="$(realpath "$git_root" 2>/dev/null || echo "$git_root")"
   service_dir="$(realpath "$service_dir" 2>/dev/null || echo "$service_dir")"
 
-  # Case A: Submodule — .git là FILE (không phải directory)
+  # Case A: .git là FILE (submodule hoặc linked worktree)
   if [ -f "$git_root/.git" ]; then
-    # Verify: có trong .gitmodules của parent
+    # A1: Check nếu đây là linked worktree (gitdir trỏ tới .git/worktrees/)
+    local gitdir_line
+    gitdir_line=$(head -1 "$git_root/.git" 2>/dev/null || true)
+    if echo "$gitdir_line" | grep -q '^gitdir:.*\.git/worktrees/'; then
+      # Worktree → resolve về main repo
+      local main_repo
+      main_repo=$(echo "$gitdir_line" | sed 's|^gitdir: ||' | sed 's|/\.git/worktrees/.*||')
+      if [ -n "$main_repo" ] && [ -d "$main_repo/.git" ]; then
+        echo "workspace-member"
+        return 0
+      fi
+    fi
+
+    # A2: Verify submodule — có trong .gitmodules của parent
     local parent_root
     parent_root=$(find_parent_worktree "$(dirname "$git_root")")
     if [ -n "$parent_root" ] && [ -f "$parent_root/.gitmodules" ]; then
@@ -65,6 +78,10 @@ classify_project() {
         return 0
       fi
     fi
+
+    # A3: .git là FILE nhưng không phải submodule hoặc worktree → fallback
+    echo "workspace-member"
+    return 0
   fi
 
   # Case B: Gitignored subproject — .git là DIRECTORY và bị workspace parent ignore

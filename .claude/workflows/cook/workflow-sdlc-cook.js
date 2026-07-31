@@ -128,6 +128,21 @@ ${prevResults.map(r => `- ${r.tcId}: ${r.status} — ${r.tcName} (files: ${(r.fi
 ${prevSummary}`
 }
 
+// ── Nhóm GATE failures theo file để tránh 2 agent ghi cùng file song song ──
+// Failure messages thường chứa pattern: "path/to/file.ext:line" hoặc "trong path/to/file.ext"
+function groupFailuresByFile(failures) {
+  const groups = {}
+  const filePattern = /([\w./-]+\.[\w]{1,6})(?::\d+|\)|\s|$)/
+
+  for (const f of failures) {
+    const match = f.match(filePattern)
+    const file = match ? match[1] : 'unknown'
+    if (!groups[file]) groups[file] = []
+    groups[file].push(f)
+  }
+  return groups
+}
+
 // ═══════════════════════════════════════════
 // TDD AGENT PROMPTS
 // ═══════════════════════════════════════════
@@ -188,7 +203,7 @@ ${tcFiles.map(f => `  - ${f}: TCs [${(BASELINE_BY_FILE[f] || []).join(', ')}]`).
 
 4. **INTERFERENCE-LIGHT Check** (only if GREEN succeeded):
    After GREEN implements code, run ALL tests in the SAME file as this TC to detect same-file interference:
-   - Identify the test file this TC belongs to (use baseline by_file map above)
+   - Identify the test file this TC belongs to (use baseline byFile map above)
    - Run ONLY that test file (not the full suite): e.g. \`npx jest <test-file>\` or \`./gradlew :{service}:test --tests "*"\`
    - Check results: does any OTHER test (not this TC, not pre-existing failures) now FAIL?
    - If YES → **this TC's implementation broke another test in the same file**
@@ -237,7 +252,7 @@ function gateAgentPrompt(mode, tcResults, techStackHint) {
 - **Pre-existing failures** (exclude from interference): ${BASELINE_PRE_EXISTING.length > 0 ? BASELINE_PRE_EXISTING.join(', ') : 'none'}
 - **Culprit TCs + files changed**:
 ${culpritInfo || '  (none)'}`
-    : '## Baseline\n⚠️ No baseline file — INTERFERENCE-FULL will be skipped. Run baseline capture before TDD cycle.'
+    : '## Baseline\n❌ **CRITICAL: No baseline file — INTERFERENCE-LIGHT and INTERFERENCE-FULL are both DISABLED.** Cross-TC interference will NOT be detected. Run `.claude/scripts/baseline parse ...` in the worktree before dispatching the workflow.'
 
   return `You are a GATE verifier. Run ${mode} mode gate checks on the completed TDD cycle.
 
@@ -301,35 +316,41 @@ Re-verify all 4 light gates still pass after refactoring.
 - REFACTOR full may have renamed/reorganized tests → baseline comparison would produce false positives
 - L1 in full mode only verifies: all tests pass (exit code 0), no skipped critical tests
 
-### F5: Integration & Regression
-- No regressions in existing functionality
-- Integration points still work correctly
-- All contract tests pass
+### F5: Security
+- All user inputs validated at boundary (type, range, format)
+- Auth checks on every protected endpoint/operation
+- No sensitive data exposed in API responses or log messages
+- No injection vulnerabilities (SQL, XSS, command, path traversal)
 
-### F6: Lint & Formatting
-- Linter passes with zero errors
-- Code formatted according to project conventions
-- No commented-out code or debug artifacts
+### F6: Data Integrity
+- Transaction boundaries correct on all write paths
+- Cascade operations properly defined (no orphaned records)
+- Database constraints enforced at application layer (unique, foreign key, check)
+- Idempotency keys on non-idempotent operations (payment, creation)
 
-### F7: Coverage
-- Test coverage meets project threshold
-- New code paths are all covered
-- Edge cases have dedicated test coverage
+### F7: Observability
+- Log level appropriate for each path (no DEBUG on production hot paths)
+- Correlation ID / trace ID propagated through all service calls
+- Structured logging format consistent across all changed code
+- Metric or log event on critical business operations
 
-### F8: Input Validation
-- All user inputs validated at boundary
-- Type coercion is safe (no implicit conversions)
-- File uploads have size/type restrictions
+### F8: Error Handling
+- Error codes canonical — matches project error taxonomy in agent_docs/error-handling.md
+- Error messages do not leak internal details (stack traces, SQL, file paths)
+- All exception paths caught and mapped to appropriate HTTP/gRPC status codes
+- Graceful degradation when external dependencies are unavailable
 
-### F9: Error Handling
-- All exceptions caught and mapped to appropriate responses
-- Error responses include correlation ID for tracing
-- No sensitive information leaked in error messages
+### F9: Performance
+- No blocking I/O on hot/synchronous code paths
+- No N+1 queries introduced (check ORM fetch strategy, loop queries)
+- Connection/thread pools properly closed (no leaks in new code)
+- Appropriate cache or batch strategy for repeated identical queries
 
-### F10: Framework-Specific Compliance
-- Follows project framework conventions
-- Uses framework features correctly (DI, middleware, interceptors)
-- No anti-patterns specific to the detected framework
+### F10: Code Quality
+- Naming conventions match existing codebase patterns
+- Test readability — test name clearly states business intent (not implementation detail)
+- No dead code, commented-out blocks, or debug artifacts in committed files
+- No framework-specific anti-patterns (Detected framework: ${techStackHint || 'auto-detect'})
 `}
 
 ## Required Reading
@@ -440,18 +461,30 @@ async function runGateWithRetry(mode, totalChecks, phaseName, tcResultsFiltered,
     retries++
     log(`🔄 GATE ${mode} retry ${retries}/${MAX_GATE_RETRIES}...`)
 
-    const fixPrompts = (result.failures || []).map(f =>
-      `Fix this GATE ${mode} failure in the codebase:\n\n**Failure**: ${f}\n\n**Feature**: ${featureName} (${frId})\n**Service**: ${service}\n**Files changed**: ${allFiles.join(', ')}\n\nFix the issue while keeping all tests passing. Make minimal changes.`
-    )
+    // ── Nhóm failures theo file để tránh 2 agent ghi cùng file song song ──
+    const fileGroups = groupFailuresByFile(result.failures || [])
 
-    if (fixPrompts.length > 0) {
-      await parallel(fixPrompts.map(p => () =>
-        agent(p, {
-          label: `fix-gate-${mode}`,
-          phase: phaseDisplay,
-          agentType: GREEN,
+    if (Object.keys(fileGroups).length > 0) {
+      await parallel(
+        Object.entries(fileGroups).map(([file, failures]) => () => {
+          const combinedPrompt = `Fix ALL of the following GATE ${mode} failures in the same file:
+
+**File**: ${file}
+
+${failures.map((f, i) => `**Failure ${i + 1}**: ${f}`).join('\n\n')}
+
+**Feature**: ${featureName} (${frId})
+**Service**: ${service}
+
+Fix all issues while keeping all tests passing. Make minimal changes.`
+
+          return agent(combinedPrompt, {
+            label: `fix-gate-${mode}-${file.split('/').pop() || 'unknown'}`,
+            phase: phaseDisplay,
+            agentType: GREEN,
+          })
         })
-      ))
+      )
     }
 
     result = await agent(gateAgentPrompt(mode, tcResultsFiltered, techStackHint), {
@@ -532,6 +565,8 @@ for (const tc of testCases) {
       allTestsPass = false
       log(`  ⚠️ INTERFERENCE-LIGHT: ${result.errorDetail || 'TC broke another test in the same file'}`)
       warnings.push(`${result.tcId} INTERFERENCE-LIGHT: ${result.errorDetail || 'TC broke another test in the same file'}`)
+      log(`  🛑 Stopping TDD cycle — ${testCases.length - testCases.indexOf(tc) - 1} remaining TCs not executed (codebase may be compromised)`)
+      break
     }
     if (result.status === 'BLOCKED' || result.status === 'STALE' || result.status === 'ERROR') {
       allTestsPass = false

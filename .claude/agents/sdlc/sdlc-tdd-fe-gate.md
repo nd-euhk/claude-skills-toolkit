@@ -77,9 +77,9 @@ Use `.claude/scripts/baseline.py parse` instead of manual JSON construction:
 
 The script auto-generates:
 - TC IDs (1→N) with sequential numbering
-- `tc_index`: `{"1": "Component.testMethod (pass)", ...}` — ready for RED agents
-- `by_file`: groups TCs by source file — ready for INTERFERENCE-LIGHT
-- `pre_existing_failures`: lists tests already failing before TDD cycle
+- `tcIndex`: `{"1": "Component.testMethod (pass)", ...}` — ready for RED agents
+- `byFile`: groups TCs by source file — ready for INTERFERENCE-LIGHT
+- `preExistingFailures`: lists tests already failing before TDD cycle
 - Standardized `.work/baselines/YYYYMMDD-FR-{ID}-FE.json`
 
 ### Step BL3: Verify Output
@@ -104,7 +104,7 @@ File: .work/baselines/{YYYYMMDD}-FR-{ID}-FE.json
 [Paste baseline.py list-tcs output here]
 
 ## Pre-existing Failures (if any)
-[From baseline JSON pre_existing_failures array]
+[From baseline JSON preExistingFailures array]
 ```
 
 If pre-existing failures exist, flag them prominently — these are NOT caused by the current feature's TDD cycle.
