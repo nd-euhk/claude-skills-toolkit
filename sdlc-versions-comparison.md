@@ -1,6 +1,6 @@
-# SDLC Rules — So sánh 3 phiên bản
+# SDLC Rules — So sánh 6 phiên bản
 
-> Dành cho team tự chọn phiên bản. Tags: `sdlc-skill-v4` → `sdlc-skill-v4.1` → `sdlc-skill-v4.2` → `sdlc-skill-v4.3` → `sdlc-skill-v4.4`
+> Dành cho team tự chọn phiên bản. Tags: `sdlc-skill-v4` → `sdlc-skill-v4.1` → `sdlc-skill-v4.2` → `sdlc-skill-v4.3` → `sdlc-skill-v4.4` → `sdlc-skill-v4.5`
 
 ---
 
@@ -101,6 +101,28 @@
 
 ---
 
+## v4.5 — Cook Independence & Production Hardening
+
+**Làm được:** mọi thứ v4.4 + cook standalone architecture + workflow production hardening + fable-thinking rules executable rewrite.
+
+**Mới so với v4.4:**
+
+| Năng lực | Mô tả |
+|----------|-------|
+| **Cook standalone architecture** | Cook flow được tách hoàn toàn khỏi orchestrator và automation, trở thành skill độc lập. orchestrator/automation focus vào specs pipeline (task/CR/fixbug), cook là entry point chuyên biệt cho TDD code execution. Xóa flow-cook.md (441 dòng) khỏi orchestrator, xóa cook-flow.md (440 dòng) khỏi automation. |
+| **Cook DRY retry** | `runGateWithRetry()` helper — loại bỏ ~60 dòng duplicate retry logic giữa GATE light và GATE full trong workflow script. Một hàm duy nhất với techStackHint + allFiles explicit params. |
+| **Cook idempotent resume** | Workflow có thể resume từ crashed phase thay vì re-run toàn bộ TDD cycle. Dùng `resumeFromRunId` (tool-level) làm primary mechanism, COOK_REPORT làm fallback. |
+| **Cook docs consolidation** | Gộp flow-multi.md (đã xóa, multi-feature dispatcher không còn cần), flow-single.md → flow.md, tdd-cycle.md → pipeline-status.md → tdd-orchestration.md. Tổ chức lại references rõ ràng: flow.md (single-feature execution), tdd-orchestration.md (TDD cycle + GATE), error-recovery.md (10 error scenarios), merge-manager.md (PR + conflict), project-detection.md. |
+| **Pipeline status removal** | Xóa write-only `.pipeline/` JSON mechanism — 3 script implementations (sh/js/py, ~420 dòng) không có reader. Merge-manager và error-recovery chuyển sang đọc COOK_REPORT thay vì JSON file. |
+| **Workflow audit fixes (7 fixes)** | (1) `repoPath` từ `process.env` → `git rev-parse` + skill dispatch. (2) `PHASE_RESULT` schema cho `agent()` structured output. (3) `verifySRSForDomains` parallel hóa (sequential → parallel). (4) DRY `CC_STAGE1_AGENTS` config array. (5) `runGateWithRetry` thêm `techStackHint` + `allFiles` params. (6) Idempotent resume cho automation workflow (5 phase skip logic). (7) Idempotent resume cho codebase-reverse workflow (5 phase skip logic). |
+| **Fable-thinking rules executable rewrite** | Từ mô tả (descriptive) → thủ tục thực thi (mechanical executable). Portable Techniques và Five Moves được nhúng inline dưới dạng procedure cụ thể, không còn là concept để biết. Model PHẢI thực thi, không phải "biết và áp dụng". `protocol.md` vẫn tồn tại cho Full mode (Constraint Loop, design-taste, content-taste) nhưng hầu hết Standard mode tasks không cần load reference. |
+| **sdlc-review integration** | Merge-manager tự động gợi ý chạy `sdlc-review --code --full` trước khi tạo PR. Non-blocking — human có thể skip. |
+| **Sprint cook integration** | Sprint board và backlog cập nhật cook integration: board theo dõi TDD cycle status (baseline → RED → GREEN → REFACTOR → GATE), backlog hỗ trợ cook-ready features. |
+
+**Khác biệt chính với v4.4:** Cook trở thành **skill độc lập hoàn toàn** — không còn ràng buộc với orchestrator hay automation. Workflow đạt **production hardening** qua 7 audit fixes (determinism, DRY, parallelize, idempotent resume). Fable-thinking rules chuyển từ mô tả sang **executable procedure** — model không còn "biết" protocol mà phải "thực thi" nó. ~1400 dòng code chết bị xóa (pipeline status scripts + multi-feature dispatcher + duplicated flow docs).
+
+---
+
 ## Bảng chọn theo nhu cầu
 
 | Nhu cầu | Chọn |
@@ -110,6 +132,7 @@
 | Muốn reasoning protocol luôn active (The Floor), Claim Discipline, đầy đủ references | **v4.2** |
 | Muốn tất cả v4.2 + code discipline cho implementation + advisor agent chuyên dụng | **v4.3** |
 | Muốn tất cả v4.3 + workflow determinism + audit + comparison docs | **v4.4** |
+| Muốn tất cả v4.4 + cook độc lập + production hardening + executable reasoning rules | **v4.5** |
 
 ## Bảng chọn theo team profile
 
@@ -120,3 +143,4 @@
 | Muốn model luôn reasoning grounded, có guardrail toàn diện | v4.2 | Protocol-first, The Floor, 8 defaults |
 | Muốn model reasoning grounded + code chuẩn mực | v4.3 | Tất cả v4.2 + implementation discipline |
 | Muốn model reasoning grounded + code chuẩn + workflow ổn định | v4.4 | Tất cả v4.3 + workflow quality assurance |
+| Muốn production-grade pipeline: cook độc lập, workflow production-hardened, reasoning rules executable | v4.5 | Tất cả v4.4 + production hardening + standalone cook + ~1400 dòng code chết bị xóa |
