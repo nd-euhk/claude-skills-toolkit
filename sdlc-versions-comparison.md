@@ -119,7 +119,18 @@
 | **sdlc-review integration** | Merge-manager tự động gợi ý chạy `sdlc-review --code --full` trước khi tạo PR. Non-blocking — human có thể skip. |
 | **Sprint cook integration** | Sprint board và backlog cập nhật cook integration: board theo dõi TDD cycle status (baseline → RED → GREEN → REFACTOR → GATE), backlog hỗ trợ cook-ready features. |
 
-**Khác biệt chính với v4.4:** Cook trở thành **skill độc lập hoàn toàn** — không còn ràng buộc với orchestrator hay automation. Workflow đạt **production hardening** qua 7 audit fixes (determinism, DRY, parallelize, idempotent resume). Fable-thinking rules chuyển từ mô tả sang **executable procedure** — model không còn "biết" protocol mà phải "thực thi" nó. ~1400 dòng code chết bị xóa (pipeline status scripts + multi-feature dispatcher + duplicated flow docs).
+**Bản vá sau khi tag (gộp vào v4.5 — code hiện tại):**
+
+| Fix | Nội dung |
+|-----|----------|
+| **Cook TDD cycle** | F5-F10 gates khớp `tdd-orchestration.md` (Security, Data Integrity, Observability, Error Handling, Performance, Code Quality). INTERFERENCE break ngay khi phát hiện — không chạy tiếp TC trên codebase compromised. GATE retry nhóm theo file (`groupFailuresByFile()`) — ngăn 2 agent ghi cùng file song song. Baseline lifecycle tường minh (Step 4.5 capture command, ai capture/consume, khi nào mandatory vs optional). Scripts baseline output camelCase + `detect-project.sh` xử lý linked worktrees. |
+| **Automation hardening** | Gate verdict qua structured output (schema `GATE_RESULT`) thay regex free-text — gate agent trả explicit `critical` boolean. Unify `CROSS_CUTTING` → `CROSS-CUTTING` — fix resume bug khiến cross-cutting luôn chạy lại. Retry budget 1→2 (3 attempts). Fix syntax error critical trong srs/hld/lld prompts (workflow không load được trước đó). Docs `Workflow Crash & Resume`. |
+| **Gate / LLD criteria** | LLD gate L1 9 section headers đồng bộ với producer design (gate-camp → producer-camp: Service Boundary, Internal Architecture, Transaction Boundaries, Integration Points, Performance & Scale, …). `lldPrompt` pin exact `##` headers để gate grep deterministic. |
+| **Fable-thinking rule** | The Floor chạy trên MỌI request (kể cả "hi"/small talk). Thêm Red Flags table (10 rationalization signals). Proportionality Gate: Standard/Full mode PHẢI load skill `/fable-thinking`. When-to-Invoke = safety net override task-size judgment. |
+| **Preflight** | Bỏ numbering "Phase 1/3/8" không tồn tại trong hệ thống (arrow đã mang tên phase). `grilling-conventions.md`: 2 nhánh tách file đúng kịch bản (tách-theo-stack, tách-FE-riêng) thay khuôn cứng "Tách 3 file". |
+| **Scout schema sync** | Flatten return object (bỏ wrapper `results`), thêm `modulesFound`/`entryPointsFound`, normalize report shape, align `status` enum (`partial`, empty→completed) — `verifyScoutReport()` không còn crash. Restore `foundGaps`. `sdlc-review` workflow-handoff sync. |
+
+**Khác biệt chính với v4.4:** Cook trở thành **skill độc lập hoàn toàn** — không còn ràng buộc với orchestrator hay automation. Workflow đạt **production hardening** qua 7 audit fixes (determinism, DRY, parallelize, idempotent resume). Fable-thinking rules chuyển từ mô tả sang **executable procedure** — model không còn "biết" protocol mà phải "thực thi" nó. ~1400 dòng code chết bị xóa (pipeline status scripts + multi-feature dispatcher + duplicated flow docs). **Lưu ý:** tag `sdlc-skill-v4.5` được retag tại code hiện tại (2026-08-01, plugin 2.35.0) — v4.5 gồm cả các bản vá sau tag đầu tiên (bảng "Bản vá sau khi tag").
 
 ---
 
