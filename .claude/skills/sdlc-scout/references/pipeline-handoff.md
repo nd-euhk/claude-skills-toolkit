@@ -55,34 +55,35 @@ Workflow({ scriptPath: ".claude/workflows/workflow-sdlc-scout-pipeline.js", args
 {
   mode: "scout",
   status: "completed",
-  results: {
-    subProjects: 3,
-    completed: 3,
-    skipped: 0,
-    failed: 0,
-    totalFiles: 210,
-    reports: [
-      {
-        name: "auth-service",
-        outputPath: ".work/scouts/scout-20260626-auth--myproject.md",
-        filesFound: 42,
-        highRelevance: 15,
-        mediumRelevance: 20,
-        lowRelevance: 7,
-        patternsObserved: 8,
-        technologiesDetected: 12,
-        questions: 2,
-      },
-    ],
-    failedReports: [],
-    gaps: {
-      foundGaps: false,
-      crossProject: [],
-      missedDirectories: [],
-      uncoveredTopics: [],
-      lowQualityReports: [],
-      recommendations: [],
+  subProjects: 3,
+  completed: 3,
+  skipped: 0,
+  failed: 0,
+  totalFiles: 210,
+  reports: [
+    {
+      name: "auth-service",
+      outputPath: ".work/scouts/scout-20260626-auth--myproject.md",
+      filesFound: 42,
+      highRelevance: 15,
+      mediumRelevance: 20,
+      lowRelevance: 7,
+      patternsObserved: 8,
+      technologiesDetected: 12,
+      modulesFound: 6,
+      entryPointsFound: 3,
+      questions: 2,
+      skipped: false,
     },
+  ],
+  failedReports: [],
+  gaps: {
+    foundGaps: false,
+    crossProject: [],
+    missedDirectories: [],
+    uncoveredTopics: [],
+    lowQualityReports: [],
+    recommendations: [],
   },
 }
 ```
@@ -92,19 +93,17 @@ Workflow({ scriptPath: ".claude/workflows/workflow-sdlc-scout-pipeline.js", args
 ```js
 {
   mode: "scout",
-  status: "completed",          // still "completed" — partial results available
-  results: {
-    subProjects: 3,
-    completed: 2,               // 2 succeeded
-    skipped: 0,
-    failed: 1,                  // 1 failed
-    totalFiles: 150,
-    reports: [...],             // completed + skipped reports
-    failedReports: [
-      { name: "payment-service", outputPath: ".work/scouts/scout-20260626-payment--myproject.md" },
-    ],
-    gaps: { ... },
-  },
+  status: "partial",            // some sub-projects failed — partial results available
+  subProjects: 3,
+  completed: 2,                 // 2 succeeded
+  skipped: 0,
+  failed: 1,                    // 1 failed
+  totalFiles: 150,
+  reports: [...],               // completed + skipped reports
+  failedReports: [
+    { name: "payment-service", outputPath: ".work/scouts/scout-20260626-payment--myproject.md" },
+  ],
+  gaps: { ... },
 }
 ```
 
@@ -114,15 +113,13 @@ Workflow({ scriptPath: ".claude/workflows/workflow-sdlc-scout-pipeline.js", args
 {
   mode: "scout",
   status: "failed",
-  results: {
-    subProjects: 1,
-    completed: 0,
-    failed: 1,
-    totalFiles: 0,
-    reports: [],
-    failedReports: [{ name: "...", outputPath: "..." }],
-    gaps: null,
-  },
+  subProjects: 1,
+  completed: 0,
+  failed: 1,
+  totalFiles: 0,
+  reports: [],
+  failedReports: [{ name: "...", outputPath: "..." }],
+  gaps: null,
 }
 ```
 

@@ -10,7 +10,7 @@ description: >-
   Supports --mr, --pr, --code mode flags and --arch, --security, --bugs, --conventions,
   --impact, --ops, --tests, --full, --adversarial flags.
 argument-hint: "[--mr <id>] [--pr <id>] [--code <path>] [--full] [--arch] [--security] [--bugs] [--conventions] [--impact] [--ops] [--tests] [--adversarial]"
-version: 1.3.0
+version: 1.3.1
 allowed-tools:
   - Read
   - Write

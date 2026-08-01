@@ -11,7 +11,7 @@ description: >-
   technologies, and architectural patterns consumable by all downstream SDLC
   skills. Supports --focus, --patterns, --mode (review|explore|self-test).
 argument-hint: "<target-path> [--focus <description>] [--patterns <keywords>] [--mode review|explore|self-test]"
-version: 2.1.0
+version: 2.2.0
 user-invocable: true
 when_to_use: "Invoke for any codebase scouting need across the SDLC ecosystem — review, explore, fixbug, task, cr, contract, compliance, phase execution, brainstorming, or standalone exploration."
 category: sdlc

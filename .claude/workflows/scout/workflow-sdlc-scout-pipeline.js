@@ -123,7 +123,7 @@ const GAPS = {
 
 if (!subProjects.length) {
   log('No sub-projects provided — nothing to scout')
-  return { mode: 'scout', status: 'empty', results: { subProjects: 0, totalFiles: 0, reports: [] } }
+  return { mode: 'scout', status: 'completed', subProjects: 0, completed: 0, skipped: 0, failed: 0, totalFiles: 0, reports: [], failedReports: [], gaps: null }
 }
 
 // ── Idempotent skip: check which reports already exist ──
@@ -165,7 +165,31 @@ if (toSkip.length > 0) {
 }
 if (toScout.length === 0) {
   log('All reports already exist — nothing to scout')
-  return { mode: 'scout', status: 'completed', results: { subProjects: subProjects.length, completed: subProjects.length, skipped: subProjects.length, failed: 0, totalFiles: 0, reports: toSkip.map(p => ({ name: p.name, outputPath: p.outputPath, filesFound: 0, skipped: true })), failedReports: [], gaps: null } }
+  return {
+    mode: 'scout',
+    status: 'completed',
+    subProjects: subProjects.length,
+    completed: subProjects.length,
+    skipped: subProjects.length,
+    failed: 0,
+    totalFiles: 0,
+    reports: toSkip.map(p => ({
+      name: p.name,
+      outputPath: p.outputPath,
+      filesFound: 0,
+      highRelevance: 0,
+      mediumRelevance: 0,
+      lowRelevance: 0,
+      patternsObserved: 0,
+      technologiesDetected: 0,
+      modulesFound: 0,
+      entryPointsFound: 0,
+      questions: 0,
+      skipped: true,
+    })),
+    failedReports: [],
+    gaps: null,
+  }
 }
 
 // ═══════════════════════════════════════════
@@ -374,6 +398,8 @@ ${questionList}
       lowRelevance: lowCount,
       patternsObserved: (finding.patterns || []).length,
       technologiesDetected: (finding.technologies || []).length,
+      modulesFound: (finding.modules || []).length,
+      entryPointsFound: (finding.entryPoints || []).length,
       questions: (finding.questions || []).length,
     }
   }
@@ -443,36 +469,45 @@ if (gaps?.foundGaps) {
 
 const totalFiles = completed.reduce((sum, r) => sum + (r.filesFound || 0), 0)
 
+let status = 'completed'
+if (failed.length === toScout.length && toSkip.length === 0) {
+  status = 'failed'
+} else if (failed.length > 0) {
+  status = 'partial'
+}
+
 return {
   mode: 'scout',
-  status: failed.length === toScout.length && toSkip.length === 0 ? 'failed' : 'completed',
-  results: {
-    subProjects: subProjects.length,
-    completed: completed.length + toSkip.length,
-    skipped: toSkip.length,
-    failed: failed.length,
-    totalFiles,
-    reports: [
-      ...toSkip.map(p => ({ name: p.name, outputPath: p.outputPath, filesFound: 0, highRelevance: 0, mediumRelevance: 0, lowRelevance: 0, patternsObserved: 0, technologiesDetected: 0, questions: 0, skipped: true })),
-      ...completed.map(r => ({
-        name: r.name,
-        outputPath: r.outputPath,
-        filesFound: r.filesFound,
-        highRelevance: r.highRelevance,
-        mediumRelevance: r.mediumRelevance,
-        lowRelevance: r.lowRelevance,
-        patternsObserved: r.patternsObserved,
-        technologiesDetected: r.technologiesDetected,
-        questions: r.questions,
-      })),
-    ],
-    failedReports: failed.map(r => ({ name: r.name, outputPath: r.outputPath })),
-    gaps: gaps?.foundGaps ? {
-      crossProject: gaps.crossProject || [],
-      missedDirectories: gaps.missedDirectories || [],
-      uncoveredTopics: gaps.uncoveredTopics || [],
-      lowQualityReports: gaps.lowQualityReports || [],
-      recommendations: gaps.recommendations || [],
-    } : null,
-  },
+  status,
+  subProjects: subProjects.length,
+  completed: completed.length + toSkip.length,
+  skipped: toSkip.length,
+  failed: failed.length,
+  totalFiles,
+  reports: [
+    ...toSkip.map(p => ({ name: p.name, outputPath: p.outputPath, filesFound: 0, highRelevance: 0, mediumRelevance: 0, lowRelevance: 0, patternsObserved: 0, technologiesDetected: 0, modulesFound: 0, entryPointsFound: 0, questions: 0, skipped: true })),
+    ...completed.map(r => ({
+      name: r.name,
+      outputPath: r.outputPath,
+      filesFound: r.filesFound,
+      highRelevance: r.highRelevance,
+      mediumRelevance: r.mediumRelevance,
+      lowRelevance: r.lowRelevance,
+      patternsObserved: r.patternsObserved,
+      technologiesDetected: r.technologiesDetected,
+      modulesFound: r.modulesFound,
+      entryPointsFound: r.entryPointsFound,
+      questions: r.questions,
+      skipped: false,
+    })),
+  ],
+  failedReports: failed.map(r => ({ name: r.name, outputPath: r.outputPath })),
+  gaps: gaps?.foundGaps ? {
+    foundGaps: true,
+    crossProject: gaps.crossProject || [],
+    missedDirectories: gaps.missedDirectories || [],
+    uncoveredTopics: gaps.uncoveredTopics || [],
+    lowQualityReports: gaps.lowQualityReports || [],
+    recommendations: gaps.recommendations || [],
+  } : null,
 }

@@ -2,6 +2,19 @@
 
 All notable changes to the skills-toolkit plugin are documented here.
 
+## [2.35.0] - 2026-08-01
+
+### Changed
+- **sdlc-scout 2.2.0:** MINOR — fix return schema mismatch giữa workflow pipeline và docs (`report-format.md` / `quality-gates.md` / `integration-guide.md`):
+  - **Flatten return object:** bỏ wrapper `results` ở cả 3 return path (empty / all-skipped / main) — `reports`, `failedReports`, `gaps`, và các counters về top-level, khớp Return Data Schema.
+  - **Thêm `modulesFound` / `entryPointsFound`** vào report objects (data vốn có sẵn từ `SCOUT_FINDING` nhưng chưa được `.length` hóa) — `workflow-sdlc-review-code.js` đọc 2 field này qua `scoutReports`.
+  - **Normalize report shape:** cả skip lẫn completed branches đều có đủ field counts + `skipped: boolean` nhất quán.
+  - **Align `status` với enum docs:** emit `'partial'` khi có sub-project fail một phần (trước đây luôn `'completed'`); trường hợp không có sub-project map `'empty'` → `'completed'`. `verifyScoutReport()` không còn crash vì `scoutResult.reports` giờ tồn tại.
+  - **Restore `foundGaps`** trong object `gaps` trả về.
+- **sdlc-review 1.3.1:** PATCH — sync `workflow-handoff.md` với kiến trúc scout hiện tại:
+  - Xóa "Phase: Scout" khỏi code workflow phases (scout do SKILL.md gọi `sdlc-scout` trước khi dispatch — workflow không có phase scout nội bộ).
+  - Thêm field `scoutReports` vào `codeArgs` schema (structured scout output mà SKILL.md Phase 5 thực tế gửi).
+
 ## [2.34.2] - 2026-07-31
 
 ### Fixed

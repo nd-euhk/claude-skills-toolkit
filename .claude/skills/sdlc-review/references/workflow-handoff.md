@@ -141,6 +141,9 @@ const codeArgs = {
   dimensions: ["arch", "security", "bugs", "conventions", "impact", "ops", "tests"], // string[]
   adversarial: true,                     // boolean
   runDate: "20260626",                   // string YYYYMMDD
+  scoutReports: [                        // array — structured scout output từ sdlc-scout (SKILL.md gọi sdlc-scout trước khi dispatch)
+    { name: "auth-service", outputPath: ".work/scouts/scout-20260626-auth--myproject.md", filesFound: 42, highRelevance: 15, modulesFound: 6, entryPointsFound: 3 },
+  ],
 }
 ```
 
@@ -171,13 +174,11 @@ Giống MR workflow result, với `reportPath` dùng prefix `REVIEW-CODE-`:
 
 ### Code Review Workflow Phases
 
-Khác với MR workflow nhận diff, code workflow phải khám phá codebase trước:
+Khác với MR workflow nhận diff, code workflow nhận `scoutReports` (structured scout
+output — do SKILL.md gọi `sdlc-scout` trước khi dispatch; nếu rỗng, mỗi dimension
+agent tự khám phá codebase trong review):
 
 ```
-Phase: Scout
-  Khám phá targetPath → phát hiện cấu trúc file, xác định module chính
-  → đầu ra: file list, module map, tổng quan dependency graph
-
 Phase: Review
   parallel(tất cả 7 dimension, mỗi dimension khám phá + review)
   → mỗi agent dùng Bash(git:*,ls:*,find:*,cat:*) + Grep + Glob + Agent(Explore)
