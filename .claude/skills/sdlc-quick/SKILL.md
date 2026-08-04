@@ -12,7 +12,7 @@ description: >-
   full pipeline), skill này BỎ QUA toàn bộ SRS/HLD/LLD/IMP/TST specs
   và REFACTOR-full/GATE-full, chỉ giữ guard test tối thiểu + GATE-light.
   Tự động phát hiện task không trivial → escalation về orchestrator.
-version: 1.0.0
+version: 1.0.1
 allowed-tools: Read, Write, Edit, Bash, Glob, Skill, Agent, AskUserQuestion
 ---
 
@@ -283,7 +283,7 @@ Cập nhật board status. Non-blocking — nếu fail, báo cáo và tiếp t�
 - **Không chắc chắn về scope** — "có thể chỉ 1 file nhưng tôi không rõ"
 - **Đụng đến API/schema/auth/billing/data-integrity** — kể cả "chỉ thêm 1 field vào response"
 - **Thay đổi >2 file** — dù mỗi file chỉ 1 dòng
-- **Feature mới** — dù nhỏ đến đâu. "Thêm field" là feature mới → flow task
+- **Feature mới** — dù nhỏ đến đâu. "Thêm field" là feature mới → flow cr
 - **Human muốn review kỹ** — preference cá nhân
 - **Codebase chưa quen** — project mới, kiến trúc lạ
 
@@ -294,9 +294,9 @@ Cập nhật board status. Non-blocking — nếu fail, báo cáo và tiếp t�
 | "Sửa lỗi chính tả trong error message" | ✅ Path A | typo, 1 file, không logic |
 | "Đổi màu nút submit từ xanh sang đỏ" | ✅ Path A | CSS, 1 file, không logic |
 | "Thêm validation email không được trống" | ✅ Path B | logic nhỏ, 1 file, có guard test |
-| "Thêm field phone vào form đăng ký" | ❌ | API/schema mới → flow task |
-| "Sửa logic tính thuế trong billing" | ❌ | G3: billing → flow task |
-| "Đổi tên function dùng chung (ảnh hưởng 8 file)" | ❌ | G1: >2 files + G5: cascading → flow task |
+| "Thêm field phone vào form đăng ký" | ❌ | API/schema mới → flow cr |
+| "Sửa logic tính thuế trong billing" | ❌ | G3: billing → flow cr |
+| "Đổi tên function dùng chung (ảnh hưởng 8 file)" | ❌ | G1: >2 files + G5: cascading → flow cr |
 
 Phát hiện tín hiệu trên trong trivial gate hoặc triage grill → dừng:
 
