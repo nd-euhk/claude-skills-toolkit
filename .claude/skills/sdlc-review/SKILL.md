@@ -264,7 +264,7 @@ if (mode === 'mr' || mode === 'pr') {
     platform,       // 'github' | 'gitlab' (từ Phase 3)
     dimensions,     // string[] từ Phase 1/1b
     adversarial,    // boolean từ Phase 1/1b
-    runDate,        // $(date +%Y%m%d)
+    runDate,        // $(date +%Y%m%d-%H%M%S)
   }
 
   // Guard: kiểm tra workflow script tồn tại
@@ -288,7 +288,7 @@ if (mode === 'code') {
     targetPath,     // thư mục/file cần review (từ user input hoặc cwd)
     dimensions,     // string[]
     adversarial,    // boolean
-    runDate,        // $(date +%Y%m%d)
+    runDate,        // $(date +%Y%m%d-%H%M%S)
     scoutReports: scoutResult?.reports || [],  // structured scout output, được workflow tiêu thụ
   }
 
@@ -337,7 +337,7 @@ Post bằng `gh pr comment <id> --body "<markdown>"` hoặc `glab mr note <id> -
 Nếu workflow trả về `failedDimensions: ['security']`, report vẫn bao gồm kết quả từ 6 dimension còn lại. Thông báo cho người dùng và đề nghị retry thủ công (các) dimension bị lỗi.
 
 ### Workflow unavailable
-Nếu `.claude/workflows/workflow-sdlc-review-{mr,code}.js` không tồn tại:
+Nếu `.claude/workflows/review/workflow-sdlc-review-{mr,code}.js` không tồn tại:
 ```
 "Không tìm thấy workflow script. Vui lòng đảm bảo plugin đã được cài đặt đúng cách."
 ```
@@ -366,8 +366,8 @@ Nếu workflow trả về `verdict: 'ERROR'`:
 
 Tất cả report được lưu vào: `.work/review/`
 
-- **MR/PR**: `REVIEW-MR-YYYYMMDD--{platform}-{number}-{sanitized-title}.md`
-- **Code**: `REVIEW-CODE-YYYYMMDD--{sanitized-path}.md`
+- **MR/PR**: `REVIEW-MR-YYYYMMDD-HHMMSS--{platform}-{number}-{sanitized-title}.md`
+- **Code**: `REVIEW-CODE-YYYYMMDD-HHMMSS--{sanitized-path}.md`
 
 ## Key Principles
 
