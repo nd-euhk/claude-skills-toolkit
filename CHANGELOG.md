@@ -2,6 +2,17 @@
 
 All notable changes to the skills-toolkit plugin are documented here.
 
+## [2.35.1] - 2026-08-04
+
+### Fixed
+- **sdlc-cook 2.2.1:** PATCH — sửa comment sai tại Bước 8 code example (dòng 225-227):
+  comment cũ nói baseline.js ghi snake_case và cần map sang camelCase trước khi truyền
+  vào Workflow args. Thực tế cả `baseline.js` (dòng 318-320) và `baseline.py` (dòng
+  386-388) đều emit camelCase (`tcIndex`, `preExistingFailures`, `byFile`). Nếu agent
+  làm theo comment sai → map ngược key camelCase thành snake_case → interference
+  detection chạy với index rỗng → silent failure (gate vẫn PASS). Đã sửa thành comment
+  đúng, nhất quán với Bước 4.5 (dòng 170-172).
+
 ## [2.35.0] - 2026-08-01
 
 ### Changed

@@ -9,7 +9,7 @@ description: >-
   đúng repo. Không dùng cho task nhỏ — task ≤2 file, không API/schema/security
   dùng /sdlc-quick. Để chạy nhiều feature song song, gọi /sdlc-cook riêng cho
   từng feature — Claude Code agents view sẽ hiển thị parallel execution.
-version: 2.2.0
+version: 2.2.1
 argument-hint: "FEAT-{NNN}"
 allowed-tools: Read, Write, Edit, Bash, Skill, Agent, Workflow, AskUserQuestion
 ---
@@ -222,14 +222,14 @@ Workflow({
       { id: "TC-AUTH-002", name: "Login thất bại sai password", layer: "unit", risk: "HIGH" },
     ],
 
-    // ── Baseline (required) — đã capture + map snake_case→camelCase ──
-    // ⚠️ baseline.js ghi snake_case (tc_index, pre_existing_failures, by_file).
-    // Phải map sang camelCase (tcIndex, preExistingFailures, byFile) trước khi truyền.
+    // ── Baseline (required) — đã capture, truyền trực tiếp không cần map key ──
+    // Baseline JSON output dùng camelCase (tcIndex, preExistingFailures, byFile) —
+    // có thể truyền trực tiếp vào Workflow args. Xem Bước 4.5.
     baseline: {
       path: ".work/baselines/20260731-FR-AUTH-001-BE.json",
-      tcIndex: {},                       // map từ tc_index
-      preExistingFailures: [],           // map từ pre_existing_failures
-      byFile: {},                        // map từ by_file
+      tcIndex: {},
+      preExistingFailures: [],
+      byFile: {},
     },
 
     // ── Optional ──
