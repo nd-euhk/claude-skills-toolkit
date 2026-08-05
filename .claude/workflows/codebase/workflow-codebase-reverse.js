@@ -35,12 +35,18 @@ const {
   resumeFrom = null,  // { completedPhases: ['HLD','LLD'], phaseResults: { HLD: '...', LLD: [...] } }
 } = _args
 
+// Resolve relative paths from workDir so subagents write to the correct project directory
+const resolvePath = (p) => (workDir && p && !p.startsWith('/')) ? `${workDir}/${p}` : p
+foundationPath = resolvePath(foundationPath)
+scoutReportPath = resolvePath(scoutReportPath)
+
 // -- Phase Selection --
 const runHLD = artifacts.includes('hld')
 const runLLD = artifacts.includes('lld')
 const runSRS = artifacts.includes('srs')
 const runIMP = artifacts.includes('imp')
 const runTST = artifacts.includes('tst')
+const runCC  = artifacts.includes('cross-cutting')
 
 // Derived counts
 const serviceCount = services.length
@@ -516,7 +522,8 @@ Document all 9 sections for ${svc.name}, with code evidence (file:line) for each
 function lldSynthesisPrompt(lldSummaries) {
   return `## MODE: CROSS-SERVICE SYNTHESIS — LLD
 
-Merge per-service LLD outputs into cross-cutting documentation.
+Merge per-service LLD outputs — API contracts, error codes, FR candidates, service interaction map.
+Cross-cutting concerns (error-handling, caching, etc.) are handled by dedicated codebase-cross-cutting-* agents in Phase 4.
 
 ## Context
 - **HLD**: ${foundationPath}architecture.md
@@ -525,29 +532,26 @@ Merge per-service LLD outputs into cross-cutting documentation.
 ${lldSummaries.map((s, i) => `  ${i + 1}. ${services[i]?.name || `service-${i}`}: ${s}`).join('\n')}
 
 ## Task
-1. **Cross-Cutting Concerns** -> ${foundationPath}cross-cutting.md
-   - Auth patterns across services
-   - Error format consistency
-   - Logging/monitoring patterns
-   - Data consistency mechanisms
-   - Deployment pattern consistency
+**Note:** Cross-cutting concerns (error-handling, caching-strategy, performance-test,
+frontend-architecture, frontend-test-strategy) are handled by dedicated
+codebase-cross-cutting-* agents in Phase 4 after SRS — do NOT generate cross-cutting.md.
 
-2. **API Contract Synthesis** -> ${foundationPath}contracts/api-{domain}.yaml
+1. **API Contract Synthesis** -> ${foundationPath}contracts/api-{domain}.yaml
    - Group APIs by business domain (not by service)
    - Identify overlapping or conflicting endpoints
    - Flag gaps in API surface
 
-3. **Error Code Canonicalization** -> ${foundationPath}contracts/error-codes.md
+2. **Error Code Canonicalization** -> ${foundationPath}contracts/error-codes.md
    - Deduplicate and normalize error codes across all services
    - Map which service raises which error
    - Flag inconsistent error semantics
 
-4. **FR Enrichment** — Generate FR candidates for SRS phase
+3. **FR Enrichment** — Generate FR candidates for SRS phase
    - Group related endpoints into feature candidates
    - Identify cross-service features
    - Suggest domain groupings for SRS fan-out
 
-5. **Service Interaction Map** — Mermaid diagram
+4. **Service Interaction Map** — Mermaid diagram
    - Service dependency graph
    - Call chains for key use cases
    - Bottlenecks and tight coupling detected
@@ -1284,7 +1288,7 @@ if (completedPhases.has('CROSS_CUTTING')) {
   log('⏭️ CROSS-CUTTING — already DONE (resumed)')
   ccResults = resumeResults.CROSS_CUTTING || ccResults
   ccGatePassed = true
-} else if (!skipRemaining) {
+} else if (!skipRemaining && (runCC || runSRS)) {
 
   // --- Scope Detection ---
   // Determine which cross-cutting agents to run based on available artifacts
@@ -1410,7 +1414,12 @@ if (completedPhases.has('CROSS_CUTTING')) {
     ccGatePassed = true  // no-op gate passes
   }
 } else {
-  log('Cross-Cutting: Skipped (gate exhaustion from previous phase)')
+  if (skipRemaining) {
+    log('Cross-Cutting: Skipped (gate exhaustion from previous phase)')
+  } else {
+    log('⏭️  Cross-Cutting: Skipped (not in --artifacts scope)')
+    ccGatePassed = true  // intentionally skipped, not a failure
+  }
 }
 
 // -- Phase 5: IMP+TST (fan-out per domain + gate) --

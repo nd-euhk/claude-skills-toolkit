@@ -8,11 +8,11 @@ description: >-
   code", "tạo agent_docs từ codebase", "document codebase", "extract specs
   from code", "đồng bộ tài liệu với code", "generate SDLC docs from source".
 argument-hint: "[--focus <description>] [--scope <path>] [--artifacts hld,lld,srs,imp,tst] [--dry-run]"
-version: 1.4.0
+version: 1.5.0
 user-invocable: true
 category: sdlc
 keywords: [reverse-engineer, codebase, agent-docs, documentation, sdlc, specs-from-code]
-allowed-tools: Read, Bash, Skill, Workflow, AskUserQuestion, EnterPlanMode, ExitPlanMode
+allowed-tools: Read, Bash, Skill, Workflow, Agent, Write, AskUserQuestion, EnterPlanMode, ExitPlanMode
 ---
 
 # SDLC Codebase
@@ -99,7 +99,7 @@ Xác nhận scope với human:
    Verify:    Adversarial (codebase-srs-verify agent, 3-lens + Explore subagents)
    Mode:      {dry-run ? "Dry Run" : "Full Generation"}
 
-   Pipeline:  Scout → HLD → LLD → SRS → Verify SRS → IMP ∥ TST
+	   Pipeline:  {renderPipeline(artifacts)}
 ```
 
 Nếu ambiguous → `AskUserQuestion` để làm rõ scope và artifacts.
@@ -115,10 +115,10 @@ test -f agent_docs/user-context.md && echo "  user-context" || true
 test -f agent_docs/conventions.md && echo "  conventions" || true
 test -f agent_docs/architecture.md && echo "  architecture (HLD)" || true
 test -f agent_docs/README.md && echo "  README (feature index)" || true
-ls agent_docs/features/*.md 2>/dev/null | head -5 && echo "  ... (SRS features)" || true
-ls agent_docs/backend/*/tech-design/*.md 2>/dev/null | head -3 && echo "  ... (LLD)" || true
-ls agent_docs/backend/*/implementation/*.md 2>/dev/null | head -3 && echo "  ... (IMP)" || true
-ls agent_docs/backend/*/test-specs/*.md 2>/dev/null | head -3 && echo "  ... (TST)" || true
+	n=$(ls agent_docs/features/*.md 2>/dev/null | wc -l); [ "$n" -gt 0 ] && echo "  SRS features: $n"
+	n=$(ls agent_docs/backend/*/tech-design/*.md 2>/dev/null | wc -l); [ "$n" -gt 0 ] && echo "  LLD docs: $n"
+	n=$(ls agent_docs/backend/*/implementation/*.md 2>/dev/null | wc -l); [ "$n" -gt 0 ] && echo "  IMP specs: $n"
+	n=$(ls agent_docs/backend/*/test-specs/*.md 2>/dev/null | wc -l); [ "$n" -gt 0 ] && echo "  TST specs: $n"
 test -f agent_docs/error-handling.md && echo "  error-handling (cross-cutting)" || true
 test -f agent_docs/caching-strategy.md && echo "  caching-strategy (cross-cutting)" || true
 test -f agent_docs/performance-test.md && echo "  performance-test (cross-cutting)" || true
@@ -238,10 +238,15 @@ Thay vì plan từng phase, skill làm 1 plan tổng thể trước khi invoke w
    ```
 3. **Human review → approve**
 4. **ExitPlanMode**
-5. **Package args** — dùng template trong `references/procedures.md` → "Workflow Args Packaging"
-6. **Invoke workflow** — gọi Workflow tool với script path và args đã package. Workflow tự chạy gate+retry giữa các phase, skill không can thiệp
-7. **Đọc workflow result** — parse status, outputs, warnings, gate results
-8. **Báo cáo kết quả** — dùng template progress reporting. Nếu `status: "partial (gate exhaustion)"`, báo cáo phase nào bị gate exhaustion
+5. **Dry-run check:** Nếu `--dry-run` → dừng tại đây. Báo cáo plan cho human, không invoke workflow, không sinh bất kỳ artifact nào. Scout report (Bước 4) là output duy nhất.
+6. **Workflow availability check:** Xác nhận `Workflow` tool có trong tool-set hiện tại. Nếu không có:
+   - Fallback: spawn từng agent qua `Agent` tool với đúng `agentType` và prompt tái tạo từ `workflow-codebase-reverse.js` prompt-builder functions
+   - Giữ nguyên gate+retry logic (≤3 lần retry, `skipRemaining` khi gate exhausted)
+   - Ghi rõ "Running in manual fallback mode — Workflow tool not available"
+7. **Package args** — dùng template trong `references/procedures.md` → "Workflow Args Packaging"
+8. **Invoke workflow** — gọi Workflow tool (hoặc manual fallback) với script path và args đã package. Workflow/fallback tự chạy gate+retry giữa các phase, skill không can thiệp
+9. **Đọc workflow result** — parse status, outputs, warnings, gate results
+10. **Báo cáo kết quả** — dùng template progress reporting. Nếu `status: "partial (gate exhaustion)"`, báo cáo phase nào bị gate exhaustion
 
 #### Workflow Invocation
 
