@@ -9,7 +9,7 @@ description: >-
   detecting bugs in code, evaluating security, or running pre-merge review.
   Supports --mr, --pr, --code mode flags and --arch, --security, --bugs, --conventions,
   --impact, --ops, --tests, --full, --adversarial flags.
-argument-hint: "[--mr <id>] [--pr <id>] [--code <path>] [--full] [--arch] [--security] [--bugs] [--conventions] [--impact] [--ops] [--tests] [--adversarial]"
+argument-hint: "[--mr <id>] [--pr <id>] [--code <path>] [--full] [--arch] [--security] [--bugs] [--conventions] [--impact] [--ops] [--tests] [--adversarial] [--focus \"<description>\"]"
 version: 1.3.1
 allowed-tools:
   - Read
@@ -119,6 +119,9 @@ Thứ tự parse:
    - Không có dimension flag → chuyển sang Phase 1b (menu routing)
 3. Trích xuất --adversarial → adversarial=true
 4. Trích xuất identifier (MR/PR mode) hoặc path (code mode)
+5. Trích xuất --focus "<description>" → focus (tùy chọn, chỉ code mode)
+   - Nếu có → dùng giá trị này, bỏ qua auto-derive ở Phase 1c
+   - Nếu không có → auto-derive từ dimensions trong Phase 1c
 ```
 
 **Mode routing:**
@@ -176,6 +179,48 @@ Kết hợp lựa chọn Q2a + Q2b vào dimensions[].
 **Q3 → adversarial**: Standard → `false`, Adversarial → `true`
 
 **Khi người dùng CÓ cung cấp CLI flags:** Bỏ qua menu hoàn toàn. `adversarial` được đặt từ sự hiện diện của flag `--adversarial`.
+
+### Phase 1c: Derive Scout Focus (chỉ code mode)
+
+Sau khi `dimensions[]` được resolve (từ flags hoặc menu), derive `focus` string cho sdlc-scout. Focus giúp scout agent ưu tiên file và pattern liên quan thay vì quét toàn bộ codebase không định hướng.
+
+**Luật ưu tiên:**
+1. Nếu user đã truyền `--focus` tường minh ở Phase 1 step 5 → dùng giá trị đó, bỏ qua auto-derive
+2. Nếu không có → auto-derive từ `dimensions[]`
+
+**Bảng map dimension → focus string:**
+
+| Dimension | Focus string |
+|-----------|-------------|
+| `arch` | "architecture patterns, C4 model, ADR compliance, SOLID principles, service boundaries, coupling points, breaking changes, dependency direction, layer violations" |
+| `security` | "authentication, authorization, input validation, secrets management, data exposure, OWASP Top 10, dependency vulnerabilities, CSP/CORS, rate limiting, audit logging" |
+| `bugs` | "logic errors, race conditions, edge cases, null/undefined handling, error handling gaps, type safety violations, exception handling, resource leaks, off-by-one, concurrency issues" |
+| `conventions` | "CLAUDE.md compliance, naming conventions, code organization, project structure, import patterns, testing standards, file naming, directory layout" |
+| `impact` | "cross-feature dependencies, interface implementations, shared code consumers, regression risks, API contract changes, data model changes, breaking change surface area" |
+| `ops` | "database migrations, performance bottlenecks, N+1 queries, deployment configuration, rollback paths, monitoring, logging, alerting thresholds, connection pooling, timeouts" |
+| `tests` | "test quality, test-to-implementation mapping, assertion strength, coverage gaps, mocking patterns, test fixtures, test cheating detection, flaky tests, test isolation" |
+
+**Luật join:**
+- 1 dimension → dùng thẳng focus string của dimension đó
+- N dimensions → join bằng `"; "` (dấu chấm phẩy + space giữa các focus string)
+- `--full` (tất cả 7 dimension) → join tất cả 7
+
+**Ví dụ:**
+
+| Input | dimensions[] | focus (auto-derived) |
+|-------|-------------|---------------------|
+| `--code --security src/api/` | `['security']` | `"authentication, authorization, input validation, secrets management, ..."` |
+| `--code --security --bugs src/api/` | `['security','bugs']` | `"authentication, authorization, ... ; logic errors, race conditions, ..."` |
+| `--code --full src/` | tất cả 7 | join tất cả 7 focus strings |
+| `--code --security --focus "JWT token handling" src/api/` | `['security']` | `"JWT token handling"` (tường minh, không derive) |
+
+**Kết quả:** `focus` được resolve và truyền vào Phase 5a:
+
+```js
+const scoutResult = await Skill(sdlc-scout, `${targetPath} --mode review --focus "${focus || ''}"`)
+```
+
+Nếu `focus` vẫn rỗng sau Phase 1c (không có dimension, không có --focus tường minh) → `--focus ""` → sdlc-scout chạy không định hướng (fallback an toàn).
 
 ### Phase 2: Workspace Discovery (chỉ MR/PR mode)
 
@@ -353,12 +398,13 @@ Nếu workflow trả về `verdict: 'ERROR'`:
 
 ## Flag Handling Reference
 
-| Input | mode | dimensions | adversarial | Routing |
-|---|---|---|---|---|
-| `--mr`/`--pr <flags> <url\|id>` | mr/pr | từ flags | `--adversarial` flag | Platform từ URL/prefix/remote. Nếu không có ID → workspace discovery |
-| `--code <flags> <path>` | code | từ flags | `--adversarial` flag | targetPath=<path>, bỏ qua Phase 3-4 |
-| ≥2 trong số `--mr`/`--pr`/`--code` | CONFLICT | — | — | Phase 1b Q1 giải quyết mode |
-| (không args) | menu | menu | menu | Q1(mode) → Q2(scope) → Q3(verify) → discovery → dispatch |
+| Input | mode | dimensions | adversarial | focus | Routing |
+|---|---|---|---|---|---|---|
+| `--mr`/`--pr <flags> <url\|id>` | mr/pr | từ flags | `--adversarial` flag | N/A (MR/PR không dùng scout) | Platform từ URL/prefix/remote. Nếu không có ID → workspace discovery |
+| `--code <flags> <path>` | code | từ flags | `--adversarial` flag | auto-derive từ dimensions (Phase 1c) | targetPath=<path>, bỏ qua Phase 3-4 |
+| `--code --focus "<desc>" <flags> <path>` | code | từ flags | `--adversarial` flag | dùng giá trị tường minh, không derive | targetPath=<path>, bỏ qua Phase 3-4 |
+| ≥2 trong số `--mr`/`--pr`/`--code` | CONFLICT | — | — | — | Phase 1b Q1 giải quyết mode |
+| (không args) | menu | menu | menu | auto-derive từ dimensions chọn trong menu | Q1(mode) → Q2(scope) → Q3(verify) → discovery → dispatch |
 
 `--full` → tất cả 7 dimension. Không có dimension flag + không có `--full` → Phase 1b Q2.
 
