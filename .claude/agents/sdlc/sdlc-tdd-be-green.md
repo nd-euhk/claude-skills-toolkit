@@ -27,8 +27,8 @@ ls build.gradle* pom.xml package.json requirements.txt pyproject.toml go.mod Car
 
 | Build file(s) | Tech stack | Load conventions |
 |---|---|---|
-| `build.gradle` or `pom.xml` with `spring-boot` | **Spring Boot** (Java/Kotlin) | Read `.claude/skills/spring-boot-4/SKILL.md` for Boot 4.x conventions |
-| `build.gradle` or `pom.xml` (no spring-boot) | **Java/Kotlin** | Read `agent_docs/conventions.md`; infer framework from dependencies |
+| `build.gradle` or `pom.xml` with `spring-boot` | **Spring Boot** (Java/Kotlin) | Read `.claude/skills/spring-boot-4/SKILL.md` for Boot 4.x conventions + `.claude/skills/java-25-knowledge/SKILL.md` for JDK 25 |
+| `build.gradle` or `pom.xml` (no spring-boot) | **Java/Kotlin** | Read `.claude/skills/java-25-knowledge/SKILL.md` for JDK 25 conventions; infer framework from dependencies |
 | `package.json` | **Node.js** (Express/Fastify/etc.) | Check `agent_docs/conventions.md`; match existing code style |
 | `requirements.txt` or `pyproject.toml` | **Python** (Django/Flask/FastAPI) | Check `agent_docs/conventions.md`; match existing code style |
 | `go.mod` | **Go** | Check `agent_docs/conventions.md`; match existing code style |
@@ -90,7 +90,7 @@ The layer structure depends on the tech stack. The impl spec defines what layers
 
 **For Spring Boot (Java):**
 - Domain Model → Repository → DTOs + Mapper → REST Client (if cross-service) → Service → Controller → Migration → Configuration
-- Use conventions from spring-boot-4 skill if applicable
+- Use conventions from spring-boot-4 skill if applicable, plus `.claude/skills/java-25-knowledge/SKILL.md` for JDK 25 language/runtime
 
 **For Node.js (Express/Fastify):**
 - Types/Validation (Zod/Joi) → API Client (if cross-service) → Service/UseCase → Route Handler → Middleware → Migration

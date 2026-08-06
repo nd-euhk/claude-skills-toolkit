@@ -41,14 +41,14 @@ ls build.gradle* pom.xml package.json requirements.txt pyproject.toml go.mod Car
 
 | Build file(s) found | Tech stack | Load this skill |
 |---|---|---|
-| `build.gradle` or `pom.xml` with `spring-boot` | **Spring Boot** (Java/Kotlin) | Read `.claude/skills/spring-boot-4/SKILL.md` for Boot 4.x conventions |
-| `build.gradle` or `pom.xml` (no spring-boot) | **Java/Kotlin** (other framework) | Use standard Java conventions; infer test framework from dependencies |
+| `build.gradle` or `pom.xml` with `spring-boot` | **Spring Boot** (Java/Kotlin) | Read `.claude/skills/spring-boot-4/SKILL.md` for Boot 4.x conventions + `.claude/skills/java-25-knowledge/SKILL.md` for JDK 25 |
+| `build.gradle` or `pom.xml` (no spring-boot) | **Java/Kotlin** (other framework) | Read `.claude/skills/java-25-knowledge/SKILL.md` for JDK 25 conventions; infer test framework from dependencies |
 | `package.json` | **Node.js** (Express/Fastify/etc.) | Use project's test framework (Jest/Vitest/Mocha) from package.json |
 | `requirements.txt` or `pyproject.toml` | **Python** (Django/Flask/FastAPI) | Use pytest conventions; infer from project dependencies |
 | `go.mod` | **Go** | Use Go testing conventions (`go test`) |
 | `Cargo.toml` | **Rust** | Use Rust testing conventions (`cargo test`) |
 
-**If the stack is Spring Boot:** The spring-boot-4 skill provides critical 4.x conventions — read it. Key test impacts: `@MockitoBean` not `@MockBean`, `jakarta.*` not `javax.*`.
+**If the stack is Spring Boot:** The spring-boot-4 skill provides critical 4.x conventions — read it. Key test impacts: `@MockitoBean` not `@MockBean`, `jakarta.*` not `javax.*`. Also read `.claude/skills/java-25-knowledge/SKILL.md` for JDK 25 language/runtime (ScopedValue vs ThreadLocal, virtual threads, preview vs finalized features).
 
 **If another stack:** Apply the project's existing conventions. Read `agent_docs/conventions.md` and the project's test files to understand established patterns. Match the existing test style, assertions, and mock patterns.
 

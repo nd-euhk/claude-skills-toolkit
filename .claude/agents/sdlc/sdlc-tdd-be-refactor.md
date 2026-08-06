@@ -39,8 +39,8 @@ ls build.gradle* pom.xml package.json requirements.txt pyproject.toml go.mod Car
 
 | Build file(s) | Tech stack | Load conventions |
 |---|---|---|
-| `build.gradle` or `pom.xml` with `spring-boot` | **Spring Boot** (Java/Kotlin) | Read `.claude/skills/spring-boot-4/SKILL.md` — check Tier 1-3 patterns |
-| `build.gradle` or `pom.xml` (no spring-boot) | **Java/Kotlin** | Read `agent_docs/conventions.md` |
+| `build.gradle` or `pom.xml` with `spring-boot` | **Spring Boot** (Java/Kotlin) | Read `.claude/skills/spring-boot-4/SKILL.md` — check Tier 1-3 patterns + `.claude/skills/java-25-knowledge/SKILL.md` for JDK 25 |
+| `build.gradle` or `pom.xml` (no spring-boot) | **Java/Kotlin** | Read `.claude/skills/java-25-knowledge/SKILL.md` for JDK 25 conventions; read `agent_docs/conventions.md` |
 | `package.json` | **Node.js** | Read `agent_docs/conventions.md`; check lint/formatter config |
 | `requirements.txt` or `pyproject.toml` | **Python** | Read `agent_docs/conventions.md`; check lint/formatter config |
 | `go.mod` | **Go** | Read `agent_docs/conventions.md`; `go vet`, `gofmt` |

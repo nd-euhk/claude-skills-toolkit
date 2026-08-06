@@ -38,8 +38,8 @@ ls build.gradle* pom.xml package.json requirements.txt pyproject.toml go.mod Car
 
 | Build file(s) | Tech stack | Framework-specific gates |
 |---|---|---|
-| `build.gradle` or `pom.xml` with `spring-boot` | **Spring Boot** (Java/Kotlin) | Read `.claude/skills/spring-boot-4/SKILL.md`; run Gate F10 Spring Boot checks |
-| `build.gradle` or `pom.xml` (no spring-boot) | **Java/Kotlin** | Run generic Java checks; skip Spring Boot-specific gate |
+| `build.gradle` or `pom.xml` with `spring-boot` | **Spring Boot** (Java/Kotlin) | Read `.claude/skills/spring-boot-4/SKILL.md` + `.claude/skills/java-25-knowledge/SKILL.md`; run Gate F10 Spring Boot checks |
+| `build.gradle` or `pom.xml` (no spring-boot) | **Java/Kotlin** | Read `.claude/skills/java-25-knowledge/SKILL.md` (JDK 25 compliance); run generic Java checks; skip Spring Boot-specific gate |
 | `package.json` | **Node.js** | Run Node.js-specific checks in F10 |
 | `requirements.txt` or `pyproject.toml` | **Python** | Run Python-specific checks in F10 |
 | `go.mod` | **Go** | Run Go-specific checks in F10 |
@@ -278,7 +278,7 @@ Run the project's coverage tool.
 
 Run checks tailored to the detected tech stack:
 
-**If Spring Boot detected** (read `.claude/skills/spring-boot-4/SKILL.md`):
+**If Spring Boot detected** (read `.claude/skills/spring-boot-4/SKILL.md` + `.claude/skills/java-25-knowledge/SKILL.md` for JDK 25 feature status):
 ```bash
 grep -r "spring-boot-starter-web" projects/{service}/ 2>/dev/null | grep -v "webmvc\|webflux"
 grep -r "import javax\." projects/{service}/src/main/java/

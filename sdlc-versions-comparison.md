@@ -1,6 +1,6 @@
-# SDLC Rules — So sánh 6 phiên bản
+# SDLC Rules — So sánh 7 phiên bản
 
-> Dành cho team tự chọn phiên bản. Tags: `sdlc-skill-v4` → `sdlc-skill-v4.1` → `sdlc-skill-v4.2` → `sdlc-skill-v4.3` → `sdlc-skill-v4.4` → `sdlc-skill-v4.5`
+> Dành cho team tự chọn phiên bản. Tags: `sdlc-skill-v4` → `sdlc-skill-v4.1` → `sdlc-skill-v4.2` → `sdlc-skill-v4.3` → `sdlc-skill-v4.4` → `sdlc-skill-v4.5` → `sdlc-skill-v4.6`
 
 ---
 
@@ -134,6 +134,28 @@
 
 ---
 
+## v4.6 — Stack Knowledge Integration & Hardening
+
+**Làm được:** mọi thứ v4.5 + stack-knowledge loading bắt buộc cho implementation agents (Java 25 / Spring Boot 4) + post-v4.5 hardening fixes.
+
+**Mới so với v4.5:**
+
+| Năng lực | Mô tả |
+|----------|-------|
+| **java-25-knowledge skill** | Skill mới 1.0.0: self-contained reference cho JDK 25 LTS (released 2025-09-16). Giải quyết knowledge cutoff — agent training data trước 2025 không biết feature nào finalized (Scoped Values JEP 506, Module Imports JEP 511, Flexible Constructors JEP 513, Compact Source Files JEP 512, AOT JEP 514/515, Vector API, Generational Shenandoah JEP 516) vs vẫn preview (Primitive Patterns JEP 507, Structured Concurrency JEP 505, Stable Values JEP 502, PEM JEP 470). Critical: `--enable-preview` chỉ cho preview features, không phải finalized. |
+| **spring-boot-4 + java-25-knowledge trong rules** | Implementation rules thêm Section 5 — **Load Knowledge Skills Before Writing (Java Stack)**: mọi code-writing agent (cook/TDD RED-GREEN-REFACTOR/quick) PHẢI đọc `java-25-knowledge` (JDK 25) + `spring-boot-4` (Boot 4.x) trước khi viết Java. EXTREMELY-IMPORTANT block — không skippable. |
+| **TDD backend agents wiring** | 4 agents (be-red, be-green, be-refactor, be-gate) — tech-stack table giờ load `java-25-knowledge` cho mọi stack Java/Kotlin (kể cả Spring Boot 4, vì Boot conventions + JDK language features bổ trợ nhau). |
+| **sdlc-quick escalation fix** | 1.0.0 → 1.0.1 (PATCH): sửa lệch với routing rules — "thêm field nhỏ" phải dùng flow `cr`, không phải `task` (greenfield). 4 vị trí trong "When NOT to Use Quick" + triage-grill path classification. |
+| **sdlc-review wiring fixes** | 2 fix: (a) stale workflow path + second-granularity timestamps; (b) `--focus` chưa bao giờ được assign trong Phase 5a — sdlc-scout luôn nhận `--focus ""` → auto-derive từ dimension flags + explicit override parsing. |
+| **sdlc-codebase eval fixes** | 1.4.0 → 1.5.0 (MINOR): 8 defect từ skill-tester eval (D1-D9 trừ D3) — smart-detection bash false positive, `runCC` gate guard, foundationPath/workDir resolution, cross-cutting delegating đúng agents, allowed-tools mở rộng. |
+| **sdlc-cook baseline comment fix** | 2.2.1 (PATCH): comment sai nói baseline ghi snake_case → thực tế camelCase; sửa tránh silent interference-detection failure. |
+
+**Khác biệt chính với v4.5:** Thêm tầng **stack knowledge enforcement** — agent không còn tự suy luận Java 25 / Spring Boot 4 conventions từ training data cũ (có thể compile nhưng sai hành vi silently), mà bắt buộc load skill kiến thức nền đã verify. Bổ sung 5 hardening fixes từ skill-tester eval và consistency review.
+
+**Lưu ý:** v4.6 là minor over v4.5 — không phải breaking change. Plugin version 2.36.0. Java 25 / Spring Boot 4 knowledge skills bổ trợ lẫn nhau, không loại trừ.
+
+---
+
 ## Bảng chọn theo nhu cầu
 
 | Nhu cầu | Chọn |
@@ -144,6 +166,7 @@
 | Muốn tất cả v4.2 + code discipline cho implementation + advisor agent chuyên dụng | **v4.3** |
 | Muốn tất cả v4.3 + workflow determinism + audit + comparison docs | **v4.4** |
 | Muốn tất cả v4.4 + cook độc lập + production hardening + executable reasoning rules | **v4.5** |
+| Muốn v4.5 + agent không viết Java sai do knowledge cutoff (Java 25 / Spring Boot 4) + hardening fixes | **v4.6** |
 
 ## Bảng chọn theo team profile
 
@@ -155,3 +178,4 @@
 | Muốn model reasoning grounded + code chuẩn mực | v4.3 | Tất cả v4.2 + implementation discipline |
 | Muốn model reasoning grounded + code chuẩn + workflow ổn định | v4.4 | Tất cả v4.3 + workflow quality assurance |
 | Muốn production-grade pipeline: cook độc lập, workflow production-hardened, reasoning rules executable | v4.5 | Tất cả v4.4 + production hardening + standalone cook + ~1400 dòng code chết bị xóa |
+| Muốn v4.5 + stack knowledge enforcement cho Java 25 / Spring Boot 4 + toàn bộ hardening fixes | v4.6 | Tất cả v4.5 + knowledge skills bắt buộc + 5 hardening fixes post-eval |

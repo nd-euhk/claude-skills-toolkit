@@ -100,6 +100,26 @@ nó — đừng âm thầm fork.
 
 ---
 
+## 5 — Load Knowledge Skills Before Writing (Java Stack)
+
+<EXTREMELY-IMPORTANT>
+Model training data có cutoff trước Java 25 (LTS 09/2025) và Spring Boot 4.x. Code viết
+theo convention cũ có thể compile nhưng sai hành vi silently (ví dụ thêm `--enable-preview`
+cho feature đã finalized, hay dùng `@MockBean` thay `@MockitoBean`). Trước khi viết code
+Java, load knowledge skill tương ứng với stack.
+</EXTREMELY-IMPORTANT>
+
+- **JDK 25** (mọi Java/Kotlin): đọc `.claude/skills/java-25-knowledge/SKILL.md` — feature
+  finalized vs preview (có cần `--enable-preview` hay không), ScopedValue vs ThreadLocal,
+  virtual threads, constructor rules, module imports.
+- **Spring Boot 4** (project Spring Boot): đọc `.claude/skills/spring-boot-4/SKILL.md` —
+  Boot 4 removed ~88% APIs deprecated ở 3.x; `@MockitoBean` not `@MockBean`,
+  `jakarta.*` not `javax.*`.
+- **Cả hai cùng lúc** (Spring Boot 4 project trên JDK 25): đọc cả 2 skill — chúng bổ trợ
+  (Boot conventions + JDK language/runtime), không loại trừ lẫn nhau.
+
+---
+
 ## Execution Notes
 
 - Implementation rules load khi flow = `cook` hoặc khi TDD agents được spawn
