@@ -1,6 +1,6 @@
-# SDLC Rules — So sánh 7 phiên bản
+# SDLC Rules — So sánh 8 phiên bản
 
-> Dành cho team tự chọn phiên bản. Tags: `sdlc-skill-v4` → `sdlc-skill-v4.1` → `sdlc-skill-v4.2` → `sdlc-skill-v4.3` → `sdlc-skill-v4.4` → `sdlc-skill-v4.5` → `sdlc-skill-v4.6`
+> Dành cho team tự chọn phiên bản. Tags: `sdlc-skill-v4` → `sdlc-skill-v4.1` → `sdlc-skill-v4.2` → `sdlc-skill-v4.3` → `sdlc-skill-v4.4` → `sdlc-skill-v4.5` → `sdlc-skill-v4.6` → `sdlc-skill-v4.7`
 
 ---
 
@@ -156,6 +156,27 @@
 
 ---
 
+## v4.7 — OSS Compliance Integration (oss-scan)
+
+**Làm được:** mọi thứ v4.6 + oss-scan skill standalone cho OSS license compliance batch + cross-skill suggestion từ sdlc-review + subagent docs update.
+
+**Mới so với v4.6:**
+
+| Năng lực | Mô tả |
+|----------|-------|
+| **oss-scan skill 1.0.0** | Skill standalone mới cho OSS license compliance batch. Nhận **target path** (folder nhiều project hoặc 1 project đơn lẻ) → phát hiện project → xác nhận → dispatch Workflow `workflow-oss-scan.js` chạy luồng `scan → risk-research → gate` per project qua 3 executor subagents. Step-selection tự đánh giá từ kết quả scan: skip research khi toàn bộ dependency R1, gate auto-pass, full research + escalate cho R2/R3/R4. Output: batch report tổng hợp trong `.work/oss-compliance/`. 8 reference files (reporting, project-detection, step-selection) + 8 oss-executor-refs (component record schema, license policy R1-R4, scanner guide, asset types, risk scoring, vulnerability sources, search strategy, gate criteria, violation templates, remediation guide). |
+| **3 oss executor agents** | `oss-scan-executor`, `oss-risk-research-executor`, `oss-gate-executor` — xử lý trực tiếp (không invoke skill), batch mode qua Workflow agentType. Scan: project type detection + SBOM (syft/trivy/build-tool parse) + filesystem 10 asset types + license mapping R1-R4 → 22-field component records. Research: 4 axes (CVE, license, maintenance, exploit availability) → risk score 0-10 với source-backed evidence. Gate: match Allow/Restrict/Deny policy → PASS / PASS_WITH_CONDITIONS / NEEDS_REVIEW / FAIL / BLOCKED + violation reports + `decisionsNeeded` cho human/LRB (không auto-approve R3/R4/no-license). |
+| **Routing rule `oss-scan`** | Intent table trong `sdlc-routing-rules.md` thêm flow thứ 6 `oss-scan` (standalone qua oss-scan skill): quét license OSS compliance cho 1 hoặc nhiều project → phát hiện project → xác nhận → workflow scan → risk-research → gate → report + decisions cần LRB. |
+| **sdlc-review cross-skill suggestion** | Workflow review-code + review-mr ghi section `## Gợi ý cross-skill` → `/oss-scan <repo-path>` khi có security finding về dependency (package vulnerable/CVE, library lỗi thời, hoặc thay đổi dependency trong diff). Skill sdlc-review Phase 5b đọc report và **relay gợi ý cho human — chỉ relay, không tự chạy** oss-scan. |
+| **subagent-creator docs update** | `configuration-reference.md` + `how-subagents-work.md`: dịch tiếng Việt + thêm nested subagent depth limits (foreground: spawn ở bất kỳ độ sâu nào; background: depth 5+ KHÔNG nhận `Agent` tool → không thể spawn thêm, chống runaway concurrent trees), phân biệt rõ `skills` preload vs `Skill` tool vs `Agent` tool, sửa `disallowedTools: Bash` → `disallowedTools: Agent`. |
+| **workflow-knowledge + ask-user-question fixes** | workflow-knowledge 1.3.1 → 1.2.0 (bỏ `user-invocable: false`, xóa Coding Style section ~46 dòng). ask-user-question bỏ `user-invocable: false` → giờ user-invocable. |
+
+**Khác biệt chính với v4.6:** Thêm tầng **OSS license compliance** — pipeline tuân thủ license riêng (scan → risk-research → gate) xử lý batch nhiều project, kết nối với sdlc-review qua cross-skill suggestion khi review phát hiện dependency rủi ro. Routing nhận thêm flow thứ 6 (`oss-scan`). Subagent docs làm rõ nested spawning depth limits và cơ chế preload skill.
+
+**Lưu ý:** v4.7 là minor over v4.6 — không phải breaking change. Plugin version giữ 2.36.0 (commit tag không kèm plugin/CHANGELOG bump — theo precedent v4.6). oss-scan là skill standalone, không đổi hành vi các flow cũ.
+
+---
+
 ## Bảng chọn theo nhu cầu
 
 | Nhu cầu | Chọn |
@@ -167,6 +188,7 @@
 | Muốn tất cả v4.3 + workflow determinism + audit + comparison docs | **v4.4** |
 | Muốn tất cả v4.4 + cook độc lập + production hardening + executable reasoning rules | **v4.5** |
 | Muốn v4.5 + agent không viết Java sai do knowledge cutoff (Java 25 / Spring Boot 4) + hardening fixes | **v4.6** |
+| Muốn v4.6 + tuân thủ license OSS trước release (batch scan → risk research → gate, decisions cần LRB) | **v4.7** |
 
 ## Bảng chọn theo team profile
 
@@ -179,3 +201,4 @@
 | Muốn model reasoning grounded + code chuẩn + workflow ổn định | v4.4 | Tất cả v4.3 + workflow quality assurance |
 | Muốn production-grade pipeline: cook độc lập, workflow production-hardened, reasoning rules executable | v4.5 | Tất cả v4.4 + production hardening + standalone cook + ~1400 dòng code chết bị xóa |
 | Muốn v4.5 + stack knowledge enforcement cho Java 25 / Spring Boot 4 + toàn bộ hardening fixes | v4.6 | Tất cả v4.5 + knowledge skills bắt buộc + 5 hardening fixes post-eval |
+| Muốn v4.6 + kiểm soát license OSS batch trước release, kết nối với sdlc-review | v4.7 | Tất cả v4.6 + oss-scan standalone + cross-skill suggestion từ review |

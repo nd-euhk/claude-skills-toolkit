@@ -5,8 +5,7 @@ description: >-
   and best practices for multi-agent scripts. Auto-activates when Claude writes
   or edits workflow scripts, encounters the Workflow tool, or needs to decide
   between pipeline/parallel/agent orchestration strategies.
-version: 1.3.1
-user-invocable: false
+version: 1.2.0
 allowed-tools: Read
 ---
 
@@ -48,49 +47,6 @@ export const meta = {
 const _args = (typeof args === 'string') ? JSON.parse(args) : (args || {})
 const { topic, items } = _args
 ```
-
-## Coding Style
-
-**CRITICAL: Use template literals for multiline strings — never concatenate with `+ "\n\n" +`.**
-
-When building prompt strings for `agent()` calls, helper functions, or any multiline text, use backtick template literals. They are more readable, more compact, and avoid escaping issues.
-
-```js
-// ✅ RIGHT — template literals
-const PROMPT = `You are a SECURITY reviewer. Analyze this code for vulnerabilities.
-
-**Finding**: ${finding.description}
-**Category**: ${finding.category}
-**Affected files**: ${(finding.affected_files || []).join(", ")}
-
-**Instructions**: Look at actual code behavior. Could this be handled elsewhere?`
-
-// ✅ RIGHT — helper function with template literal
-function reviewContext(fileList) {
-  return `## Review Context
-- Repo: ${repoPath}
-- Target: ${normalizedPath}
-- Files: ${fileList.length}
-
-## Instructions
-Review the code above. Be specific.`
-}
-
-// ❌ WRONG — string concatenation is noisy and error-prone
-const PROMPT = "You are a SECURITY reviewer. Analyze this code for vulnerabilities.\n\n" +
-  "**Finding**: " + finding.description + "\n" +
-  "**Category**: " + finding.category + "\n" +
-  "**Affected files**: " + (finding.affected_files || []).join(", ") + "\n\n" +
-  "**Instructions**: Look at actual code behavior. Could this be handled elsewhere?"
-```
-
-**Benefits of template literals:**
-- **Readability**: No `\n` escape sequences, no `+` operators breaking natural flow
-- **Compact**: Fewer lines (template literals reduce line count ~30-40%)
-- **Safety**: No forgotten `+` at line ends, no missing `\n` between sections
-- **Performance**: Single string allocation instead of N intermediate concatenations
-
-**Exception:** `log()` and simple one-liner strings that fit on one line may use whichever style is clearest. Template literals are mandatory for any string spanning 2+ lines or containing interpolated variables.
 
 ## API Reference
 

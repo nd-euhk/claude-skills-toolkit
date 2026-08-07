@@ -758,6 +758,18 @@ ${failedDimensions.length > 0 ? `## WARNING: Failed Dimensions\n${failedDimensio
 2. Use Bash: mkdir -p ${reportDir}
 3. Write report to: ${reportDir}/REVIEW-CODE-${runDate}--${pathSlug}.md
 4. Report MUST be written to disk.
+5. Cross-skill suggestion: if any \`security\` dimension finding concerns a
+   dependency — vulnerable package, package with a CVE, outdated/unmaintained
+   library, or a dependency changed in the reviewed code — append a final
+   section:
+   \`\`\`
+   ## Gợi ý cross-skill
+   Gợi ý: /oss-scan <repo-path>
+   \`\`\`
+   plus one reason line (the finding flags a technically risky dependency —
+   oss-scan checks that dependency's license R1-R4/no-license and whether
+   LRB is needed before keeping it). If NO such finding exists → omit
+   the section entirely.
 
 Return the saved report path, verdict, and total finding count.`,
   {

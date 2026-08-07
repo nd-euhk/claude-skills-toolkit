@@ -354,6 +354,29 @@ Cả hai workflow đều chạy các phase nội bộ (hiển thị trong `/work
 
 Để biết đầy đủ args schema, result schema, và error handling patterns, xem `references/workflow-handoff.md`.
 
+### Phase 5b: Cross-skill suggestion (report-driven)
+
+Gợi ý `oss-scan` **chỉ xuất hiện khi workflow ghi nó vào report** — workflow
+giữ toàn bộ findings (`findingsByDim`), nó quyết định và viết gợi ý; skill chỉ
+relay, không tự tính.
+
+1. Sau khi workflow hoàn tất, **đọc report tại `result.reportPath`**
+   (`.work/review/REVIEW-{MR,CODE}-*.md`) — chưa có report path thì bỏ qua
+   bước này.
+2. Tìm section cuối **`## Gợi ý cross-skill`** với dòng
+   `Gợi ý: /oss-scan <repo-path>` — workflow chỉ ghi section này khi có
+   `security` finding về dependency (vulnerable package, dependency có CVE,
+   thư viện lỗi thời/không an toàn, hoặc thay đổi dependency trong diff).
+3. **Nếu có** → relay gợi ý cho human trong báo cáo kết quả:
+   ```
+   Gợi ý: /oss-scan <repo-path>
+   ```
+   - **Lý do:** finding chỉ ra dependency rủi ro về mặt kỹ thuật — `oss-scan`
+     kiểm tra license của chính dependency đó (R1-R4, no-license, có cần
+     LRB không) trước khi giữ lại trong codebase.
+   - Chỉ relay, **không tự chạy** oss-scan.
+4. **Nếu report KHÔNG có section gợi ý** → không gợi ý.
+
 ### Phase 6: Post Comments (chỉ MR/PR mode)
 
 Sau khi workflow hoàn tất, dùng `AskUserQuestion`:

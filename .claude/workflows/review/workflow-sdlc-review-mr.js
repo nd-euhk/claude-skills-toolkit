@@ -798,6 +798,17 @@ ${failedDimensions.length > 0 ? `## WARNING: Failed Dimensions\n${failedDimensio
 2. Use the Bash tool to ensure directory ${reportDir} exists: mkdir -p ${reportDir}
 3. Write the report using the Write tool to: ${reportDir}/REVIEW-MR-${runDate}--${mrSlug}.md
 4. The report MUST be written to disk, not just generated in your response.
+5. Cross-skill suggestion: if any \`security\` dimension finding concerns a
+   dependency — vulnerable package, package with a CVE, outdated/unmaintained
+   library, or a dependency changed in this MR — append a final section:
+   \`\`\`
+   ## Gợi ý cross-skill
+   Gợi ý: /oss-scan <repo-path>
+   \`\`\`
+   plus one reason line (the finding flags a technically risky dependency —
+   oss-scan checks that dependency's license R1-R4/no-license and whether
+   LRB is needed before keeping it). If NO such finding exists → omit
+   the section entirely.
 
 Return the path to the saved report file, the verdict, and total finding count.`,
   {

@@ -3,7 +3,6 @@ name: ask-user-question
 description: >-
   Implement skills using AskUserQuestion tool for interactive user input and decisions. Use when authoring skills that need to gather options, handle free-text answers, process multi-select, or build multi-step workflows. Covers tool mechanics, constraints, wiring into skills, response handling, and dynamic question patterns.
 version: 1.1.0
-user-invocable: false
 allowed-tools: Read, AskUserQuestion
 ---
 

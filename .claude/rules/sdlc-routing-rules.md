@@ -18,6 +18,7 @@ những từ khác nhau phải resolve về cùng flow.
 | Fix defect, repair broken behavior, resolve bug | `fixbug` | **orchestrator only** | Root-cause diagnosis + targeted fix: scout → diagnose → fix → verify |
 | Write code từ ready specs, implement từ agent_docs, execute TDD cycle | `cook` | sdlc-cook skill | TDD execution: worktree isolation → baseline → per-TC RED→GREEN→INTERFERENCE→REFACTOR→GATE → PR → cleanup |
 | Reverse-engineer specs từ existing codebase, document what code does | `reverse` | orchestrator, sdlc-codebase skill | Reverse pipeline: scout → HLD → LLD → SRS → VERIFY → CROSS-CUTTING → IMP∥TST |
+| Quét/kiểm tra license OSS compliance cho một hoặc nhiều project, kiểm kê dependency trước release, cần quyết định license per project | `oss-scan` | **oss-scan skill** (standalone) | OSS compliance: nhận **target path** (folder nhiều project hoặc 1 project đơn lẻ) → phát hiện project → xác nhận → workflow scan → risk-research → gate → report + decisions cần LRB |
 
 ## Entry Point Selection
 
