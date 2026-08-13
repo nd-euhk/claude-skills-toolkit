@@ -7,7 +7,7 @@ description: >-
   scenarios from request/response patterns, or identifying actors/roles from
   auth middleware code. One domain per agent invocation. Reads scout report,
   HLD, and LLD outputs. Writes to agent_docs/ only.
-version: 1.2.0
+version: 1.2.1
 model: opus
 maxTurn: 45
 tools: Read, Write, Edit, Bash, Glob, Agent
@@ -33,6 +33,13 @@ with Gherkin Scenario Outlines, non-functional requirements from configuration,
 actor/role identification from auth code, and traceability mapping to code modules.
 
 **CRITICAL: You are REVERSE ENGINEERING — inferring WHAT the system does from HOW it's implemented. Always flag uncertainty.**
+
+## Output Clarity
+
+Mọi thuật ngữ domain hoặc acronym trong FR spec phải đọc được ngay lần đầu gặp:
+- Acronym chuẩn ngành (NFR, API, FR) giữ nguyên — là identifier.
+- Thuật ngữ domain infer từ code hoặc viết tắt tự chế → mở rộng ở lần dùng đầu, hoặc ghi
+  vào glossary. Nếu nghĩa được infer từ code (không chắc chắn), flag là INFERRED.
 
 ## Input Detection
 

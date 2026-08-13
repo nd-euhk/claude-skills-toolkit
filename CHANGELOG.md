@@ -2,6 +2,22 @@
 
 All notable changes to the skills-toolkit plugin are documented here.
 
+## [2.37.0] - 2026-08-13
+
+### Added
+- **sdlc-output-rules.md:** Rule mới govern clarity của output do skill/subagent/workflow sinh ra.
+  Nguyên tắc: "bất cứ điều gì cần giải thích thêm đều làm chậm giao tiếp và ra quyết định".
+  Quy tắc 3 tầng cho acronym: (1) chuẩn ngành là identifier → giữ nguyên trong `agent_docs/`;
+  (2) thuật ngữ business/domain-specific hoặc viết tắt tự chế → mở rộng lần dùng đầu hoặc vào
+  glossary; (3) mọi output human-facing (gate report, review, escalation, PR description, `docs/`)
+  → mở rộng acronym lần dùng đầu.
+
+### Changed
+- **sdlc-srs:** Thêm section "Output Clarity" — thuật ngữ domain trong FR spec phải đọc được ngay
+  lần đầu gặp; không để acronym trôi nổi ngoài `project-overview.md` glossary.
+- **codebase-srs 1.2.1:** PATCH — thêm section "Output Clarity" tương tự, kèm quy tắc flag INFERRED
+  khi nghĩa thuật ngữ được suy đoán từ code.
+
 ## [2.35.1] - 2026-08-04
 
 ### Fixed
