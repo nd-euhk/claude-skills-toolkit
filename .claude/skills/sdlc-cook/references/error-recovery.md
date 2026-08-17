@@ -3,6 +3,11 @@
 Centralized error handling cho tất cả cook flows. Mỗi error scenario có decision tree:
 nguyên nhân → chẩn đoán → options → hành động.
 
+> **Nơi chạy code theo type (CODE_DIR):** mọi hướng dẫn "trong worktree" dưới đây áp
+> dụng cho `CODE_DIR` — worktree (Type 2) hoặc sub-repo `project_root` (Type 1). Type 1
+> không có worktree: sub-repo đang đứng branch task do in-place checkout, thao tác trực
+> tiếp tại `project_root` và restore `$ORIGINAL_BRANCH` sau khi xử lý.
+
 ## Quick Reference
 
 | Error | Severity | Auto-fix? | Section |
@@ -15,7 +20,7 @@ nguyên nhân → chẩn đoán → options → hành động.
 | REFACTOR breaks tests | HIGH | Auto-revert | [#refactor-break](#refactor-break) |
 | Merge conflict | MEDIUM | Agent-assisted | [#merge-conflict](#merge-conflict) |
 | PR closed | LOW | Human decides | [#pr-closed](#pr-closed) |
-| Worktree creation fail | CRITICAL | No | [#worktree-fail](#worktree-fail) |
+| Worktree add fail (Type 2) / in-place checkout fail (Type 1) | CRITICAL | No | [#worktree-fail](#worktree-fail) |
 | Workflow crash | CRITICAL | Resume via idempotent | [#workflow-crash](#workflow-crash) |
 
 ---
@@ -29,10 +34,10 @@ INTERFERENCE count > 0.
 
 **Human options (theo thứ tự ưu tiên):**
 
-1. **Agent fix trong worktree** — cho agent sửa interference, chạy lại TC-N
-2. **Human fix thủ công** — vào worktree, sửa code, chạy lại cook với
+1. **Agent fix trong CODE_DIR** — cho agent sửa interference, chạy lại TC-N
+2. **Human fix thủ công** — vào CODE_DIR, sửa code, chạy lại cook với
    `resumeFrom` để skip TCs đã done
-3. **Revert TC-N** — `git revert` changes của TC-N trong worktree, skip TC này,
+3. **Revert TC-N** — `git revert` changes của TC-N trong CODE_DIR, skip TC này,
    tiếp tục các TC còn lại
 4. **Accept interference** — nếu test bị break đã obsolete, update test đó
    (cần human judgment)
@@ -87,7 +92,7 @@ xác nhận).
 
 **Human options:**
 
-1. **Fix trong worktree** — sửa code, chạy lại cook với
+1. **Fix trong CODE_DIR** — sửa code, chạy lại cook với
    `resumeFrom.gateLightPass = true` (nếu light đã pass)
 2. **Accept risk** — nếu failure là false positive, document exception
 3. **Escalate lên orchestrator** — nếu cần thay đổi architecture/spec
@@ -103,7 +108,7 @@ xác nhận).
 **Auto-recovery:** REFACTOR agent được hướng dẫn auto-revert changes gây test
 failure. Nếu vẫn fail → human kiểm tra.
 
-**Human action:** Vào worktree, `git diff` xem refactor đã thay đổi gì,
+**Human action:** Vào CODE_DIR, `git diff` xem refactor đã thay đổi gì,
 xác định change gây fail, revert thủ công.
 
 ---
@@ -123,9 +128,8 @@ FEAT-B merge trước, cũng sửa file X
 **Resolution:**
 
 ```bash
-cd "$worktree_path"
-git fetch origin main
-git merge origin/main
+git -C "$CODE_DIR" fetch origin "$target_branch"
+git -C "$CODE_DIR" merge "origin/$target_branch"
 # Nếu conflict → agent resolve hoặc human resolve
 ```
 
@@ -157,16 +161,35 @@ git merge origin/main
 
 ## Worktree Fail
 
+Covers: `git worktree add` fail (Type 2) + in-place `git checkout -b` fail (Type 1).
+Feature failed → tiếp tục batch (continue-on-fail). Type 1: restore `$ORIGINAL_BRANCH`
+vẫn bắt buộc khi feature kết thúc.
+
+### Type 2 — Worktree Add Fail
+
 **Symptom:** `git worktree add` fail.
 
 **Common causes + fix:**
 
 | Cause | Fix |
 |-------|-----|
-| Branch đã tồn tại | `git branch -D feature/{feat}-{svc}` rồi thử lại |
-| Worktree path đã tồn tại | `git worktree remove {path} --force` rồi thử lại |
+| Branch đã tồn tại | `git -C "$project_root" branch -D feature/{feat}-{svc}` rồi thử lại |
+| Worktree path đã tồn tại | `git -C "$project_root" worktree remove {path} --force` rồi thử lại |
 | Permission denied | Kiểm tra quyền ghi `.claude/worktrees/` |
 | Disk full | Giải phóng disk space |
+
+### Type 1 — In-place Checkout Fail
+
+**Symptom:** `git -C "$project_root" checkout -b "$BRANCH"` fail trong sub-repo.
+
+**Common causes + fix:**
+
+| Cause | Fix |
+|-------|-----|
+| Working tree dirty (uncommitted changes chặn checkout) | `git -C "$project_root" stash` (hoặc commit) rồi checkout lại |
+| Branch đã tồn tại | `git -C "$project_root" branch -D "$BRANCH"` rồi thử lại |
+| Detached HEAD | Checkout branch gốc rõ ràng trước: `git -C "$project_root" checkout "$ORIGINAL_BRANCH"` |
+| Submodule gitlink thay đổi | Từ parent: `git -C "$parent" submodule update --init` |
 
 ---
 

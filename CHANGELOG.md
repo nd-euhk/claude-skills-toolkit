@@ -2,6 +2,80 @@
 
 All notable changes to the skills-toolkit plugin are documented here.
 
+## [2.39.2] - 2026-08-17
+
+### Fixed
+- **sdlc-cook-overnight 1.1.1:** PATCH — validation lần đầu (7 phases), đưa references về
+  đúng 2-type model + khớp convention sdlc-cook 2.3.1:
+  - **per-feature-cook.md §1:** sửa invocation `detect-project.sh` — trước gọi như CLI
+    (1 arg `$service`, script là library nên chạy trực tiếp = no-op); giờ `source` +
+    `find_git_root` + `classify_project <git_root> <service_dir>` với absolute path từ
+    `WORKSPACE_ROOT` (đúng canonical test-project-detection.sh pattern).
+  - **Cross-reference prefix:** `references/tdd-orchestration.md#baseline-capture` (per-feature-cook.md),
+    `references/merge-manager.md` (SKILL.md), `tdd-orchestration.md` (SKILL.md) → thêm prefix
+    `sdlc-cook/` + anchor `#status-transition-map` — trước resolve sai vào chính overnight.
+  - **morning-report.md cleanup:** `git worktree remove` + `git branch -D` (thiếu `-C`,
+    chỉ cover Type 2) → thêm `git -C` prefix + variant Type 1 (không worktree — chỉ xóa
+    branch, sub-repo đã restore ở Bước 10).
+  - **SKILL.md frontmatter:** bỏ `Skill` khỏi `allowed-tools` (0 call — least privilege).
+
+## [2.39.1] - 2026-08-17
+
+### Fixed
+- **sdlc-cook 2.3.1:** PATCH — đưa references về đúng 2-type model sau validation (D1-D6):
+  - **SKILL.md Bước 4.5 (Type 2):** baseline command dùng absolute path
+    `${SPECS_ROOT}/.claude/scripts/baseline` + `$WORKTREE_PATH/build/test-results/test/`
+    (trước: relative `.claude/scripts/baseline` + placeholder `{build/test-results/test/}`
+    — mâu thuẫn controller-never-cd). Thêm note SPECS_ROOT phải chứa `.claude/scripts/`.
+  - **tdd-orchestration.md:** bỏ dòng "Map keys snake_case → camelCase" (baseline.py dump
+    camelCase trực tiếp — verified); timeline + Capture Command type-aware (absolute path,
+    cover Type 1 + Type 2, không `cd` persistent).
+  - **merge-manager.md:** mọi lệnh `cd "$worktree_path"` + base `origin/main` → `CODE_DIR`
+    + `PR_BASE` type-aware (Type 1: sub-repo `project_root` / `original_branch`); bỏ stale
+    "Bước 4 (Create Worktree)"; Cleanup Procedure thêm variant Type 1 (không worktree);
+    sdlc-review dùng `CODE_DIR`.
+  - **error-recovery.md:** mọi "trong worktree" → `CODE_DIR` type-aware; section `#worktree-fail`
+    mở rộng cover Type 1 in-place checkout fail (dirty tree, branch collision, detached HEAD,
+    submodule gitlink) — giữ anchor để overnight reference không vỡ.
+- **workflow-sdlc-cook.js:** baseline-missing warning trỏ đúng path
+  `${SPECS_ROOT}/.claude/scripts/baseline` (trước: relative + sai CODE_DIR).
+
+## [2.39.0] - 2026-08-17
+
+### Changed
+- **sdlc-cook-overnight 1.1.0:** MINOR — redesign type-aware cho batch-cook nhiều feature:
+  - **2-type project model:** Type 1 (submodule / gitignored-subproject) → checkout IN-PLACE trong
+    sub-repo, bắt buộc tuần tự, restore `original_branch` (finally semantics) sau mỗi feature, PR về
+    remote của chính sub-repo; Type 2 (workspace-member) → worktree isolation, parallel an toàn khi
+    disjoint service.
+  - **Gating Parallel theo type:** Phase 2 giấu tùy chọn Parallel nếu có bất kỳ feature Type 1.
+  - **Controller KHÔNG `cd`:** mọi thao tác qua absolute path; dispatch workflow với
+    `repoPath` (nơi chạy code/test) + `specRoot` (nơi chứa `agent_docs/`) — hết phụ thuộc CWD của session.
+- **sdlc-cook 2.3.0:** MINOR — type-aware branch strategy (Bước 3-4, 4.5, 8, 10):
+  - Bước 4 tách branch theo type: Type 1 in-place checkout + capture `original_branch` + restore bắt buộc;
+    Type 2 worktree như cũ. Bước 4.5 baseline chạy trong `repoPath`, script ở `specRoot` (Type 1: `.claude` ở parent).
+  - Bước 8 args thêm `repoPath`/`specRoot` — workflow dùng làm CWD của mọi agent; không truyền →
+    backward-compatible (CWD hiện tại). Bước 10 PR target type-aware (Type 1: remote của sub-repo).
+- **workflow-sdlc-cook.js:** `repoPath` (vốn có nhưng chưa dùng) + `specRoot` (mới) giờ trở thành
+  `CODE_DIR`/`SPECS_ROOT` — mọi prompt agent dùng `${CODE_DIR}` (chạy lệnh) và `${SPECS_ROOT}/agent_docs/`
+  (đọc specs). Workflow không còn phụ thuộc CWD của session.
+- **sdlc-cook/references/project-detection.md:** "Worktree Creation" → "Branch Strategy Theo Project
+  Type" (2 chiến lược); Project object thêm `original_branch`, `worktree_path` = null cho Type 1.
+- **sdlc-cook-overnight/references:** `batch-planning.md` (Parallel chỉ khi tất cả Type 2; safety table
+  thêm Type 1 row), `per-feature-cook.md` (procedure tách theo type + repoPath/specRoot + restore),
+  `unattended-policy.md` (auto-decision #15-17: Type 1 parallel→sequential, restore fail→chặn task kế,
+  sub-repo không remote→không auto-PR).
+
+## [2.38.0] - 2026-08-17
+
+### Added
+- **sdlc-cook-overnight 1.0.0:** Skill mới — batch-cook nhiều feature TDD qua đêm trong
+  worktree isolation, unattended. Interactive Batch Plan qua AskUserQuestion (sequential /
+  parallel / pick features), rồi unattended execution: dispatch `workflow-sdlc-cook.js`
+  trực tiếp per feature (direct orchestration của sdlc-cook), auto tạo PR (không
+  auto-merge), morning report tổng hợp tại `.work/reports/overnight-YYYYMMDD.md`.
+  Failure isolation: 1 feature fail không lan sang feature khác.
+
 ## [2.37.0] - 2026-08-13
 
 ### Added

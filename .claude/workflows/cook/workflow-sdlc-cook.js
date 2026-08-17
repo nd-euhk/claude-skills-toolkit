@@ -21,6 +21,7 @@ const {
   testCases = [],
   baseline = null,
   repoPath = '',
+  specRoot = '',
   agents = {},
   // ── Idempotent resume (dispatcher sets these when re-running after partial failure) ──
   resumeFrom = null,  // { completedTcIds: ['1','2'], gateLightPass: true, refactorDone: true, gateFullPass: false }
@@ -37,6 +38,13 @@ const BASELINE_PATH = baseline?.path || null
 const BASELINE_TC_INDEX = baseline?.tcIndex || {}
 const BASELINE_PRE_EXISTING = baseline?.preExistingFailures || []
 const BASELINE_BY_FILE = baseline?.byFile || {}
+
+// ── Working directories — controller KHÔNG cd; agents cd trong shell của chính chúng ──
+// repoPath/specRoot được truyền explicit (không phụ thuộc CWD của session).
+//   repoPath  = nơi code + test chạy   (worktree | sub-repo | '.' khi không truyền)
+//   specRoot  = thư mục CHỨA agent_docs (worktree | parent root | '.' khi không truyền)
+const CODE_DIR = repoPath || '.'
+const SPECS_ROOT = specRoot || '.'
 
 // ═══════════════════════════════════════════
 // SCHEMAS
@@ -111,7 +119,13 @@ function featureContext() {
 - **FR-ID**: ${frId}
 - **Service**: ${service}
 - **Layer**: ${layer}
-- **Agents**: RED=${RED} | GREEN=${GREEN} | REFACTOR=${REFACTOR} | GATE=${GATE}`
+- **Agents**: RED=${RED} | GREEN=${GREEN} | REFACTOR=${REFACTOR} | GATE=${GATE}
+
+## Working Directory (quyết định nơi chạy lệnh — đọc kỹ)
+- **Code directory**: \`${CODE_DIR}\` — mọi lệnh test/build PHẢI chạy với CWD = đây:
+  \`cd ${CODE_DIR} && <cmd>\` hoặc \`git -C ${CODE_DIR}\`.
+- **Specs directory**: \`${SPECS_ROOT}/agent_docs\` — đọc mọi spec từ đây (TST, IMP,
+  tech-design, hard-boundaries, conventions).`
 }
 
 function tcContext(tc, prevResults) {
@@ -173,12 +187,12 @@ ${baselineTcList || '  (no baseline data)'}
 ## Baseline by File (for INTERFERENCE-LIGHT)
 ${tcFiles.map(f => `  - ${f}: TCs [${(BASELINE_BY_FILE[f] || []).join(', ')}]`).join('\n') || '  (no file groupings)'}
 
-## Required Reading
-- **TST spec**: agent_docs/${layer === 'frontend' ? 'frontend' : 'backend'}/${service}/test-specs/${frId}-test.md
-- **IMP spec**: agent_docs/${layer === 'frontend' ? 'frontend' : 'backend'}/${service}/implementation/${frId}-impl.md
-- **Tech design**: agent_docs/tech-design/${service}-service.md
-- **Hard boundaries**: agent_docs/hard-boundaries.md
-- **Conventions**: agent_docs/conventions.md
+## Required Reading (đường dẫn relative tới ${SPECS_ROOT}/agent_docs)
+- **TST spec**: ${SPECS_ROOT}/agent_docs/${layer === 'frontend' ? 'frontend' : 'backend'}/${service}/test-specs/${frId}-test.md
+- **IMP spec**: ${SPECS_ROOT}/agent_docs/${layer === 'frontend' ? 'frontend' : 'backend'}/${service}/implementation/${frId}-impl.md
+- **Tech design**: ${SPECS_ROOT}/agent_docs/tech-design/${service}-service.md
+- **Hard boundaries**: ${SPECS_ROOT}/agent_docs/hard-boundaries.md
+- **Conventions**: ${SPECS_ROOT}/agent_docs/conventions.md
 
 ## Your Task (Mini-Orchestrator)
 
@@ -252,7 +266,7 @@ function gateAgentPrompt(mode, tcResults, techStackHint) {
 - **Pre-existing failures** (exclude from interference): ${BASELINE_PRE_EXISTING.length > 0 ? BASELINE_PRE_EXISTING.join(', ') : 'none'}
 - **Culprit TCs + files changed**:
 ${culpritInfo || '  (none)'}`
-    : '## Baseline\n❌ **CRITICAL: No baseline file — INTERFERENCE-LIGHT and INTERFERENCE-FULL are both DISABLED.** Cross-TC interference will NOT be detected. Run `.claude/scripts/baseline parse ...` in the worktree before dispatching the workflow.'
+    : '## Baseline\n❌ **CRITICAL: No baseline file — INTERFERENCE-LIGHT and INTERFERENCE-FULL are both DISABLED.** Cross-TC interference will NOT be detected. Run `${SPECS_ROOT}/.claude/scripts/baseline parse ...` before dispatching the workflow (script ở specRoot; chạy test trong ${CODE_DIR}).'
 
   return `You are a GATE verifier. Run ${mode} mode gate checks on the completed TDD cycle.
 
@@ -281,7 +295,7 @@ ${mode === 'light' ? `
 
 If baseline file exists (${BASELINE_PATH || 'MISSING'}), use the \`.claude/scripts/baseline compare\` harness:
 1. Re-run tests to get current state (same command as baseline capture)
-2. Run: \`.claude/scripts/baseline compare --baseline ${BASELINE_PATH} --current <current-output> --framework <detected> --culprit "${culpritInfo || 'unknown'}"\`
+2. Run (từ ${SPECS_ROOT}, nơi có `.claude/scripts/`): \`cd ${SPECS_ROOT} && .claude/scripts/baseline compare --baseline ${BASELINE_PATH} --current <current-output> --framework <detected> --culprit "${culpritInfo || 'unknown'}"\` — current-output sinh ra khi chạy test trong ${CODE_DIR}
 3. The script cross-references: baseline pass → current fail = interference
 4. It auto-excludes: pre-existing failures, same-status skipped tests, feature's own new tests
 
@@ -335,7 +349,7 @@ Re-verify all 4 light gates still pass after refactoring.
 - Metric or log event on critical business operations
 
 ### F8: Error Handling
-- Error codes canonical — matches project error taxonomy in agent_docs/error-handling.md
+- Error codes canonical — matches project error taxonomy in ${SPECS_ROOT}/agent_docs/error-handling.md
 - Error messages do not leak internal details (stack traces, SQL, file paths)
 - All exception paths caught and mapped to appropriate HTTP/gRPC status codes
 - Graceful degradation when external dependencies are unavailable
@@ -353,10 +367,10 @@ Re-verify all 4 light gates still pass after refactoring.
 - No framework-specific anti-patterns (Detected framework: ${techStackHint || 'auto-detect'})
 `}
 
-## Required Reading
-- **Hard boundaries**: agent_docs/hard-boundaries.md
-- **Conventions**: agent_docs/conventions.md
-- **Tech design**: agent_docs/tech-design/${service}-service.md
+## Required Reading (đường dẫn relative tới ${SPECS_ROOT}/agent_docs)
+- **Hard boundaries**: ${SPECS_ROOT}/agent_docs/hard-boundaries.md
+- **Conventions**: ${SPECS_ROOT}/agent_docs/conventions.md
+- **Tech design**: ${SPECS_ROOT}/agent_docs/tech-design/${service}-service.md
 
 ## Return Structured Output
 Return a GATE_RESULT with: mode, status (PASS/FAIL), passed, total, failures array, summary.
@@ -411,11 +425,11 @@ IMPORTANT: Do NOT restructure architecture, change APIs, or modify test logic.
 2. Log the reverted change
 3. Continue with remaining refactoring
 
-## Required Reading
-- **IMP spec**: agent_docs/${layer === 'frontend' ? 'frontend' : 'backend'}/${service}/implementation/${frId}-impl.md
-- **Tech design**: agent_docs/tech-design/${service}-service.md
-- **Hard boundaries**: agent_docs/hard-boundaries.md
-- **Conventions**: agent_docs/conventions.md
+## Required Reading (đường dẫn relative tới ${SPECS_ROOT}/agent_docs)
+- **IMP spec**: ${SPECS_ROOT}/agent_docs/${layer === 'frontend' ? 'frontend' : 'backend'}/${service}/implementation/${frId}-impl.md
+- **Tech design**: ${SPECS_ROOT}/agent_docs/tech-design/${service}-service.md
+- **Hard boundaries**: ${SPECS_ROOT}/agent_docs/hard-boundaries.md
+- **Conventions**: ${SPECS_ROOT}/agent_docs/conventions.md
 
 ## Return Structured Output
 Return a REFACTOR_RESULT with: mode, categoriesRun, findingsFixed, findingsFlagged, testSuiteStillPassing, summary.

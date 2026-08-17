@@ -40,16 +40,19 @@ Merge    Request
 
 ### Bước 1: Verify Tất Cả Tests Pass
 
-```bash
-cd "$worktree_path"
+Nơi chạy code + base branch theo type — dùng cho toàn bộ merge flow:
 
-# Detect framework + run tests:
-# - Gradle:  ./gradlew :{service}:test
-# - Maven:   ./mvnw test
-# - Jest:    npx jest
-# - Vitest:  npx vitest run
-# - pytest:  python -m pytest
-# - Go:      go test ./...
+```bash
+# Type 2 (workspace-member):      CODE_DIR="$worktree_path"   PR_BASE="origin/main"
+# Type 1 (submodule/gitignored):  CODE_DIR="$project_root"    PR_BASE="$ORIGINAL_BRANCH"
+
+# Detect framework + run tests (CWD = CODE_DIR):
+(cd "$CODE_DIR" && ./gradlew :{service}:test)   # hoặc lệnh theo framework
+# - Maven:  ./mvnw test
+# - Jest:   npx jest
+# - Vitest: npx vitest run
+# - pytest: python -m pytest
+# - Go:     go test ./...
 ```
 
 ### Bước 2: Verify GATE Status
@@ -61,9 +64,8 @@ và trả về kết quả trong report.
 ### Bước 3: Verify Không Có Uncommitted Changes Sót
 
 ```bash
-cd "$worktree_path"
-if [ -n "$(git status --porcelain)" ]; then
-  echo "ERROR: Uncommitted changes trong worktree"
+if [ -n "$(git -C "$CODE_DIR" status --porcelain)" ]; then
+  echo "ERROR: Uncommitted changes trong $CODE_DIR"
   exit 1
 fi
 ```
@@ -97,7 +99,7 @@ worktree  tạo PR)
 ┌────────────────────────┐
 │ Skill("sdlc-review",    │
 │   "--code --full " +    │
-│   worktree_path)        │
+│   CODE_DIR)             │
 └────────────────────────┘
   │
   ▼
@@ -136,12 +138,12 @@ AskUserQuestion({
 Nếu human chọn "Review code":
 
 ```javascript
-// worktree_path đã có từ Bước 4 (Create Worktree) trong SKILL.md
-Skill("sdlc-review", "--code --full " + worktree_path)
+// CODE_DIR đã có từ SKILL.md Bước 3-4 (Project Detection + Tách Branch type-aware)
+Skill("sdlc-review", "--code --full " + CODE_DIR)
 ```
 
 sdlc-review sẽ:
-1. Chạy scout trên `worktree_path` để phát hiện project structure
+1. Chạy scout trên `CODE_DIR` (worktree Type 2 / sub-repo Type 1) để phát hiện project structure
 2. Dispatch code review workflow (7 dimension agents song song)
 3. Tạo report trong `.work/review/REVIEW-CODE-YYYYMMDD--{sanitized-path}.md`
 4. Return về sdlc-cook kèm summary findings
@@ -166,23 +168,24 @@ Tất cả lỗi đều non-blocking — tạo PR luôn có thể tiếp tục:
 Workflow agent đã commit sau mỗi phase. Kiểm tra xem có commit nào chưa push không:
 
 ```bash
-cd "$worktree_path"
-git log origin/main..HEAD --oneline
+git -C "$CODE_DIR" log "$PR_BASE"..HEAD --oneline
 ```
 
 ### Bước 2: Push Branch
 
 ```bash
 BRANCH="feature/${FEAT_ID}-${SERVICE}"
-cd "$worktree_path"
-git push origin "$BRANCH" --force-with-lease
+git -C "$CODE_DIR" push origin "$BRANCH" --force-with-lease
 ```
 
 ### Bước 3: Tạo PR
 
+Chạy `gh pr create` với CWD = `CODE_DIR` (gh tự detect repo từ CWD — Type 2: workspace;
+Type 1: remote của sub-repo). Base = `$PR_BASE`:
+
 ```bash
-gh pr create \
-  --base "$target_branch" \
+(cd "$CODE_DIR" && gh pr create \
+  --base "$PR_BASE" \
   --head "$BRANCH" \
   --title "cook(${FEAT_ID}): ${feature_name}" \
   --body "## Summary
@@ -195,9 +198,10 @@ gh pr create \
 - **GATE Full:** ${gate_full}
 
 ## Changed Files
-$(cd "$worktree_path" && git diff --stat origin/main)
+$(git -C "$CODE_DIR" diff --stat "$PR_BASE")
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)"
+)
 ```
 
 ### Target Branch Theo Project Type
@@ -237,7 +241,7 @@ Báo human: "PR #42: changes requested. Review comments: ..."
      │
      ▼
 ┌──────────────────────────┐
-│ Agent quay lại worktree  │
+│ Agent quay lại CODE_DIR (worktree Type 2 / checkout branch task lại trong sub-repo Type 1) │
 │ Sửa theo review comments │
 │ Push lại branch          │
 │ PR tự update             │
@@ -258,24 +262,29 @@ Hỏi human: "PR #42 closed without merge. Keep worktree? Delete?"
 
 ## Cleanup Procedure
 
+Cleanup theo type:
+- **Type 2 (workspace-member):** xóa worktree + branch (dưới).
+- **Type 1 (submodule/gitignored):** KHÔNG có worktree — sub-repo đã được
+  `checkout "$ORIGINAL_BRANCH"` ở SKILL.md Bước 10 (finally). Chỉ xóa branch
+  `feature/...` local + remote của sub-repo.
+
 ```bash
 FEAT_ID="FEAT-001"
 SERVICE="auth-service"
 BRANCH="feature/${FEAT_ID}-${SERVICE}"
+
+# ── Type 2: xóa worktree (từ project root) ──
 WORKTREE_NAME="feature-${FEAT_ID}-${SERVICE}"      # / → - cho directory
 WORKTREE_PATH="${WORKSPACE_ROOT}/.claude/worktrees/${WORKTREE_NAME}"
+git -C "$project_root" worktree remove "$WORKTREE_PATH" --force
+git -C "$project_root" branch -D "$BRANCH" 2>/dev/null || true
+git -C "$project_root" push origin --delete "$BRANCH" 2>/dev/null || true
 
-# 1. Xóa worktree (từ project root)
-cd "$project_root"
-git worktree remove "$WORKTREE_PATH" --force
+# ── Type 1: chỉ xóa branch sub-repo (sub-repo đã restore ở Bước 10) ──
+git -C "$project_root" branch -D "$BRANCH" 2>/dev/null || true
+git -C "$project_root" push origin --delete "$BRANCH" 2>/dev/null || true
 
-# 2. Xóa branch (đã merge, không cần nữa)
-git branch -D "$BRANCH" 2>/dev/null || true
-
-# 3. Xóa remote branch
-git push origin --delete "$BRANCH" 2>/dev/null || true
-
-# 4. Update board + backlog
+# ── Update board + backlog (cả 2 type) ──
 # Spawn song song — mỗi agent chỉ ghi file riêng
 Agent({
   subagent_type: "sdlc-sprint-board",
@@ -300,14 +309,13 @@ Phần này chỉ cover PR-specific procedures sau khi conflict đã được re
 
 ```bash
 # 1. Fetch latest target branch
-cd "$worktree_path"
-git fetch origin "$target_branch"
+git -C "$CODE_DIR" fetch origin "$target_branch"
 
-# 2. Merge target branch vào worktree branch
-git merge "origin/$target_branch"
+# 2. Merge target branch vào branch hiện tại (worktree Type 2 / sub-repo Type 1)
+git -C "$CODE_DIR" merge "origin/$target_branch"
 
 # 3. Push lại → PR tự update
-git push origin "$BRANCH" --force-with-lease
+git -C "$CODE_DIR" push origin "$BRANCH" --force-with-lease
 ```
 
 ### Conflict Khi Merge Trên GitHub
@@ -332,4 +340,4 @@ gh pr view "$PR_URL" --json state,mergeable,reviews --jq '.'
 | `OPEN` + `mergeable=false` | Conflict → xử lý conflict |
 | `MERGED` | Cleanup + update board |
 | `CLOSED` | Hỏi human: keep or delete worktree |
-| `OPEN` + review `CHANGES_REQUESTED` | Agent sửa trong worktree |
+| `OPEN` + review `CHANGES_REQUESTED` | Agent sửa trong CODE_DIR |

@@ -1,7 +1,7 @@
 # Project Detection
 
-Thuật toán xác định project root, type, và worktree strategy cho một feature.
-Implementation: `scripts/detect-project.sh` (function `classify_project`).
+Thuật toán xác định project root, type, và branch strategy (worktree vs in-place checkout)
+cho một feature. Implementation: `scripts/detect-project.sh` (function `classify_project`).
 Tests: `scripts/test-project-detection.sh` (7 cases).
 
 ## Input
@@ -89,22 +89,32 @@ classify_project() {
   "git_remote": "origin",
   "default_branch": "main",
   "workspace_root": "/home/user/workspace",
-  "worktree_path": "/home/user/workspace/.claude/worktrees/feature-FEAT-001-auth-service"
+  "original_branch": "main",
+  "worktree_path": null
 }
 ```
 
-`worktree_path` là absolute path, unified cho mọi project type. Tất cả worktree nằm
-ở `.claude/worktrees/` của workspace root — không bao giờ nằm trong project root.
-Lý do: workspace `.gitignore` đã cover `.claude/worktrees/`, không cần sửa gitignore
-của submodule/subproject.
+Fields đặc thù theo project type:
 
-## Worktree Creation Theo Project Type
+| Field | Type 1 (submodule / gitignored-subproject) | Type 2 (workspace-member) |
+|-------|--------------------------------------------|---------------------------|
+| `original_branch` | Branch sub-repo đang đứng — capture TRƯỚC khi checkout in-place, dùng để restore | Không cần (worktree không đụng branch hiện tại) |
+| `worktree_path` | `null` — không tạo worktree, checkout IN-PLACE | Absolute path `.claude/worktrees/feature-{feat}-{svc}` của workspace root |
 
-Tất cả worktree được tạo ở **cùng một vị trí**: `.claude/worktrees/{branch-slug}/`
-dưới workspace root. `git worktree add -b` chạy từ project root tương ứng,
-nhưng path worktree luôn trỏ về workspace root (absolute path).
+Lý do không dùng worktree cho Type 1: workspace `.gitignore` đã cover `.claude/worktrees/`
+(đúng cho Type 2), nhưng sub-repo là directory trong working tree của parent — chỉ cần đổi
+branch trong sub-repo là đủ (xem "Branch Strategy Theo Project Type" dưới).
 
-Branch name được chuẩn hóa theo flow type:
+## Branch Strategy Theo Project Type
+
+Hai chiến lược tách branch — chọn theo `project_type`:
+
+| Type | Chiến lược | Parallel? | PR về remote nào |
+|------|-----------|-----------|------------------|
+| **Type 1** — submodule / gitignored-subproject | Checkout IN-PLACE trong sub-repo | ❌ Tuần tự bắt buộc | Remote của chính sub-repo |
+| **Type 2** — workspace-member | Worktree isolation | ✅ Thoải mái | Remote của workspace |
+
+Branch name chuẩn hóa theo flow type:
 
 | Flow | Branch pattern | Ví dụ |
 |------|---------------|-------|
@@ -112,22 +122,53 @@ Branch name được chuẩn hóa theo flow type:
 | **cr** | `change/{CR_ID}-{service}` | `change/CR-005-payment-service` |
 | **fixbug** | `fix/{BUG_ID}-{service}` | `fix/BUG-042-auth-service` |
 
-Worktree directory name thay `/` bằng `-`: `feature-FEAT-001-auth-service`.
+### Type 2 — workspace-member: worktree isolation
 
-| Type | Branch từ | Branch name | Lệnh |
-|------|-----------|-------------|------|
-| **submodule** | HEAD của submodule | `feature/{feat}-{svc}` | `cd {project_root} && git worktree add -b feature/{feat}-{svc} {workspace}/.claude/worktrees/feature-{feat}-{svc} HEAD` |
-| **gitignored-subproject** | HEAD của subproject | `feature/{feat}-{svc}` | `cd {project_root} && git worktree add -b feature/{feat}-{svc} {workspace}/.claude/worktrees/feature-{feat}-{svc} HEAD` |
-| **workspace-member** | origin/main của workspace | `feature/{feat}-{svc}` | `cd {project_root} && git worktree add -b feature/{feat}-{svc} {workspace}/.claude/worktrees/feature-{feat}-{svc} origin/main` |
+```bash
+BRANCH="feature/${FEAT_ID}-${SERVICE}"
+WORKTREE_PATH="${WORKSPACE_ROOT}/.claude/worktrees/feature-${FEAT_ID}-${SERVICE}"
+git -C "$project_root" worktree add -b "$BRANCH" "$WORKTREE_PATH" "origin/main"
+```
+
+- Branch từ `origin/main` (theo dõi remote, không phải local state).
+- Controller KHÔNG `cd` — mọi lệnh dùng absolute path. Workflow args:
+  `repoPath = "$WORKTREE_PATH"` (nơi chạy code/test),
+  `specRoot = "$WORKSPACE_ROOT"` (nơi chứa `agent_docs/`).
+- Nếu worktree có bản copy specs (agent_docs đã commit) → `specRoot = "$WORKTREE_PATH"`.
+
+### Type 1 — submodule / gitignored-subproject: in-place checkout + restore
+
+```bash
+BRANCH="feature/${FEAT_ID}-${SERVICE}"
+ORIGINAL_BRANCH=$(git -C "$project_root" branch --show-current)   # capture TRƯỚC — sub-repo đã sẵn trên branch gốc
+git -C "$project_root" checkout -b "$BRANCH" HEAD
+```
+
+**Quy tắc cứng (hard boundaries) cho Type 1:**
+
+1. **Capture `original_branch` trước khi checkout** — sub-repo đang đứng sẵn trên branch
+   gốc, chỉ capture, KHÔNG re-checkout.
+2. **Tuần tự bắt buộc** — in-place checkout đổi branch của chính sub-repo trong working
+   tree của parent → ảnh hưởng cả project đang làm việc. Không bao giờ chạy 2 task song
+   song trên cùng sub-repo.
+3. **Restore LUÔN chạy (finally semantics)** — sau feature xong (PR tạo xong hoặc fail):
+   `git -C "$project_root" checkout "$ORIGINAL_BRANCH"`. Restore fail → chặn task kế tiếp.
+4. **PR về remote của chính sub-repo** — sub-repo có remote riêng (origin của sub-repo,
+   không phải của parent). Push + `gh pr create` chạy với `--repo`/CWD của sub-repo.
+5. **Specs nằm ở parent** — Type 1 `agent_docs/` ở workspace của PARENT, không nằm trong
+   sub-repo. Workflow args: `repoPath = "$project_root"`, `specRoot = "$workspace_root"`.
+
+**Tại sao Type 1 không dùng worktree?**
+- Sub-repo là directory trong working tree của parent — chỉ cần đổi branch trong sub-repo
+  là đủ; worktree chỉ thêm một lớp path phải resolve.
+- Submodule có `.git` là file trỏ về `.git/modules/` của parent — không có per-worktree
+  git config riêng như repo thường.
+- Gitignored-subproject bị parent ignore — checkout in-place giữ mọi relative path
+  (build, ignore rules của parent) nguyên vẹn, không cần sửa gì.
 
 **Quy tắc branch point:**
-- Submodule/gitignored → branch từ HEAD (theo dõi state hiện tại của sub-repo)
-- Workspace-member → branch từ origin/main (theo dõi remote, không phải local state)
-
-**Tại sao unified path?**
-- Workspace `.gitignore` đã có `.claude/worktrees/` → không cần sửa gitignore của submodule
-- Board luôn hiển thị đúng path tương đối: `.claude/worktrees/feature-{feat}-{svc}/`
-- `git worktree add` chấp nhận absolute path bất kỳ — worktree không cần nằm trong repo
+- Type 1 → branch từ `HEAD` (theo dõi state hiện tại của sub-repo)
+- Type 2 → branch từ `origin/main` (theo dõi remote, không phải local state)
 
 ## Detection Caching
 

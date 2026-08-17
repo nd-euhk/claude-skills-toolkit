@@ -85,8 +85,8 @@ Nếu không có baseline, agent chỉ biết "có test fail" — không phân b
 
 | Vai trò | Ai | Khi |
 |---------|----|-----|
-| **Capture** | Controller (`sdlc-cook`) | Sau khi tạo worktree (Bước 4), trước khi dispatch workflow (Bước 8) |
-| **Map keys** | Controller | snake_case (`tc_index`, `pre_existing_failures`, `by_file`) → camelCase trước khi truyền vào args |
+| **Capture** | Controller (`sdlc-cook`) | Sau khi tách branch (Bước 4, type-aware), trước khi dispatch workflow (Bước 8) |
+| **CamelCase output** | Controller | baseline.py dump camelCase **trực tiếp** (`tcIndex`, `preExistingFailures`, `byFile`) — truyền thẳng vào args, KHÔNG map key (xem SKILL.md Bước 4.5) |
 | **Truyền vào** | Controller | Qua `Workflow({ args: { baseline: {...} } })` |
 | **Đọc** | RED agent + GATE agent | Trong TDD cycle và GATE phase |
 | **Cập nhật** | **Không ai** | Baseline là **read-only** — không bao giờ sửa trong cùng lần cook |
@@ -94,7 +94,7 @@ Nếu không có baseline, agent chỉ biết "có test fail" — không phân b
 ### Timeline
 
 ```
-Bước 4:   Create Worktree
+Bước 4:   Tách Branch (type-aware — worktree Type 2 / in-place checkout Type 1)
               │
 Bước 4.5: CAPTURE BASELINE ← CONTROLLER chạy test + baseline parse
               │
@@ -138,16 +138,25 @@ Bước 8:   Dispatch Workflow(args: { baseline: {...} })
 
 ### Capture Command
 
+Test chạy trong **repo path** (nơi có code), baseline script ở **specRoot** (nơi có
+`.claude/scripts/`) — dùng absolute path, controller KHÔNG phụ thuộc CWD:
+
 ```bash
-cd "$WORKTREE_PATH"
-
-# Backend (Gradle):
-./gradlew :{service}:test
-
-# Parse kết quả:
-.claude/scripts/baseline parse \
+# Type 1 — sub-repo (code + test output ở project_root; .claude/scripts ở workspace_root):
+(cd "$project_root" && ./gradlew :{service}:test)
+"${WORKSPACE_ROOT}/.claude/scripts/baseline" parse \
   --framework junit-xml \
-  --test-output-dir {build/test-results/test/} \
+  --test-output-dir "$project_root/build/test-results/test/" \
+  --fr-id {FR-ID} \
+  --layer {be|fe} \
+  --service {service} \
+  --test-command "./gradlew :{service}:test"
+
+# Type 2 — worktree (code chạy trong worktree; .claude/scripts ở SPECS_ROOT):
+(cd "$WORKTREE_PATH" && ./gradlew :{service}:test)
+"${SPECS_ROOT}/.claude/scripts/baseline" parse \
+  --framework junit-xml \
+  --test-output-dir "$WORKTREE_PATH/build/test-results/test/" \
   --fr-id {FR-ID} \
   --layer {be|fe} \
   --service {service} \
