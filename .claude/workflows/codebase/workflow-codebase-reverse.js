@@ -20,7 +20,7 @@ export const meta = {
 // === SAFE-PARSE ARGS (MANDATORY) ===
 
 const _args = (typeof args === 'string') ? JSON.parse(args) : (args || {})
-const {
+let {
   scope = '.',
   scoutReportPath,
   services = [],
@@ -175,11 +175,11 @@ function gatePrompt(phase, attempt, previousFailure, context, expectedOutputs) {
 - **Attempt**: ${attempt}/${MAX_RETRIES}
 - **Services**: ${services.map(s => s.name).join(', ') || 'none'}
 - **Domains**: ${domains.map(d => d.name).join(', ') || 'none'}
-- **Expected outputs**: ${(expectedOutputs || []).join(', ') || 'auto-detect from agent_docs/'}
+- **Expected outputs**: ${(expectedOutputs || []).join(', ') || 'auto-detect from ' + foundationPath}
 - **Foundation path**: ${foundationPath}
 
 ## Instructions
-1. Read the actual files from agent_docs/ — verify independently
+1. Read the actual files from ${foundationPath} — verify independently
 2. Run ALL gate criteria for phase "${phase}" (see your system prompt for criteria)
 3. Report per-entity breakdown (per service for LLD, per domain for SRS/IMP/TST)
 4. Be specific — name exact files and criteria #s that fail
@@ -265,7 +265,7 @@ function verifySRSPrompt(domain, frGlob) {
 ## Task
 1. Use \`ls ${frGlob}\` to discover all FR files for this domain
 2. Read every FR file fully
-3. Read scout report at agent_docs/scout-report.md, HLD at agent_docs/architecture.md, and relevant LLD sections
+3. Read scout report at ${scoutReportPath}, HLD at ${foundationPath}architecture.md, and relevant LLD sections
 4. Apply ALL 3 lenses (Code Evidence, Behavioral Completeness, Business Coherence) to EVERY FR
 5. Spawn Explore subagents to verify code evidence claims, find missing error paths, and check auth patterns
 6. Assign each FR a final verdict: CONFIRMED, UNCERTAIN, or REJECTED
@@ -1102,6 +1102,7 @@ if (completedPhases.has('LLD')) {
 let srsResults = []
 let srsSynthesisResult = null
 let srsGatePassed = false
+let srsVerificationResult = null
 if (completedPhases.has('SRS')) {
   log('⏭️ SRS — already DONE (resumed)')
   srsResults = resumeResults.SRS || []
@@ -1124,7 +1125,6 @@ if (completedPhases.has('SRS')) {
   log(`SRS fan-out complete — ${successfulSRS}/${domainCount} domain(s)`)
 
   // -- Adversarial SRS Verification (always-on, with retry for REJECTED FRs, before synthesis) --
-  let srsVerificationResult = null
   if (successfulSRS > 0 && !skipRemaining) {
     phase('SRS-Verify')
     log(`Adversarial SRS verification — codebase-srs-verify agent per domain (3-lens: code-evidence, behavioral-completeness, business-coherence + Explore subagents)`)
@@ -1584,7 +1584,7 @@ if (exhaustedGates.length > 0) {
   log('🛑 GATE EXHAUSTION REPORT:')
   log('   The following phases failed gate checks after ' + MAX_RETRIES + ' retries and were skipped:')
   exhaustedGates.forEach(g => {
-    log(`      - ${g.phase}: ${g.parsed.summary}`)
+    log(`      - ${g.phase}: ${g.summary}`)
   })
   log(`   💡 Remaining phases were NOT executed. Review the gate failures above and decide:`)
   log(`      • Fix quality issues in agent prompts/scout report and re-run`)
@@ -1677,7 +1677,7 @@ return {
       phase: g.phase,
       attempt: g.attempt,
       passed: g.passed,
-      summary: g.parsed.summary,
+      summary: g.summary,
     })),
   },
   outputs: [...allOutputs],

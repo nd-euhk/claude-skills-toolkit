@@ -2,6 +2,25 @@
 
 All notable changes to the skills-toolkit plugin are documented here.
 
+## [2.39.3] - 2026-08-19
+
+### Fixed
+- **sdlc-codebase 1.5.1:** PATCH — fix hardcoded scout report path trong reverse pipeline:
+  - **workflow-codebase-reverse.js:** prompt của `codebase-srs-verify` hardcode
+    `agent_docs/scout-report.md` (dòng 268) — không khớp path thật report tại
+    `.work/scouts/` và không nhất quán với các prompt HLD/LLD/SRS/IMP/TST đã dùng
+    `${scoutReportPath}` → đổi sang interpolate `scoutReportPath`.
+  - **workflow-codebase-reverse.js (residual):** 3 chỗ còn hardcode `agent_docs/` relative
+    trong khi mọi prompt khác dùng `${foundationPath}` — gatePrompt fallback
+    `auto-detect from agent_docs/` (L178), gatePrompt "Read the actual files from
+    agent_docs/" (L182), verify prompt `HLD at agent_docs/architecture.md` (L268)
+    → đổi sang interpolate `${foundationPath}` (L178 dùng string concatenation vì
+    nằm trong nested expression).
+  - **codebase-srs-verify.md:** agent definition hardcode `agent_docs/scout-report.md`
+    → đổi theo convention `codebase-hld` ("path provided in the task prompt").
+- **codebase-srs-verify 1.0.1:** PATCH — agent definition đọc scout report từ task prompt,
+  không hardcode path.
+
 ## [2.39.2] - 2026-08-17
 
 ### Fixed

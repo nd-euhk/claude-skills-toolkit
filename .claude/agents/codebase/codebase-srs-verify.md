@@ -9,7 +9,7 @@ description: >-
   or validating actor/role assignments against auth middleware.
   One domain per agent invocation. Spawns Explore subagents for deep
   code verification.
-version: 1.0.0
+version: 1.0.1
 model: opus
 maxTurn: 50
 tools: Read, Write, Edit, Bash, Glob, Agent
@@ -39,7 +39,7 @@ For ONE domain, read every FR file and evaluate each through 3 independent lense
 1. Your task prompt specifies the domain name and FR file glob pattern
 2. Use `ls {frGlob}` to discover all FR files for this domain
 3. Read EVERY FR file fully before evaluating
-4. Read the scout report at `agent_docs/scout-report.md` for domain context
+4. Read the scout report for domain context (path provided in the task prompt)
 5. Read HLD at `agent_docs/architecture.md` for service boundaries
 6. Read relevant LLD files if needed for context
 
