@@ -27,7 +27,7 @@ Skill scout toàn diện cho toàn bộ hệ sinh thái SDLC. Tự động phát
 ## Khi Nào Sử Dụng
 
 **Được gọi bởi skill SDLC khác:**
-- `sdlc-review --code` — khám phá codebase trước khi review 7 chiều
+- `sdlc-review-codechange` — khám phá codebase trước khi review 7 chiều
 - `sdlc-explore` — phát hiện sub-project + scout trước SDLC pipeline
 - `sdlc-fixbug` — scout khu vực liên quan đến bug
 - `sdlc-flow-task` — scout trước khi triển khai tính năng mới
@@ -44,7 +44,7 @@ Skill scout toàn diện cho toàn bộ hệ sinh thái SDLC. Tự động phát
 - Định vị code trước khi bắt đầu bất kỳ tác vụ SDLC nào
 
 **Không dùng cho:**
-- Review MR/PR diff → dùng `sdlc-review --mr` (không cần scout)
+- Review MR/PR diff → dùng `sdlc-review-mr` (không cần scout)
 
 ## Khởi Động Nhanh
 
@@ -82,7 +82,7 @@ const scoutResult = await Skill(sdlc-scout, "{path} --mode {review|explore} --fo
 // Downstream agents đọc report thay vì tự Grep/Glob/Read toàn bộ codebase
 ```
 
-Xem `references/integration-guide.md` để biết ví dụ cụ thể cho từng skill (sdlc-review, sdlc-explore, sdlc-fixbug, sdlc-flow-task, sdlc-flow-cr) kèm diff chi tiết và checklist verify.
+Xem `references/integration-guide.md` để biết ví dụ cụ thể cho từng skill (sdlc-review-codechange, sdlc-explore, sdlc-fixbug, sdlc-flow-task, sdlc-flow-cr) kèm diff chi tiết và checklist verify.
 
 ## Quy Trình Chính
 

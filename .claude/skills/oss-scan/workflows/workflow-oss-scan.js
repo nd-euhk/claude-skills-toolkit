@@ -241,7 +241,7 @@ whether any project carries a risky component — this is the ONLY signal the
 suggestion is gated on.
 - If \`decisionsNeeded\` is non-empty, add ONE line to the "Next steps" section
   per affected project:
-  \`Gợi ý: /sdlc-review --code --security <project-path>\`
+  \`Gợi ý: /sdlc-review-codechange --security <project-path>\`
   plus one reason line: how the code links/uses the risky component (dynamic/
   static link, exploitable in code path) is extra input for LRB when
   deciding exception/replace.

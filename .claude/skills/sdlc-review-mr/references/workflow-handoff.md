@@ -1,17 +1,15 @@
-# Workflow Handoff — sdlc-review ↔ Workflows
+# Workflow Handoff — sdlc-review-mr ↔ workflow-sdlc-review-mr.js
 
-Cơ chế handoff giữa `sdlc-review` skill và hai workflow script của nó. Skill chuẩn bị tất cả inputs, chọn workflow phù hợp, xử lý kết quả.
+Cơ chế handoff giữa `sdlc-review-mr` skill và workflow script của nó. Skill chuẩn bị
+inputs, dispatch workflow, xử lý kết quả.
 
-## Which workflow to use
+## Workflow Script
 
-| Mode Flag | Workflow Script | Mục đích |
+| Skill | Workflow Script | Mục đích |
 |---|---|---|
-| `--mr` hoặc `--pr` | `workflow-sdlc-review-mr.js` | Review merge/pull request diff |
-| `--code` | `workflow-sdlc-review-code.js` | Review source code cục bộ qua exploration |
+| `sdlc-review-mr` | `workflow-sdlc-review-mr.js` | Review MR/PR diff trên GitHub/GitLab |
 
-## MR/PR Workflow: workflow-sdlc-review-mr.js
-
-### Args Structure (Skill → Workflow)
+## Args Structure (Skill → Workflow)
 
 ```js
 const mrArgs = {
@@ -29,7 +27,7 @@ const mrArgs = {
   platform: "github",                    // "github" | "gitlab"
   dimensions: ["arch", "security", "bugs", "conventions", "impact", "ops", "tests"], // string[]
   adversarial: true,                     // boolean — bật Verify phase
-  runDate: "20260626",                   // string YYYYMMDD
+  runDate: "20260820",                   // string YYYYMMDD
 }
 ```
 
@@ -40,26 +38,27 @@ const mrArgs = {
    - `files`: danh sách changed file paths
    - `loc`: tổng additions + deletions
 3. **repoPath**: Đường dẫn tuyệt đối từ `git rev-parse --show-toplevel`
-4. **platform**: Từ Phase 3 — `--mr` → `gitlab`, `--pr` → `github`, hoặc phát hiện từ URL/remote
+4. **platform**: Từ Phase 3a — `--mr` → `gitlab`, `--pr` → `github`, hoặc URL/prefix/remote
 5. **dimensions**: Từ Phase 1 flag parsing hoặc Phase 1b menu Q2
 6. **adversarial**: Từ flag `--adversarial` hoặc menu Q3
 7. **runDate**: `$(date +%Y%m%d)`
 
-### Workflow Invocation
+## Workflow Invocation
 
 ```
 Workflow({ scriptPath: ".claude/workflows/review/workflow-sdlc-review-mr.js", args: mrArgs })
 ```
 
-**Guard**: `ls .claude/workflows/review/workflow-sdlc-review-mr.js` → nếu thiếu, hủy bỏ với thông báo lỗi.
+**Guard**: `ls .claude/workflows/review/workflow-sdlc-review-mr.js` → nếu thiếu, hủy bỏ với
+thông báo "Plugin cần cài đặt lại."
 
-### Result Structure (Workflow → Skill)
+## Result Structure (Workflow → Skill)
 
 #### Success — Standard Mode
 ```js
 {
-  reportPath: ".work/review/REVIEW-MR-20260626--github-123-add-user-authentication.md",
-  verdict: "NEEDS_ATTENTION",
+  reportPath: ".work/review/REVIEW-MR-20260820--github-123-add-user-authentication.md",
+  verdict: "NEEDS_ATTENTION",      // "APPROVED" | "NEEDS_ATTENTION" | "URGENT"
   findings: [
     {
       severity: "BUG_FOUND",
@@ -103,7 +102,7 @@ Workflow({ scriptPath: ".claude/workflows/review/workflow-sdlc-review-mr.js", ar
 #### Error — Partial Subagent Failure
 ```js
 {
-  reportPath: ".work/review/REVIEW-MR-20260626--github-123-feature.md",
+  reportPath: ".work/review/REVIEW-MR-20260820--github-123-feature.md",
   verdict: "URGENT",
   findings: [...],
   dimensions: { ... },
@@ -130,68 +129,22 @@ Workflow({ scriptPath: ".claude/workflows/review/workflow-sdlc-review-mr.js", ar
 }
 ```
 
-## Code Review Workflow: workflow-sdlc-review-code.js
-
-### Args Structure (Skill → Workflow)
-
-```js
-const codeArgs = {
-  repoPath: "/absolute/path/to/repo",    // string — đường dẫn tuyệt đối
-  targetPath: "src/auth/",               // string — đường dẫn tương đối trong repo cần review
-  dimensions: ["arch", "security", "bugs", "conventions", "impact", "ops", "tests"], // string[]
-  adversarial: true,                     // boolean
-  runDate: "20260626",                   // string YYYYMMDD
-  scoutReports: [                        // array — structured scout output từ sdlc-scout (SKILL.md gọi sdlc-scout trước khi dispatch)
-    { name: "auth-service", outputPath: ".work/scouts/scout-20260626-auth--myproject.md", filesFound: 42, highRelevance: 15, modulesFound: 6, entryPointsFound: 3 },
-  ],
-}
-```
-
-### Chuẩn bị args từ skill
-
-1. **repoPath**: Đường dẫn tuyệt đối từ `git rev-parse --show-toplevel`
-2. **targetPath**: Từ user input (sau flag `--code`) hoặc mặc định `"."` (thư mục hiện tại)
-   - Nếu tương đối → resolve theo repoPath
-   - Nếu tuyệt đối → xác minh nằm trong repoPath
-3. **dimensions**: Từ Phase 1 flag parsing hoặc Phase 1b menu Q2
-4. **adversarial**: Từ flag `--adversarial` hoặc menu Q3
-5. **runDate**: `$(date +%Y%m%d)`
-
-### Workflow Invocation
-
-```
-Workflow({ scriptPath: ".claude/workflows/review/workflow-sdlc-review-code.js", args: codeArgs })
-```
-
-**Guard**: `ls .claude/workflows/review/workflow-sdlc-review-code.js` → nếu thiếu, hủy bỏ.
-
-### Result Structure (Workflow → Skill)
-
-Giống MR workflow result, với `reportPath` dùng prefix `REVIEW-CODE-`:
-```
-.work/review/REVIEW-CODE-YYYYMMDD--{sanitized-path}.md
-```
-
-### Code Review Workflow Phases
-
-Khác với MR workflow nhận diff, code workflow nhận `scoutReports` (structured scout
-output — do SKILL.md gọi `sdlc-scout` trước khi dispatch; nếu rỗng, mỗi dimension
-agent tự khám phá codebase trong review):
+## Workflow Phases
 
 ```
 Phase: Review
-  parallel(tất cả 7 dimension, mỗi dimension khám phá + review)
-  → mỗi agent dùng Bash(git:*,ls:*,find:*,cat:*) + Grep + Glob + Agent(Explore)
-  → inline prompt được điều chỉnh cho source code exploration (không phải diff analysis)
+  parallel(tất cả 7 dimension, mỗi dimension phân tích diff)
+  → mỗi agent dùng Bash(git:*,gh:*,glab:*) + Grep + Read
+  → inline prompt điều chỉnh cho diff analysis
 
 Phase: Verify (chỉ adversarial)
-  pipeline(mỗi finding → 3 skeptics) — pattern giống MR workflow
+  pipeline(mỗi finding → 3 skeptics) — pattern chung
 
 Phase: Synthesize
-  merge + deduplicate + tính toán overall verdict
+  merge + deduplicate + tính overall verdict
 
 Phase: Report
-  tạo markdown → .work/review/REVIEW-CODE-YYYYMMDD--{slug}.md
+  tạo markdown → .work/review/REVIEW-MR-{runDate}--{platform}-{number}-{slug}.md
 ```
 
 ## Error Handling Patterns
@@ -199,7 +152,7 @@ Phase: Report
 ### Pattern 1: Partial Subagent Failure (1-2 dimensions)
 ```
 Workflow trả về: failedDimensions: ["security"]
-→ Report: "Security review thất bại. Các dimension khác đã hoàn tất."
+→ Thông báo: "Security review thất bại. Các dimension khác đã hoàn tất."
 → AskUserQuestion: "Retry security review?"
   - "Retry" → chạy lại Workflow với resumeFromRunId
   - "Skip" → report đã được tạo với các dimension còn lại
@@ -216,14 +169,14 @@ Workflow trả về: verdict: 'ERROR', reportPath: null
 
 ### Pattern 3: Workflow File Not Found
 ```
-ls .claude/workflows/workflow-sdlc-review-{mr,code}.js → không có file
-→ Thông báo: "Workflow script bị thiếu. Plugin có thể cần cài đặt lại."
+ls .claude/workflows/review/workflow-sdlc-review-mr.js → không có file
+→ Thông báo: "Plugin cần cài đặt lại."
 → Hủy bỏ
 ```
 
 ## Adversarial Verification Flow
 
-Khi `adversarial: true`, workflow thêm một Verify phase trước Synthesis:
+Khi `adversarial: true`, workflow thêm Verify phase trước Synthesis:
 
 ```
 Phase: Review
@@ -247,19 +200,8 @@ Phase: Report
 ```
 
 **Hướng dẫn cho skeptic (inline trong workflow):**
-- **Correctness skeptic**: Tìm mitigating controls upstream. Mặc định "refute" nếu không chắc chắn.
+- **Correctness skeptic**: Kiểm tra mitigating controls upstream. Mặc định "refute" nếu không chắc chắn.
 - **Security skeptic**: Kiểm tra code có reachable từ user input không, compensating controls có tồn tại không. Mặc định "refute" nếu không chắc chắn.
 - **Reproducibility skeptic**: Kiểm tra affected code path có thực sự trong scope không, test hiện có có bắt được không. Mặc định "refute" nếu không chắc chắn.
 
 Một finding được **xác nhận** chỉ khi ≥2/3 skeptics bỏ phiếu `confirmed: true`.
-
-## Token Efficiency
-
-| Kịch bản | Old /sdlc-review-mr (Workflow + agent files) | New /sdlc-review (Workflow + inline prompts) |
-|---|---|---|
-| 7 dimensions, 10 findings | ~15K tokens trong context | ~15K tokens trong context |
-| 7 dimensions + adversarial | ~25K tokens | ~25K tokens |
-| 2 dimensions, 3 findings | ~8K tokens | ~8K tokens |
-| Subagent failure + retry | Resume: chỉ failed agents chạy lại | Resume: chỉ failed agents chạy lại |
-
-**Cơ chế:** Cả hai cách tiếp cận đều dùng Workflow tool — intermediate results nằm trong script variables. Cách inline loại bỏ nhu cầu load 7 file agent definition riêng biệt nhưng không thay đổi đáng kể context usage cho skill-level agent.

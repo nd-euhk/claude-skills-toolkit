@@ -43,7 +43,7 @@ Sau đó explore các file liên quan đến nhiệm vụ của bạn.`
 
 ## Ví Dụ Cho Từng Skill
 
-### sdlc-review --code
+### sdlc-review-codechange
 
 ```diff
 - // Phase 0 is inside review/workflow-sdlc-review-code.js (1 agent)
@@ -96,7 +96,7 @@ const scoutResult = await Skill(sdlc-scout,
 
 ```
 .work/scouts/
-├── scout-YYYYMMDD-auth--slug.md            # từ sdlc-review
+├── scout-YYYYMMDD-auth--slug.md            # từ sdlc-review-codechange
 ├── scout-YYYYMMDD-api-service--slug.md     # từ sdlc-explore
 ├── scout-YYYYMMDD-payment-fix--slug.md     # từ sdlc-fixbug
 └── ...

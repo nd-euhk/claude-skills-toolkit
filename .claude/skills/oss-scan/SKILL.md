@@ -221,21 +221,21 @@ Decisions needed: [component R3/R4/no-license cần LRB]
 
 ### Phase 5b — Gợi ý cross-skill (report-driven)
 
-Gợi ý `sdlc-review` **chỉ xuất hiện khi workflow ghi nó vào batch report** —
+Gợi ý `sdlc-review-codechange` **chỉ xuất hiện khi workflow ghi nó vào batch report** —
 workflow giữ toàn bộ data (`decisionsNeeded`), nó quyết định và viết gợi ý;
 skill chỉ relay, không tự tính.
 
 1. Sau khi đọc batch report (Phase 5), tìm trong phần **Next steps** dòng
-   `Gợi ý: /sdlc-review --code --security <project-path>` — workflow chỉ ghi
+   `Gợi ý: /sdlc-review-codechange --security <project-path>` — workflow chỉ ghi
    dòng này khi có component R3/R4/no-license hoặc FAIL/BLOCKED.
 2. **Nếu có dòng gợi ý** → relay nguyên văn cho human trong báo cáo kết quả:
    ```
-   Gợi ý: /sdlc-review --code --security <project-path>
+   Gợi ý: /sdlc-review-codechange --security <project-path>
    ```
    - **Lý do:** cần biết cách code đang link/dùng component rủi ro (dynamic/
      static link, có khai thác được trong code path không) — input bổ sung cho
      LRB khi quyết định exception/replace.
-   - Chỉ relay, **không tự chạy** sdlc-review.
+   - Chỉ relay, **không tự chạy** sdlc-review-codechange.
 3. **Nếu batch report KHÔNG có dòng gợi ý** → không gợi ý (run toàn R1 PASS →
    không có component rủi ro để gợi ý).
 

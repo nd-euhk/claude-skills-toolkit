@@ -11,7 +11,7 @@ export const meta = {
 
 // ── Args ──
 const _args = (typeof args === 'string') ? JSON.parse(args) : (args || {})
-const { repoPath, targetPath, dimensions, adversarial, runDate, scoutReports } = _args
+const { repoPath, targetPath, dimensions, adversarial, runDate, scoutReports, headBranch, baseBranch, diffFiles, diffStat, specsPath } = _args
 const dimNames = dimensions.join(', ')
 const normalizedPath = targetPath || "."
 
@@ -406,6 +406,42 @@ const TESTS_PROMPT = `You are a TEST QUALITY & INTEGRITY SPECIALIST. Explore and
 
 Return structured output with verdict and findings array.`;
 
+const SPEC_PROMPT = `You are a SPEC COMPLIANCE / REQUIREMENTS TRACEABILITY SPECIALIST. Your job: verify the code under review actually IMPLEMENTS what the feature specifications require. Answer the question: "does this code meet the documentation? are there gaps or issues?"
+
+## Inputs
+- **Spec files** (SRS + IMP + TST for this feature): ${specsPath || "(none provided)"}
+- **Code under review**: described in the "Review Scope" section above (diff vs base, or full tree).
+
+## Workflow
+1. **Read the specs.** Glob and read ALL markdown files under the spec path. Enumerate the checkable requirements:
+   - From SRS: each business rule and each Gherkin scenario (Given/When/Then → expected behavior); each quantified NFR.
+   - From IMP: each business rule, each execution-flow step (main path AND error/alternative paths), each error-mapping entry, each data-impact note.
+   - From TST: each covered behavior (secondary signal only — a behavior is implemented only if PRODUCTION code implements it, not merely that a test passes).
+2. **Build a traceability matrix** in decision_rationale.alignment_detail — one row per requirement:
+   REQ-001 | SRS "login with valid credentials returns session token" | IMPLEMENTED | src/auth/login.ts:42
+   Status values:
+   - IMPLEMENTED — code implements the behavior as specified. Cite evidence file:line.
+   - GAP — requirement exists in spec but NO code implements it. Evidence: "no code found".
+   - PARTIAL — code implements only part (e.g. happy path only; missing error path, edge case, or alternative flow).
+   - DIVERGENT — code implements the behavior but DIFFERENTLY than the spec (different business rule, wrong error code, wrong validation, different output contract).
+3. **Verify by tracing.** For each requirement, grep the code under review for the relevant handler/function, read the file, and confirm the behavior matches the spec's business rule. Do NOT accept "there is a test" as proof of implementation — check the production code itself.
+
+## Findings
+- Every GAP → finding: severity "GAP", description citing the requirement + what is missing; evidence: file = the spec file, line = the requirement's location, snippet = the spec text; recommendation: implement per spec.
+- Every PARTIAL → finding: severity "PARTIAL", state which branch/edge/flow is missing.
+- Every DIVERGENT → finding: severity "DIVERGENT", state what the spec says vs what the code does — cite both.
+
+## Verdict
+- APPROVED: every checkable requirement is IMPLEMENTED.
+- NEEDS_ATTENTION: any PARTIAL or DIVERGENT.
+- URGENT: any GAP (a requirement is unimplemented — the feature does not meet its spec).
+
+## CRITICAL RULES
+1. The spec is the source of truth for WHAT must exist; the code is the evidence of whether it exists.
+2. A requirement with no code found after grep is a GAP — not "maybe implemented elsewhere". Grep first, then conclude.
+3. EVERY finding MUST reference the spec requirement AND the code evidence (file:line) or explicitly "no code found".
+4. Scope discipline: only check requirements belonging to THIS feature (the diff when a diff scope is given). Do not demand unrelated pre-existing behavior.`;
+
 // ── Dimension Config ──
 const ALL_DIMENSIONS = {
   arch: { prompt: ARCH_PROMPT, label: "Architecture", verdictSeverity: "URGENT" },
@@ -415,6 +451,7 @@ const ALL_DIMENSIONS = {
   impact: { prompt: IMPACT_PROMPT, label: "Feature Impact", verdictSeverity: "BLOCKER" },
   ops: { prompt: OPS_PROMPT, label: "Operational Impact", verdictSeverity: "BLOCKER" },
   tests: { prompt: TESTS_PROMPT, label: "Test Quality", verdictSeverity: "URGENT" },
+  spec: { prompt: SPEC_PROMPT, label: "Spec Compliance", verdictSeverity: "GAP" },
 }
 
 // ── Helpers ──
@@ -436,6 +473,10 @@ No scout reports available. EXPLORE the codebase yourself using Bash(find, ls), 
 - Review date: ${runDate}
 
 ${scoutSection}
+
+${scopeSection || ""}
+
+${specSection || ""}
 
 ## Instructions
 You are reviewing the source code at ${normalizedPath} within ${repoPath}.
@@ -472,6 +513,42 @@ if (scoutReports && scoutReports.length > 0) {
   log(`Using scout reports from sdlc-scout: ${scoutReports.length} report(s) covering ${scoutReports.reduce((s, r) => s + (r.filesFound || 0), 0)} files`)
 } else {
   log("No scout reports provided — review agents will explore the codebase directly")
+}
+
+// ── Review scope (diff vs base — from SKILL.md Phase 1d) ──
+// baseBranch + diffFiles set → dimension agents focus on the diff; else full-tree.
+const scopeSection = (baseBranch && diffFiles && diffFiles.length > 0)
+  ? `## Review Scope (Diff vs ${baseBranch})
+The code under review is the **diff between \`${baseBranch}\` and \`${headBranch}\`** (current HEAD).
+Changed files:
+${diffFiles.map(f => `${f.status}  ${f.file}`).join('\n')}
+Diff stat:
+${diffStat}
+
+**Focus on the changed files above.** For each changed file, run \`git diff ${baseBranch}...HEAD -- <file>\` to see the exact change, then read the file for surrounding context. Also check how changed code interacts with unchanged code (callers, callees, shared utilities, data flow). Findings must reference changed files or their direct interactions.`
+  : null
+
+const scopeNote = (baseBranch && diffFiles && diffFiles.length > 0)
+  ? `diff vs ${baseBranch} (${diffFiles.length} files changed)`
+  : `full target tree (${normalizedPath})`
+
+// ── Spec files (Spec Compliance dimension — from SKILL.md Phase 1e) ──
+// specsPath set → spec dimension included in dimensions; agents get the spec location
+// so the SPEC COMPLIANCE agent can verify code-vs-spec traceability.
+const specSection = specsPath
+  ? `## Spec Files (Spec Compliance)
+Feature specifications are at: ${specsPath}
+The SPEC COMPLIANCE dimension verifies the code implements these specs (traceability: GAP / PARTIAL / DIVERGENT / IMPLEMENTED). Other dimensions may consult them as context — e.g. to distinguish a spec-required behavior from a defect.`
+  : null
+
+if (specsPath) {
+  log(`Spec compliance enabled: spec files at ${specsPath}`)
+}
+
+if (baseBranch) {
+  log(`Review scope: diff vs ${baseBranch} — ${diffFiles ? diffFiles.length : 0} changed file(s); head=${headBranch || "(detached)"}`)
+} else {
+  log("Review scope: full target tree (no merge target detected or --full-tree)")
 }
 
 // ── Phase 1: Review — all dimensions in parallel ──
@@ -560,7 +637,7 @@ if (adversarial) {
 **Severity**: ${finding.severity}
 **Affected files**: ${(finding.affected_files || []).join(", ")}
 
-**Context**: Reviewing source code at ${normalizedPath} in ${repoPath}
+**Context**: Reviewing source code at ${normalizedPath} in ${repoPath}. Review scope: ${scopeNote}
 
 **Instructions**: Look at actual code behavior. Could this be already handled elsewhere (middleware, framework, upstream)? A deliberate design choice? Based on incorrect assumptions about code path?
 
@@ -579,7 +656,7 @@ Default to confirmed=false (refute) if uncertain. Return confirmed=true ONLY if 
 **Severity**: ${finding.severity}
 **Affected files**: ${(finding.affected_files || []).join(", ")}
 
-**Context**: Reviewing source code at ${normalizedPath} in ${repoPath}
+**Context**: Reviewing source code at ${normalizedPath} in ${repoPath}. Review scope: ${scopeNote}
 
 **Instructions**: Is this genuinely exploitable or does it have mitigating controls? Check: input validation upstream? Code reachable from user input? Compensating controls (WAF, rate limiting, auth layer)?
 
@@ -598,7 +675,7 @@ Default to confirmed=false (refute) if uncertain. Return confirmed=true ONLY if 
 **Severity**: ${finding.severity}
 **Affected files**: ${(finding.affected_files || []).join(", ")}
 
-**Context**: Reviewing source code at ${normalizedPath} in ${repoPath}
+**Context**: Reviewing source code at ${normalizedPath} in ${repoPath}. Review scope: ${scopeNote}
 
 **Instructions**: Can you actually trigger this issue from the code? Is the affected code path reachable? Would existing tests catch this? Is the finding speculation vs. concrete?
 
@@ -675,8 +752,8 @@ ${synthesisInput}${verifiedContext}
 **Instructions**:
 1. **Deduplicate**: If multiple dimensions flagged the same underlying issue (same file + same line range), merge into ONE finding with multiple category tags.
 2. **Compute overall verdict** (based on highest severity):
-   - Any CRITICAL, URGENT, CHEATING_FOUND, or BLOCKER -> **URGENT**
-   - Any BUG_FOUND, VIOLATION, or HIGH_RISK -> **NEEDS_ATTENTION**
+   - Any CRITICAL, URGENT, CHEATING_FOUND, BLOCKER, or GAP -> **URGENT**
+   - Any BUG_FOUND, VIOLATION, HIGH_RISK, DIVERGENT, or PARTIAL -> **NEEDS_ATTENTION**
    - Otherwise -> **APPROVED**
 3. **Write a summary**: 2-3 sentences capturing the key findings about this code.
 4. **Synthesize decision rationale**: Review all agents decision_rationale fields. Write a 2-4 sentence decision_summary answering: What is the overall quality of this code? What are the main risks? Is the code production-ready?
@@ -726,6 +803,8 @@ const report = await agent(
 - Repo path: ${repoPath}
 - Target path: ${normalizedPath}
 - Review date: ${runDate}
+- Review scope: ${scopeNote}
+- Spec files: ${specsPath || "none (spec-compliance dimension skipped)"}
 
 ## Overall Verdict: ${synthesis.overallVerdict}
 
@@ -789,6 +868,13 @@ return {
   findings: synthesis.mergedFindings,
   dimensions: findingsByDim,
   scoutSummary: scoutSummary,
+  reviewScope: {
+    mode: scopeSection ? "diff" : "full-tree",
+    baseBranch: baseBranch || null,
+    headBranch: headBranch || null,
+    changedFiles: diffFiles && diffFiles.length ? diffFiles.length : 0,
+    specsPath: specsPath || null,
+  },
   stats: {
     totalFindings: synthesis.mergedFindings ? synthesis.mergedFindings.length : 0,
     rawFindings: totalRawFindings,

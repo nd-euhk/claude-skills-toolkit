@@ -134,7 +134,7 @@ Các error scenario và fallback pattern cho skill `sdlc-quick`.
 
 #### E5.1 Code review phát hiện vấn đề lớn
 
-**Detect**: `sdlc-review` return findings ở mức bug hoặc security
+**Detect**: `sdlc-review-codechange` return findings ở mức bug hoặc security
 **Response**: Xem `references/escalation.md` → Trigger 5
 **Next step**: Đề xuất orchestrator (flow cr hoặc fixbug).
 

@@ -43,7 +43,7 @@ Output của agents chảy qua 2 kênh với reader khác nhau — clarity yêu 
 |-------|-------------|---------|
 | Spec agent (SRS/HLD/LLD/IMP/TST, `codebase-*`) | 1 + 2 | Thuật ngữ domain mới → glossary hoặc mở rộng inline |
 | Gate agent (`sdlc-gate`, `codebase-gate`, `sdlc-tdd-*-gate`) | 3 | Report trả về human — viết tên phase/artifact đầy đủ ở lần đầu xuất hiện |
-| Review agent (`sdlc-review`) | 3 | Findings cho human |
+| Review agent (`sdlc-review-mr`, `sdlc-review-codechange`) | 3 | Findings cho human |
 | Controller (orchestrator/automation/cook) | 3 | Escalation + status message cho human |
 | human-docs agent | 3 | `docs/` đã là human-facing — bắt buộc |
 

@@ -233,7 +233,7 @@ Agent({subagent_type: "sdlc-tdd-fe-gate", description: "Quick GATE-light",
 ### Code Review
 
 ```bash
-Skill("sdlc-review", "--code")
+Skill("sdlc-review-codechange", "--full")
 ```
 
 Review findings:
@@ -316,7 +316,7 @@ Phát hiện tín hiệu trên trong trivial gate hoặc triage grill → dừng
 
 | Skill | Mục đích |
 |---|---|
-| `sdlc-review` | Review code mới (--code) |
+| `sdlc-review-codechange` | Review code mới (--full) |
 | `sprint` | Cập nhật board sau khi hoàn thành |
 | `git` | Commit và push |
 

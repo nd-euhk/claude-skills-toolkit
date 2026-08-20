@@ -227,7 +227,7 @@ Báo cáo cho human theo template:
 | `grilling` | Tất cả | Phỏng vấn human làm rõ requirements/bug details |
 | `debugging` | fixbug | Phân tích stack traces, logs, root cause hypothesis |
 | `problem-solving` | fixbug | Đánh giá fix approaches, trade-offs |
-| `sdlc-review` | fixbug | Review code mới (--code, --full) |
+| `sdlc-review-codechange` | fixbug | Review code mới (--full) |
 | `sprint` | Tất cả | Cập nhật board, backlog, roadmap. Flag: `--board`, `--backlog`, `--roadmap`, `--all`, `--init` |
 | `git` | fixbug | Commit, push, branch management |
 | `sdlc-scout` | Tất cả | Khám phá codebase để lấy context |
