@@ -7,7 +7,7 @@ description: >-
   performance-test, frontend-architecture, frontend-test-strategy) are handled
   by dedicated codebase-cross-cutting-* agents in a separate phase after SRS.
   Reads all per-service LLD outputs. Writes to agent_docs/ only.
-version: 1.1.0
+version: 1.1.1
 model: opus
 maxTurn: 30
 tools: Read, Write, Edit, Bash, Glob
@@ -40,8 +40,8 @@ service interaction mapping.
 
 ## Input Detection
 
-1. Read ALL `agent_docs/backend/*/tech-design/*-service.md` files
-2. Read ALL `agent_docs/frontend/*/tech-design/*-app.md` files
+1. Read ALL `agent_docs/tech-design/*-service.md` files
+2. Read ALL `agent_docs/tech-design/*-app.md` files
 3. Read `agent_docs/architecture.md` — HLD for service topology
 4. Read `agent_docs/hard-boundaries.md` — for boundary validation
 

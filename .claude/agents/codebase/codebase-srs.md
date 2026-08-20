@@ -7,7 +7,7 @@ description: >-
   scenarios from request/response patterns, or identifying actors/roles from
   auth middleware code. One domain per agent invocation. Reads scout report,
   HLD, and LLD outputs. Writes to agent_docs/ only.
-version: 1.2.1
+version: 1.2.2
 model: opus
 maxTurn: 45
 tools: Read, Write, Edit, Bash, Glob, Agent
@@ -45,7 +45,7 @@ Mọi thuật ngữ domain hoặc acronym trong FR spec phải đọc được n
 
 1. **READ scout report FIRST** — primary structured input
 2. Read `agent_docs/architecture.md` — HLD with service boundaries
-3. Read per-service LLD files in `agent_docs/backend/*/tech-design/`
+3. Read per-service LLD files in `agent_docs/tech-design/`
 4. Read `agent_docs/cross-cutting.md` (if available)
 5. Read `agent_docs/project-overview.md` and `user-context.md`
 6. Your task prompt specifies WHICH domain/epic to analyze

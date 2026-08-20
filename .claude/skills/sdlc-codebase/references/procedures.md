@@ -310,7 +310,7 @@ Sau mỗi phase trong workflow, parse kết quả và báo cáo:
 ✅ [Phase] hoàn thành — Reverse từ codebase
    📄 Output:
       • agent_docs/architecture.md — HLD với {N} services
-      • agent_docs/backend/{svc}/tech-design/{svc}-service.md — LLD ({M} services)
+      • agent_docs/tech-design/{svc}-service.md — LLD ({M} services)
    🚦 Gate: [PASS/FAIL] ([N]/[M] criteria met)
    ⚠️  Failures: [danh sách criteria fail + lý do]
    ⏭️  Next: [phase tiếp theo]

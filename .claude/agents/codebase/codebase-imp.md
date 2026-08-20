@@ -7,7 +7,7 @@ description: >-
   extracting error handling patterns, or documenting security implementation
   details. One domain per agent invocation. Reads scout report, HLD, LLD, and
   SRS outputs. Writes to agent_docs/ only.
-version: 1.0.0
+version: 1.0.1
 model: opus
 maxTurn: 35
 tools: Read, Write, Edit, Bash, Glob, Agent
@@ -38,7 +38,7 @@ implementation. Every claim must have code evidence (`file:line`).
 
 1. **READ scout report FIRST** — primary structured input
 2. Read domain's SRS features: `agent_docs/features/FR-{DOMAIN}-*.md`
-3. Read relevant LLD: `agent_docs/backend/*/tech-design/*-service.md`
+3. Read relevant LLD: `agent_docs/tech-design/*-service.md`
 4. Read `agent_docs/architecture.md` — service topology
 5. Read `agent_docs/cross-cutting.md` — shared patterns
 6. Your task prompt specifies WHICH domain and its services to analyze

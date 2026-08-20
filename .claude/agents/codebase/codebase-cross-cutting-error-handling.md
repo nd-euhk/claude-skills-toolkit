@@ -41,14 +41,14 @@ Read ALL reverse-engineered per-service LLD outputs and HLD architecture to synt
 ## Input Detection
 
 1. Read `agent_docs/architecture.md` §1 (service topology — which services exist), §6 (cross-cutting concerns — any error handling decisions observed)
-2. Read ALL `agent_docs/backend/*/tech-design/*-service.md` files — §9 (Error Flows & Degraded Mode) from each service
+2. Read ALL `agent_docs/tech-design/*-service.md` files — §9 (Error Flows & Degraded Mode) from each service
 3. Read `agent_docs/contracts/api-conventions.md` — observed API standards (response envelope format)
 4. Read `agent_docs/contracts/error-codes.md` — canonicalized error code catalog (from LLD synthesis)
 5. Read `agent_docs/hard-boundaries.md` — any error-related constraints
 6. Read `agent_docs/features/FR-*.md` — NFRs that mention error handling requirements
 
 If `architecture.md` is missing: report "codebase-hld must run first — architecture.md not found."
-If no `backend/*/tech-design/*-service.md` files: report "codebase-lld must run first — no per-service tech-design files found."
+If no `tech-design/*-service.md` files: report "codebase-lld must run first — no per-service tech-design files found."
 
 ## Template
 
@@ -60,7 +60,7 @@ Use `.claude/templates/supporting/error-handling-TEMPLATE.md` as the output stru
 
 ### Step 1: Gather Per-Service Error Patterns
 
-From each `backend/*/tech-design/*-service.md` §9:
+From each `tech-design/*-service.md` §9:
 - Extract error codes used by each service (with file:line evidence from the LLD)
 - Identify error response format for each service (is it consistent across services?)
 - Note retry policies, circuit breaker fallback behavior, degraded mode strategies

@@ -2,6 +2,24 @@
 
 All notable changes to the skills-toolkit plugin are documented here.
 
+## [2.39.4] - 2026-08-20
+
+### Fixed
+- **sdlc-codebase 1.5.2:** PATCH — reverse-pipeline LLD tech-design path nhất quán về
+  top-level `agent_docs/tech-design/{svc}-service.md` (đúng với forward pipeline và hook
+  `sdlc-validate-agent-output.sh`; trước đây workflow + agents + gate chỉ
+  `backend/{svc}/tech-design/` khiến LLD gate false-fail dù artifact đã tồn tại):
+  - **workflow-codebase-reverse.js:** 8 refs — LLD prompt (L517), LLD-synthesis context (L530),
+    SRS prompt (L572), SRS-verify (L679), cross-cutting context (L746, L779, L810), LLD gate
+    expected outputs (L1091) — đổi `backend/{svc}/tech-design/{svc}-service.md` →
+    `tech-design/{svc}-service.md`. IMP (`backend/{svc}/implementation/`) và TST
+    (`backend/{svc}/test-specs/`) giữ nguyên.
+  - **codebase-lld 1.0.1:** output path + self-check gate → `agent_docs/tech-design/`.
+  - **codebase-lld-synthesis 1.1.1:** đọc LLD từ `tech-design/*-service.md` và `tech-design/*-app.md`.
+  - **codebase-srs 1.2.2, codebase-imp 1.0.1, codebase-gate 1.0.1:** đọc LLD từ `tech-design/`.
+  - **codebase-cross-cutting-error-handling, codebase-cross-cutting-caching-strategy,
+    codebase-cross-cutting-performance-test:** đọc per-service LLD từ `tech-design/`.
+
 ## [2.39.3] - 2026-08-19
 
 ### Fixed

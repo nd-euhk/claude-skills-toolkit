@@ -43,11 +43,11 @@ Read reverse-engineered SRS NFRs and per-service LLD performance characteristics
 
 1. Read `agent_docs/architecture.md` §1 (service topology — which services to test)
 2. Read `agent_docs/features/FR-*.md` — extract NFR-PERF-* requirements (p95, p99, QPS targets, concurrent users)
-3. Read ALL `agent_docs/backend/*/tech-design/*-service.md` files — §8 (Performance & Scale) from each service
+3. Read ALL `agent_docs/tech-design/*-service.md` files — §8 (Performance & Scale) from each service
 4. Read `agent_docs/hard-boundaries.md` — any performance-related constraints
 
 If no NFR-PERF-* targets found in SRS: report "No quantified performance NFRs found in FR-*.md — performance-test.md is not applicable. Flag as NOT OBSERVED and stop."
-If no `backend/*/tech-design/*-service.md` files: report "codebase-lld must run first — no per-service tech-design files found."
+If no `tech-design/*-service.md` files: report "codebase-lld must run first — no per-service tech-design files found."
 
 ## Template
 
@@ -59,7 +59,7 @@ Use `.claude/templates/supporting/performance-test-TEMPLATE.md` as the output st
 
 ### Step 1: Extract NFR Targets from SRS (§1)
 
-From `features/FR-*.md` and `backend/*/tech-design/*-service.md` §8:
+From `features/FR-*.md` and `tech-design/*-service.md` §8:
 - Extract all NFR-PERF-* requirements with quantified targets as written in SRS
 - Fill the NFR Reference table: NFR ID, metric, target, priority
 - Fill the Per-Endpoint Performance Budget table from tech-design §8 QPS targets as observed

@@ -138,7 +138,7 @@ const lldSynthesisResult = await agent(lldSynthesisPrompt(lldResults), {
 **Per-service (N files):**
 | Output | Mô tả |
 |--------|-------|
-| `agent_docs/backend/{name}/tech-design/{name}-service.md` | 9 sections per service |
+| `agent_docs/tech-design/{name}-service.md` | 9 sections per service |
 
 **Synthesis (1 agent):**
 | Output | Mô tả |
@@ -404,7 +404,7 @@ Kiểm tra trước khi package args:
 test -f agent_docs/architecture.md && echo "EXISTS" || echo "MISSING"
 
 # Trước LLD
-ls agent_docs/backend/*/tech-design/*.md 2>/dev/null && echo "EXISTS" || echo "MISSING"
+ls agent_docs/tech-design/*.md 2>/dev/null && echo "EXISTS" || echo "MISSING"
 
 # Trước SRS
 ls agent_docs/features/FR-*.md 2>/dev/null && echo "EXISTS" || echo "MISSING"

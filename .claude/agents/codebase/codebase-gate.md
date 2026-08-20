@@ -8,7 +8,7 @@ description: >-
   checking if reverse-engineered artifacts meet minimum criteria. Read-only —
   never modifies files. Returns structured PASS/FAIL with specific failures
   for retry. Phase-aware — loads correct criteria set per phase.
-version: 1.0.0
+version: 1.0.1
 model: sonnet
 maxTurn: 15
 tools: Read, Bash
@@ -81,7 +81,7 @@ Read `agent_docs/architecture.md`, `agent_docs/adrs/`, `agent_docs/contracts/`, 
 
 ### GATE: LLD (per-service design)
 
-Read `agent_docs/backend/{service}/tech-design/{service}-service.md` for each service.
+Read `agent_docs/tech-design/{service}-service.md` for each service.
 
 | # | Criterion | How to check |
 |---|-----------|--------------|

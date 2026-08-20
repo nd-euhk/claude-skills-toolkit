@@ -7,7 +7,7 @@ description: >-
   storage from migration files, or analyzing error handling/caching/circuit
   breaker patterns from code. Reads scout report and HLD as input. Writes to
   agent_docs/ only. One service per agent invocation.
-version: 1.0.0
+version: 1.0.1
 model: opus
 maxTurn: 35
 tools: Read, Write, Edit, Bash, Glob, Agent
@@ -74,7 +74,7 @@ Use Explore results + direct code reading → write output. Never guess.
 
 ## Procedure — 9 Sections
 
-Create `agent_docs/backend/{name}/tech-design/{name}-service.md` (or `frontend/{name}/tech-design/{name}-app.md`):
+Create `agent_docs/tech-design/{name}-service.md` (or `agent_docs/tech-design/{name}-app.md` for frontend apps):
 
 ### 1. Domain Model
 From entity/domain/model classes:
@@ -179,7 +179,7 @@ End your output with:
 - [ ] Error handling flows traceable to exception classes
 - [ ] Every section has ≥1 evidence or UNCERTAINTY flag
 - [ ] Summary for Synthesis section present
-- [ ] Output at correct path: `agent_docs/{backend|frontend}/{name}/tech-design/{name}-{service|app}.md`
+- [ ] Output at correct path: `agent_docs/tech-design/{name}-{service|app}.md`
 
 ## Hard Boundaries
 

@@ -42,11 +42,11 @@ Read ALL reverse-engineered per-service LLD outputs and HLD architecture to synt
 ## Input Detection
 
 1. Read `agent_docs/architecture.md` §1 (service topology), §6 (cross-cutting concerns — cache infrastructure type: Redis, Caffeine, etc.)
-2. Read ALL `agent_docs/backend/*/tech-design/*-service.md` files — §7 (Caching Strategy) from each service
+2. Read ALL `agent_docs/tech-design/*-service.md` files — §7 (Caching Strategy) from each service
 3. Read `agent_docs/hard-boundaries.md` — any cache-related constraints
 
 If `architecture.md` §6 does not declare cache infrastructure: report "Cache infrastructure not observed in architecture.md §6 — caching-strategy.md is not applicable. Flag as NOT OBSERVED and stop."
-If no `backend/*/tech-design/*-service.md` files: report "codebase-lld must run first — no per-service tech-design files found."
+If no `tech-design/*-service.md` files: report "codebase-lld must run first — no per-service tech-design files found."
 
 ## Template
 
@@ -58,7 +58,7 @@ Use `.claude/templates/supporting/caching-strategy-TEMPLATE.md` as the output st
 
 ### Step 1: Gather Per-Service Cache Patterns
 
-From each `backend/*/tech-design/*-service.md` §7:
+From each `tech-design/*-service.md` §7:
 - Extract what each service caches (entities, lists, configs, sessions) — with file:line evidence from the LLD
 - Extract TTL values, cache patterns (Cache-Aside, Write-Through, etc.) as observed
 - Extract eviction triggers and invalidation approach

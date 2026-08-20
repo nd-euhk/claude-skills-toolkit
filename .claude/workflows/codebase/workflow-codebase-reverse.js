@@ -514,7 +514,7 @@ Document all 9 sections for ${svc.name}, with code evidence (file:line) for each
 - If scout report lacks detail for any section -> spawn Explore subagents
 - Flag NOT FOUND for sections without code evidence
 - Include "Summary for Synthesis" section at the end
-- Output: ${foundationPath}backend/${svc.name}/tech-design/${svc.name}-service.md`
+- Output: ${foundationPath}tech-design/${svc.name}-service.md`
   if (failureFeedback) p += failureFeedback
   return p
 }
@@ -527,7 +527,7 @@ Cross-cutting concerns (error-handling, caching, etc.) are handled by dedicated 
 
 ## Context
 - **HLD**: ${foundationPath}architecture.md
-- **Per-service LLD outputs**: ${services.map(s => `${foundationPath}backend/${s.name}/tech-design/${s.name}-service.md`).join(', ')}
+- **Per-service LLD outputs**: ${services.map(s => `${foundationPath}tech-design/${s.name}-service.md`).join(', ')}
 - **LLD Agent Summaries**:
 ${lldSummaries.map((s, i) => `  ${i + 1}. ${services[i]?.name || `service-${i}`}: ${s}`).join('\n')}
 
@@ -569,7 +569,7 @@ Infer functional and non-functional requirements from EXISTING code for domain "
 ## Context
 - **Scout Report**: ${scoutReportPath}
 - **HLD**: ${foundationPath}architecture.md
-- **LLD**: ${foundationPath}backend/*/tech-design/*.md
+- **LLD**: ${foundationPath}tech-design/*.md
 - **Cross-cutting**: ${foundationPath}cross-cutting.md (if available)
 - **Domain**: ${domain.name}
 - **Services in domain**: ${(domain.services || []).join(', ')}
@@ -676,7 +676,7 @@ Document implementation patterns from EXISTING code for domain "${domain.name}".
 - **Domain**: ${domain.name}
 - **Services**: ${(domain.services || []).join(', ')}
 - **SRS Features**: ${foundationPath}features/FR-${domain.name.toUpperCase()}-*.md
-- **LLD**: ${foundationPath}backend/*/tech-design/*.md
+- **LLD**: ${foundationPath}tech-design/*.md
 - **Cross-cutting**: ${foundationPath}cross-cutting.md
 
 ## Task — For EACH feature in this domain, document 5 aspects:
@@ -743,7 +743,7 @@ Extract observed error handling patterns from reverse-engineered code artifacts 
 
 ## Context
 - **HLD**: ${foundationPath}architecture.md
-- **Per-service LLD**: ${foundationPath}backend/*/tech-design/*-service.md
+- **Per-service LLD**: ${foundationPath}tech-design/*-service.md
 - **API conventions**: ${foundationPath}contracts/api-conventions.md
 - **Error codes**: ${foundationPath}contracts/error-codes.md
 - **Hard boundaries**: ${foundationPath}hard-boundaries.md
@@ -776,7 +776,7 @@ Extract observed cache patterns from reverse-engineered code artifacts into unif
 
 ## Context
 - **HLD**: ${foundationPath}architecture.md §6 (cache infrastructure type)
-- **Per-service LLD**: ${foundationPath}backend/*/tech-design/*-service.md §7 (Caching Strategy)
+- **Per-service LLD**: ${foundationPath}tech-design/*-service.md §7 (Caching Strategy)
 - **Hard boundaries**: ${foundationPath}hard-boundaries.md
 
 ## Task
@@ -807,7 +807,7 @@ Create performance test plan from reverse-engineered SRS NFRs and per-service LL
 ## Context
 - **HLD**: ${foundationPath}architecture.md §1 (service topology)
 - **SRS NFRs**: ${foundationPath}features/FR-*.md (NFR-PERF-* targets)
-- **Per-service LLD**: ${foundationPath}backend/*/tech-design/*-service.md §8 (Performance & Scale)
+- **Per-service LLD**: ${foundationPath}tech-design/*-service.md §8 (Performance & Scale)
 - **Hard boundaries**: ${foundationPath}hard-boundaries.md
 
 ## Task
@@ -1088,7 +1088,7 @@ if (completedPhases.has('LLD')) {
   // Gate check (validates per-service LLD + synthesis if applicable)
   const lldGate = await gateCheck('lld', { services, domains },
     async (fd) => { lldResults = await rerunLLD(fd); },
-    services.map(s => foundationPath + 'backend/' + s.name + '/tech-design/' + s.name + '-service.md')
+    services.map(s => foundationPath + 'tech-design/' + s.name + '-service.md')
   )
   lldGatePassed = lldGate.passed
 } else if (runLLD && !skipRemaining) {
