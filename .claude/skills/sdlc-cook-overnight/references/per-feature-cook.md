@@ -57,23 +57,61 @@ SPEC_ROOT="$workspace_root"                        # specs ở parent workspace
 sau feature (Bước 7); PR về remote của sub-repo; specs ở parent.
 Chi tiết: `sdlc-cook/references/project-detection.md#branch-strategy-theo-project-type`
 
-## 3. Capture Baseline (bắt buộc)
+## 3. Harness Setup + Baseline Gate (bắt buộc)
 
-Test chạy trong `REPO_PATH` (nơi có code), baseline script ở `SPEC_ROOT/.claude/scripts/`
-(dùng absolute path — controller không phụ thuộc CWD):
+### 3a. Harness Setup — detect build tool + cài deps
+
+Detect build tool trong `REPO_PATH` (đúng CWD của mọi lệnh test/build):
+
+| Marker | Build tool | Test command (per service) | JUnit output dir |
+|--------|-----------|---------------------------|------------------|
+| `./gradlew` | Gradle | `./gradlew :{service}:test` | `build/test-results/test/` |
+| `mvnw` / `pom.xml` | Maven | `./mvnw -pl :{service} test` (hoặc `mvn -pl :{service} test`) | `target/surefire-reports/` |
+| `package.json` | npm / yarn / pnpm | `npm test` / `yarn test` / `pnpm test` | — (jest/vitest → baseline `jest-json` / `vitest-json`) |
+| `requirements.txt` / `pyproject.toml` | Python | `pytest` | — (baseline `pytest-json`) |
+
+Cài deps theo loại (Type 2 — worktree mới branch từ `origin/main`, deps gitignored nên
+không có; Type 1 — in-place trên project đang chạy, deps đã sẵn → no-op):
+
+- **Gradle / Maven**: deps tự resolve qua cache `~/.gradle` / `~/.m2` khi build lần đầu
+  (lần đầu chậm — tính vào baseline time). Không cần lệnh cài riêng.
+- **npm**: `npm ci` (nếu có `package-lock.json`) hoặc `npm install`
+- **yarn / pnpm**: `yarn install` / `pnpm install`
+- **Python**: `pip install -r requirements.txt`
+
+### 3b. Capture Baseline
+
+Test chạy trong `REPO_PATH`, baseline script ở `SPEC_ROOT/.claude/scripts/` (absolute
+path — controller không phụ thuộc CWD). Dùng test command + output dir từ 3a (Gradle/Maven
+cùng emit JUnit XML → `--framework junit-xml`; npm/py dùng `jest-json`/`vitest-json`/`pytest-json`):
 
 ```bash
-(cd "$REPO_PATH" && ./gradlew :{service}:test)     # hoặc lệnh test theo framework
+(cd "$REPO_PATH" && {TEST_COMMAND})               # test command từ 3a
 "${SPEC_ROOT}/.claude/scripts/baseline" parse \
-  --framework junit-xml \
-  --test-output-dir "$REPO_PATH/build/test-results/test/" \
+  --framework {junit-xml|jest-json|pytest-json} \
+  --test-output-dir "$REPO_PATH/{OUTPUT_DIR}" \   # output dir từ 3a
   --fr-id {FR-ID} --layer {be|fe} --service {service} \
-  --test-command "./gradlew :{service}:test"
+  --test-command "{TEST_COMMAND}"
 ```
 
 Output lưu `.work/baselines/{YYYYMMDD}-{FR-ID}-{BE|FE}.json`. **Output camelCase**
 (`tcIndex`, `preExistingFailures`, `byFile`) — truyền thẳng vào args, KHÔNG map key.
 Xem sdlc-cook Bước 4.5 + `sdlc-cook/references/tdd-orchestration.md#baseline-capture`.
+
+### 3c. Baseline Gate — phân loại 3 kết quả (auto-decision đêm)
+
+Sau 3b, kiểm tra baseline file CÓ tồn tại không + tỷ lệ pre-existing fail:
+
+| Kết quả | Dấu hiệu | Auto-decision đêm | Morning report |
+|---------|----------|-------------------|----------------|
+| **OK** | File tồn tại, ≤10% pre-existing fail | Dispatch workflow (bình thường) | — |
+| **SOFT** | File tồn tại, >10% pre-existing fail | Dispatch + warning (RED/GATE exclude pre-existing) | Mục Warnings |
+| **HARD-FAIL** | File KHÔNG tồn tại — test không chạy được (lệnh sai, thiếu deps, build lỗi, output-dir sai) | **SKIP feature** — KHÔNG dispatch workflow | Mục Skipped — "harness không chạy được": ghi lệnh test + exit code + thiếu gì |
+
+**Tại sao HARD-FAIL = skip, không chạy:** dispatch mà không có baseline → workflow chạy
+mù (INTERFERENCE bị disable, có warning) và mọi RED đánh nhau với test harness hỏng →
+feature fail chắc chắn, tốn nguyên đêm. Skip + ghi rõ để sáng human fix (cài deps / đúng
+lệnh test) rồi đêm sau chạy lại.
 
 ## 4. Board Update → In Progress
 

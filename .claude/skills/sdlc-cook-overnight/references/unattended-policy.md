@@ -12,8 +12,8 @@ và morning report để human review sáng.
 | 2 | Feature không tồn tại trên board | Skip, ghi lỗi FEAT id không hợp lệ | Mục Skipped |
 | 3 | Dependency (`depends_on`) chưa ✅ Done | Skip feature, ghi dependency + status | Mục Skipped |
 | 4 | Feature đang 🚧 In Progress (cook khác đang chạy) | Skip — không spawn cook trùng | Mục Skipped |
-| 5 | sdlc-review gợi ý (trước PR) | Bỏ qua — không review đêm | Không cần |
-| 6 | PR creation | Auto tạo PR, KHÔNG merge | Mục PR created |
+| 5 | Night review (trước PR) | Chạy `sdlc-review-codechange --security --bugs --spec --unattended` (lean gating trio) trên worktree/subrepo sau GATE full pass; ghi verdict; KHÔNG chặn PR creation | Mục Reviewed |
+| 6 | PR creation | Auto tạo PR (host-detect: GitHub→`gh`, GitLab→`glab`, auth guard trước; fail → row 19), KHÔNG merge | Mục PR created |
 | 7 | INTERFERENCE (1 TC break test khác) | Dừng feature đó, ghi chi tiết (test broken, file, line) | Mục Failed |
 | 8 | TC BLOCKED / STALE | Feature fail, ghi spec/tc cần human | Mục Failed |
 | 9 | GATE light fail (sau retry ×2) | Feature failed, ghi gate failures | Mục Failed |
@@ -25,6 +25,40 @@ và morning report để human review sáng.
 | 15 | Type 1: human chọn Parallel | Tự chuyển về Sequential — in-place checkout không song song được; ghi lý do | Plan summary |
 | 16 | Type 1: restore branch gốc fail | Warning HIGH — chặn task kế (sub-repo đang ở branch task) | Mục Warnings |
 | 17 | Type 1: sub-repo không có remote | Không auto-PR, log cảnh báo — sáng human tự push/PR | Mục Warnings |
+| 18 | Baseline HARD-FAIL (harness không chạy được — không có baseline file) | Skip feature; ghi lệnh test + exit code + thiếu gì (deps/build/output-dir); KHÔNG dispatch workflow | Mục Skipped |
+| 19 | PR host/auth fail (`gh`/`glab` không authed, repo host lạ) | Không tạo PR, KHÔNG treo/hỏi đêm; log "PR-ready nhưng chưa tạo được (lý do)" | Mục Warnings |
+
+## Night Review (sdlc-review-codechange)
+
+Sau khi feature `COOK_REPORT.status = "completed"` (GATE full pass) và trước khi tạo PR,
+chạy review tự động trên code vừa cook — thay cho bước "sdlc-review-codechange gợi ý" của sdlc-cook
+mà đêm không thể hỏi:
+
+```javascript
+// Type 2: worktree path; Type 1: sub-repo path
+// targetBranch = PR target: Type 2 → "origin/main" (workspace); Type 1 → branch gốc sub-repo.
+// specDir = <workspace>/agent_docs/features/<FEAT_ID>/ (SRS + IMP + TST).
+// --base → review scope = diff feature...target — chỉ code thay đổi, deterministic đêm.
+// --specs → thêm Spec Compliance: code có đáp ứng tài liệu (GAP/PARTIAL/DIVERGENT).
+// Lean gating trio ban đêm: security + bugs + spec (code đúng + an toàn + đáp ứng tài liệu).
+// Không chạy arch/conventions/impact/ops/tests ban đêm — advisory, chờ human sáng.
+// Muốn full 8 → đổi thành "--full ..." (opt-in).
+Skill("sdlc-review-codechange", `--security --bugs --spec --unattended --base ${targetBranch} --specs ${specDir} ${targetPath}`)
+```
+
+Kết quả xử lý:
+
+| result.verdict | Xử lý đêm | Morning report |
+|----------------|-----------|----------------|
+| `APPROVED` | Tạo PR bình thường | Reviewed: APPROVED |
+| `NEEDS_ATTENTION` | Tạo PR bình thường | Reviewed: NEEDS_ATTENTION |
+| `URGENT` | Tạo PR bình thường; đánh dấu "cần human review" | Reviewed: URGENT ⚠️ |
+| `ERROR` | Tạo PR bình thường; ghi lý do (skill/workflow fail) | Reviewed: ERROR (lý do) |
+
+**Nguyên tắc:** review đêm KHÔNG chặn PR creation — nó thêm signal cho human sáng, không
+thay thế GATE. Mọi verdict ghi vào morning report mục Reviewed. Không bao giờ auto-merge
+dựa trên review verdict. Nếu `result.reportPath` tồn tại (`.work/review/REVIEW-CODE-*.md`),
+liên kết nó trong morning report để human đọc chi tiết.
 
 ## Nguyên Tắc
 

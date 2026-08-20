@@ -11,7 +11,7 @@ description: >-
   không API/schema/security dùng /sdlc-quick. Để chạy nhiều feature song song
   (chỉ Type 2), gọi /sdlc-cook riêng cho từng feature — Claude Code agents view
   sẽ hiển thị parallel execution. Type 1 bắt buộc tuần tự.
-version: 2.3.1
+version: 2.4.0
 argument-hint: "FEAT-{NNN}"
 allowed-tools: Read, Write, Edit, Bash, Skill, Agent, Workflow, AskUserQuestion
 ---
@@ -311,8 +311,10 @@ Status transition map: → `references/tdd-orchestration.md#status-transition-ma
 Khi workflow hoàn thành (status = "completed"):
 
 1. **Pre-merge check**: verify tests pass, GATE verified, không có uncommitted changes
-2. **sdlc-review gợi ý** (optional, non-blocking): AskUserQuestion hỏi human có muốn
-   review source code trước khi tạo PR không
+2. **sdlc-review-codechange gợi ý** (optional, non-blocking): AskUserQuestion hỏi human có muốn
+   review source code trước khi tạo PR không — gọi với `--base <PR target>`
+   (Type 2: `origin/main`; Type 1: `$ORIGINAL_BRANCH`) để review scope = diff feature...target,
+   và `--specs <workspace>/agent_docs/features/<FEAT_ID>/` để check code có đáp ứng tài liệu không
 3. **Tạo PR** từ branch → target branch:
    - Type 2: worktree branch `feature/{FEAT_ID}-{SERVICE}` → `origin/main` của workspace
    - Type 1: branch của sub-repo → branch gốc của chính sub-repo (remote của sub-repo)

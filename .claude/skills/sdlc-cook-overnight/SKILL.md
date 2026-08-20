@@ -8,9 +8,9 @@ description: >-
   "overnight run". Interactive Batch Plan (sequential / parallel / pick features)
   qua AskUserQuestion, rồi unattended execution — auto tạo PR, không auto-merge,
   morning report. Direct orchestration của sdlc-cook — không tạo/sửa specs.
-version: 1.1.1
+version: 1.3.0
 argument-hint: "all | FEAT-001 FEAT-002 ..."
-allowed-tools: Read, Write, Edit, Bash, Agent, Workflow, AskUserQuestion
+allowed-tools: Read, Write, Edit, Bash, Agent, Workflow, AskUserQuestion, Skill
 ---
 
 # SDLC Cook Overnight
@@ -133,7 +133,7 @@ Với MỖI feature, làm đúng per-feature procedure rồi dispatch. Chi tiế
 Per feature:
   1. Project detect     (sdlc-cook Bước 3 — scripts/detect-project.sh)
   2. Tách branch        (Bước 4 — type-aware: Type 1 in-place checkout + capture original_branch; Type 2 worktree)
-  3. Capture baseline   (Bước 4.5 — baseline.py parse, camelCase output)
+  3. Harness setup + baseline gate (Bước 4.5 — detect build tool + cài deps Gradle/Maven/npm/py; baseline.py parse camelCase; gate: OK→dispatch, SOFT→+warning, HARD-FAIL→skip feature)
   4. Board update → 🚧 In Progress (sdlc-sprint-board)
   5. Read TST/IMP specs → extract TCs, sort CRITICAL→HIGH→MEDIUM→LOW (Bước 6)
   6. Dispatch workflow-sdlc-cook.js với args {featureName, frId, service, layer, testCases, baseline, repoPath, specRoot}
@@ -164,8 +164,22 @@ for task in tasks: await task               # collect COOK_REPORT từng cái
 
 Feature `COOK_REPORT.status = "completed"`:
 - Pre-merge check: tests pass, GATE verified, không có uncommitted changes
-- **Auto tạo PR** (type-aware target branch):
-  - Type 2: `gh pr create` từ worktree branch `feature/{FEAT_ID}-{service}` → `origin/main` của workspace
+- **Night review** (trước PR): chạy
+  `Skill("sdlc-review-codechange", "--security --bugs --spec --unattended --base <targetBranch> --specs <specDir> <targetPath>")`
+  trên code vừa cook — **lean gating trio** (code đúng + an toàn + đáp ứng tài liệu); 5 dimension
+  advisory (arch/conventions/impact/ops/tests) không chạy ban đêm, chờ human review sáng.
+  `targetBranch` = PR target (type-aware: Type 2 → `origin/main` của workspace; Type 1 → branch
+  gốc của sub-repo); `specDir` = `<workspace>/agent_docs/features/<FEAT_ID>/`. Review scope =
+  diff feature...target (chỉ code thay đổi) + Spec Compliance (code có đáp ứng tài liệu). Ghi
+  `verdict` vào morning report mục Reviewed. KHÔNG chặn PR creation.
+  Chi tiết verdict handling → `references/unattended-policy.md` mục Night Review
+- **Auto tạo PR** (type-aware target branch, host-detect + auth guard):
+  - Host = `git -C <repo> remote get-url origin` → parse: github.com / GitHub Enterprise → `gh`;
+    gitlab.com / GitLab self-host → `glab`.
+  - **Auth guard trước khi tạo:** `gh auth status` / `glab auth status` — fail → KHÔNG tạo,
+    KHÔNG hỏi đêm, log "PR-ready nhưng chưa tạo được (lý do)" vào warning (sáng tạo tay).
+    Không để `gh`/`glab` treo interactive.
+  - Type 2: `gh pr create` / `glab mr create` từ worktree branch `feature/{FEAT_ID}-{service}` → `origin/main` của workspace
   - Type 1: push branch của sub-repo → PR về branch gốc của chính sub-repo (remote của sub-repo).
     Không có remote → KHÔNG auto-PR, log cảnh báo.
   - PR body format: `sdlc-cook/references/merge-manager.md`
@@ -186,9 +200,10 @@ cho human sáng hôm sau. Template + aggregation: → `references/morning-report
 ```
 # Overnight Cook Report — YYYY-MM-DD
 ## Tóm tắt: X/Y features DONE, Z failed, W skipped
-## Bảng per-feature: status | PR link | GATE light/full | TCs
+## Bảng per-feature: status | PR link | GATE light/full | TCs | Review verdict
+## Mục Reviewed: per-feature review verdict (APPROVED/NEEDS_ATTENTION/URGENT/ERROR) + link report .work/review/REVIEW-CODE-*.md
 ## Failed/Skipped chi tiết + lý do
-## Việc cần human sáng nay (PR review, fail cần xử lý)
+## Việc cần human sáng nay (PR review, fail cần xử lý, verdict URGENT/ERROR)
 ```
 
 ---
@@ -202,7 +217,7 @@ cho human sáng hôm sau. Template + aggregation: → `references/morning-report
 |-----------|-------------------|
 | Feature không 🟢 Ready for Cook | Skip + ghi log |
 | Dependency chưa ✅ Done | Skip + ghi log |
-| sdlc-review gợi ý | Bỏ qua (không hỏi đêm) |
+| Night review (trước PR) | Chạy `sdlc-review-codechange --security --bugs --spec --unattended` (lean gating trio); ghi verdict; không chặn PR |
 | INTERFERENCE | Dừng feature đó, log chi tiết, tiếp tục feature khác |
 | TC BLOCKED / STALE | Feature fail, log, tiếp tục |
 | GATE light/full fail | Feature partial/failed, log, tiếp tục |
@@ -210,6 +225,8 @@ cho human sáng hôm sau. Template + aggregation: → `references/morning-report
 | Workflow crash | Log; sáng resume bằng `resumeFromRunId` / `resumeFrom` |
 | Type 1 restore fail | Warning HIGH — chặn task kế (sub-repo đang ở branch task) |
 | Type 1 sub-repo không có remote | Không auto-PR, log cảnh báo (sáng human tự push/PR) |
+| Baseline HARD-FAIL (harness không chạy được) | Skip feature; ghi lệnh test + exit code + thiếu gì; KHÔNG dispatch |
+| PR host/auth fail (gh/glab) | Không tạo, không hỏi; log "PR-ready" + warning |
 
 ## Key Notes
 

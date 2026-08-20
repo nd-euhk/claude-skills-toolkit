@@ -2,6 +2,101 @@
 
 All notable changes to the skills-toolkit plugin are documented here.
 
+## [3.2.0] - 2026-08-20
+
+### Changed
+
+- **`sdlc-cook-overnight` 1.3.0:** MINOR — đóng 3 điểm human-gap trong luồng đêm (Harness Setup +
+  Baseline Gate + PR đa-host):
+  - **Harness Setup** (`per-feature-cook.md` §3a): detect build tool (Gradle / **Maven** / npm /
+    Python) → test command + JUnit output dir per tool; cài deps cho Type 2 worktree mới
+    (`npm ci`/`yarn install`/`pip install`; Gradle/Maven tự resolve qua `~/.gradle`/`~/.m2`).
+    Trước đây worktree fresh thiếu deps → baseline fail → cả feature failed vô nghĩa.
+  - **Baseline Gate** (§3c): phân loại 3 kết quả baseline — OK (dispatch), SOFT >10% pre-existing
+    (dispatch + warning, như cũ), **HARD-FAIL** (không có baseline file — test không chạy được) →
+    **SKIP feature + ghi rõ lý do, KHÔNG dispatch**. Trước đây dispatch mù với baseline=null → mọi
+    RED đánh nhau với test harness hỏng, tốn cả đêm.
+  - **PR đa-host** (`merge-manager.md` Bước 3): host-detect từ `git remote get-url` → GitHub
+    (github.com + Enterprise) → `gh`; **GitLab (gitlab.com + self-host/enterprise)** → `glab`.
+    **Auth guard** trước khi tạo (`gh`/`glab auth status`) — fail → KHÔNG tạo, KHÔNG treo interactive
+    đêm, log "PR-ready" vào warning, sáng tạo tay.
+- **`sdlc-cook` 2.4.0:** MINOR — `merge-manager.md` PR creation đa-host (GitHub→`gh`, GitLab→`glab`,
+  kể cả self-host domain) + auth guard không treo đêm.
+
+## [3.1.0] - 2026-08-20
+
+### Added
+
+- **`sdlc-review-codechange` 1.1.0:** MINOR — **diff-scope review** (tự động hoàn toàn). Skill
+  detect branch hiện tại + merge target rồi scope review vào **DIFF giữa 2 branch** — review CHỈ
+  code thay đổi thay vì toàn tree:
+  - Flag `--base <branch>`: caller (cook/cook-overnight) truyền PR target tường minh (đáng tin
+    nhất — controller biết chính xác sẽ merge vào đâu). Thiếu → skill auto-detect: `origin/HEAD`
+    → fallback `origin/main|origin/master|main|master`. **KHÔNG dùng `@{upstream}` làm base** —
+    feature branch đã push `-u` thì `@{upstream}` = chính nó, không phải integration target
+    (cạm bẫy đã verify bằng git thật).
+  - Flag `--full-tree`: opt-out — bỏ diff scope, review toàn bộ `targetPath` (audit module /
+    working copy không phải merge-in-progress).
+  - Fallback deterministic: `base == head`, diff rỗng, hoặc không resolve được base → full-tree +
+    note vào report. Uncommitted changes ghi note nhưng KHÔNG mở rộng scope (cook luôn commit trước).
+  - Phase 1d mới trong SKILL.md; workflow nhận `headBranch`/`baseBranch`/`diffFiles`/`diffStat`,
+    dimension agents focus vào changed files + interactions (chạy `git diff <base>...HEAD -- <file>`).
+- **`sdlc-review-codechange` 1.2.0:** MINOR — **Spec Compliance dimension** (trả lời "code có
+  đáp ứng tài liệu không"). Flag `--specs <path>` (thư mục/file SRS + IMP + TST của feature);
+  caller cook/cook-overnight truyền `<workspace>/agent_docs/features/<FEAT_ID>/`; thiếu →
+  auto-detect từ headBranch (`FEAT-[A-Z0-9]+`); không resolve → SKIP deterministic + note vào
+  report. Khi resolve → `spec` dimension auto-thêm: trace từng business rule / Gherkin scenario /
+  execution-flow step đến code → traceability matrix GAP (unimplemented) / PARTIAL / DIVERGENT /
+  IMPLEMENTED. Verdict: GAP → URGENT, DIVERGENT/PARTIAL → NEEDS_ATTENTION. `--full` giờ = 8
+  dimension; flag `--spec` chạy riêng. Lý do: không dimension nào trong 7 cũ bắt được GAP —
+  Bugs bắt code SAI ở chỗ CÓ, Tests bắt test gian lận, không ai bắt requirement THIẾU. Unattended
+  default = **lean gating trio** `[security, bugs, spec]` (giảm ~60% chi phí đêm); `--full` opt-in.
+
+### Changed
+
+- **`sdlc-cook` 2.3.2:** PATCH — pre-PR review gợi ý truyền `--base <PR target>` (Type 2: `origin/main`;
+  Type 1: `$ORIGINAL_BRANCH`) → review scope = diff feature...target; thêm `--specs
+  <workspace>/agent_docs/features/<FEAT_ID>/` để check code có đáp ứng tài liệu không.
+- **`sdlc-cook-overnight` 1.2.1:** PATCH — night review truyền `--base <targetBranch>` (PR target
+  type-aware) + `--specs <specDir>`; night default = **lean gating trio** (`--security --bugs
+  --spec` — code đúng + an toàn + đáp ứng tài liệu), không chạy advisory dimension ban đêm
+  (giảm ~60% chi phí đêm). KHÔNG chặn PR creation (giữ nguyên unattended-policy).
+
+## [3.0.0] - 2026-08-20
+
+### Changed (Breaking)
+
+- **`sdlc-review` REMOVED → tách thành 2 skill.** `sdlc-review` (v1.3.1 — merge `--mr`/`--code`
+  trong một skill, error recovery dùng `AskUserQuestion`) bị xóa. Thay bằng:
+  - **`sdlc-review-mr` 2.0.0:** review MR/PR trên GitHub/GitLab (gh / glab CLI), **interactive-only**
+    (luôn có human + side-effect post comment). Flag `--mr <id|url>` / `--pr <id|url>`. Report
+    `.work/review/REVIEW-MR-{runDate}--{platform}-{number}-{slug}.md`.
+  - **`sdlc-review-codechange` 1.0.0:** review code cục bộ (thư mục/worktree/file) trên 7 dimension,
+    có **UNATTENDED contract** (`--unattended` — zero prompt, error handling deterministic, verdict
+    machine-readable) cho review đêm/CI. Gọi `Skill(sdlc-scout, ...)` (Phase 5a) trước khi dispatch
+    `workflow-sdlc-review-code.js`. Flag `--full`/`--arch`/`--security`/`--bugs`/`--conventions`/
+    `--impact`/`--ops`/`--tests`/`--adversarial`/`--focus`. Report
+    `.work/review/REVIEW-CODE-{runDate}--{slug}.md`.
+  - **Lý do tách:** bài toán "ngày làm tài liệu, tối code tự chạy, tự review và đánh giá" — sdlc-review
+    cũ chặn unattended vì `AskUserQuestion` trong error recovery. Tách cho phép codechange chạy đêm
+    không cần human.
+- **Migration consumer:** mọi reference `sdlc-review --code` → `sdlc-review-codechange` (bỏ flag
+  `--code`, codechange code-only): `sdlc-orchestrator` (fixbug, `--full`), `sdlc-cook` +
+  `merge-manager.md` (gợi ý pre-PR, `Skill("sdlc-review-codechange", "--full " + CODE_DIR)`),
+  `sdlc-quick` + `error-handling.md` (`Skill("sdlc-review-codechange", "--full")`), `sdlc-scout` +
+  `integration-guide.md`, `oss-scan` SKILL.md + `workflow-oss-scan.js` (`/sdlc-review-codechange
+  --security <path>`), `sdlc-output-rules.md`. Reference `sdlc-review --mr` → `sdlc-review-mr`
+  (`sdlc-scout` SKILL.md).
+
+### Added
+
+- **`sdlc-cook-overnight` 1.2.0:** MINOR — wire **night review** (trước PR creation, sau GATE full
+  pass): chạy `Skill("sdlc-review-codechange", "--full --unattended <targetPath>")`, ghi verdict
+  (APPROVED/NEEDS_ATTENTION/URGENT/ERROR), KHÔNG chặn PR creation. Morning report thêm mục
+  "Reviewed" kèm link report `.work/review/REVIEW-CODE-*.md`. Thêm `Skill` vào allowed-tools.
+  `references/unattended-policy.md`: row 5 đổi thành "Night review" + section mới
+  "Night Review (sdlc-review-codechange)".
+
 ## [2.39.4] - 2026-08-20
 
 ### Fixed
