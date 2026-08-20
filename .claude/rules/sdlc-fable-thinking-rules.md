@@ -11,6 +11,8 @@ Mọi request — kể cả "hi", câu vu vơ, câu hỏi đơn giản — đề
 Sau The Floor:
 - Nếu The Floor sạch VÀ Proportionality Gate = Direct → trả lời trực tiếp bằng rule
   inline. KHÔNG cần load skill cho "hi", small talk, fact lookup đơn thuần.
+- Nếu Proportionality Gate = APPLY → chạy theo APPLY Mode (The Floor + Claim Discipline,
+  effort thấp, KHÔNG load skill — chi tiết mục APPLY Mode bên dưới).
 - Nếu The Floor trip (bất kỳ check nào) HOẶC Proportionality = Standard/Full → bạn
   PHẢI load skill `/fable-thinking` TRƯỚC bất kỳ response hoặc action nào.
 
@@ -143,6 +145,7 @@ Không dùng tool khi tool có thể trả lời = cardinal sin của protocol n
 <EXTREMELY-IMPORTANT>
 Áp dụng khi task không phải là trivial fact lookup, rename, hoặc small mechanical edit.
 Nếu không chắc → áp dụng. Over-apply an toàn hơn under-apply.
+Ngoại lệ: task trong APPLY Mode KHÔNG chạy 5 moves (xem APPLY Mode).
 </EXTREMELY-IMPORTANT>
 
 ### Move 1 — FRAME: Tìm Real Question
@@ -313,7 +316,8 @@ Nhận diện được chúng là countermeasure đầu tiên:
 | Mode | Khi nào | Chạy gì |
 |------|---------|---------|
 | **Direct** | Trivial, reversible, familiar (fact lookup, rename, small edit) | The Floor + Core Operating Rules + Claim Discipline. Không load skill. |
-| **Standard** | Công việc bình thường (bugfix, review, analysis, document) | Load skill `/fable-thinking` — 5 moves + Portable Techniques + Self-Review Gate lấy từ skill. |
+| **APPLY** | Document-production từ context đã confirm — behavioral decisions đã được human chốt, deliverable là áp đúng quyết định (xem APPLY Mode) | The Floor + Claim Discipline, effort thấp. KHÔNG load skill, KHÔNG đọc protocol.md, KHÔNG viết moves/attack pass. |
+| **Standard** | Công việc bình thường (bugfix, review, analysis, document cần quyết định mới) | Load skill `/fable-thinking` — 5 moves + Portable Techniques + Self-Review Gate lấy từ skill. |
 | **Full** | High stakes, irreversible, unfamiliar, contested | Load skill `/fable-thinking` — Attack pass mandatory, viết ra tường minh. |
 
 <EXTREMELY-IMPORTANT>
@@ -323,6 +327,57 @@ Output có mechanically checkable constraint (banned letter, exact count, acrost
 strict format): những task đó không bao giờ là Direct, dù request có ngắn đến đâu — gọi
 `/fable-thinking` để chạy Constraint Loop.
 </EXTREMELY-IMPORTANT>
+
+---
+
+## APPLY Mode — Document-Production Từ Context Đã Confirm
+
+<EXTREMELY-IMPORTANT>
+Rule CHUNG — áp dụng cho BẤT KỲ agent hoặc luồng nào thực hiện loại task này. Không liệt kê
+tên agent hay flow cụ thể trong rule; mọi task thỏa trigger đều rơi vào APPLY, không phân
+biệt agent/flow nguồn.
+</EXTREMELY-IMPORTANT>
+
+### Trigger — TẤT CẢ phải đúng
+
+1. **Task là document-production**: spec, docs, hoặc text-edit theo quyết định đã có sẵn.
+2. **Behavioral decisions đã được HUMAN chốt** — nguồn confirm hiện diện trong task prompt:
+   verbatim statement của user, PRD, hoặc decision record. KHÔNG tính "file đang ghi thế" —
+   spec có thể sai, đó chính là lý do change request tồn tại.
+3. **Deliverable là áp đúng quyết định**, không phải tạo quyết định mới.
+
+### Chạy gì
+
+- **The Floor** (3 checks) — compact, vài trăm token.
+- **Claim discipline** trên mọi load-bearing claim — không state PRIOR/ASSUMED như OBSERVED.
+- **Effort THẤP (low/medium)** — agent thực hiện task loại này nên khai `effort: low` trong
+  frontmatter của mình; nếu chưa có, tự calibrate thinking ở mức tối thiểu đủ để áp đúng.
+
+### Exclusion List — KHÔNG bao giờ làm (mechanical, checkable)
+
+- Không load skill `/fable-thinking`.
+- Không đọc `.claude/references/fable-thinking/protocol.md`.
+- Không viết ra moves, attack pass, hoặc self-review dạng tường minh.
+- Không dùng extended thinking volume lớn — thinking đủ để áp đúng, không đủ để "chứng minh".
+
+### Sub-decision còn mở
+
+Sub-decision = quyết định MỚI ràng buộc bởi context đã confirm (ví dụ chọn một phương án giữa
+các lựa chọn được nêu). Đây KHÔNG phải re-derive context đã confirm.
+
+- Floor PASS → đề xuất grounded (ngắn) + FLAG cho gate/human quyết định. Không tự chốt.
+- Floor TRIP → ESCALATE sub-decision đó lên gate/human. KHÔNG chạy full protocol ở producer.
+  Full protocol sống ở tầng verifier — gate và review agents VẪN chạy protocol đầy đủ trên
+  output của producer.
+
+### Tương tác hard trigger
+
+- APPLY không phải cách né hard trigger. Hard trigger (H3, H5, H6...) xuất hiện trong APPLY là
+  tín hiệu task có phần contested → phần bị trigger ESCALATE lên human/gate (nơi full protocol
+  và advisor sống). Không auto-reclassify toàn task lên Full; phần sản xuất confirmed còn lại
+  tiếp tục ở APPLY.
+- H1 (mechanically checkable output constraint): xử lý bằng template + mechanical verify của
+  artifact — output APPLY đã được template định hình, không cần load protocol.
 
 ---
 
@@ -372,6 +427,7 @@ Khi cần gọi skill, theo thứ tự:
 - **Hard trigger = tự động gọi**, không cần hỏi user trừ khi user đã nói "đừng gọi skill"
 - **Soft trigger = đề xuất**, trừ khi ≥3 soft triggers cùng lúc → tự động gọi
 - **Không rationalize.** "Có vẻ đơn giản", "chắc không cần đâu", "tôi tự làm được" — đây là những câu template hijack nói, không phải reasoning nói
+- **APPLY mode = KHÔNG gọi skill** — trừ khi phần task bị escalate lên Standard/Full vì trigger khác. Không dùng APPLY để né hard trigger.
 - **Sau khi gọi skill, skill thắng.** Nội dung skill ghi đè rule inline — làm theo skill, không blend
 
 ---
