@@ -2,6 +2,106 @@
 
 All notable changes to the skills-toolkit plugin are documented here.
 
+## [3.6.0] - 2026-08-24
+
+### Changed
+
+- **`sdlc-automation` 1.11.0:** MINOR — thêm **Architecture Gate** vào Bước 3 Foundation Gate
+  (mirror `sdlc-orchestrator`). Task flow bắt buộc đảm bảo `agent_docs/architecture.md` tồn tại
+  trước khi dispatch workflow (MISSING → `Skill("sdlc-architect")` → plan-mode human gate →
+  post-verify; vẫn missing → BLOCKED, không dispatch). Cr flow có điều kiện (chỉ khi chạm
+  service boundary / human yêu cầu). Kiến trúc được chốt trong interactive preflight phase —
+  không vi phạm plan-mode human gate của `architect`. Thêm row vào error-handling table;
+  grilling-templates.md Round 3 ghi rõ không re-design (kiến trúc đã chốt ở Bước 3).
+  **Giải quyết TODO defer automation ở v3.5.0** (orchestrator scope).
+- **`sdlc-quick` 1.0.2:** PATCH — làm rõ architecture scope: quick KHÔNG mở rộng scope sang
+  architecture. Change chạm service/boundary (G4) hoặc user yêu cầu kiến trúc → escalate lên
+  orchestrator (sdlc-architect xử lý riêng). Trivial Gate note, When NOT to Use Quick (bullet +
+  example row), triage-grill.md G4.
+
+## [3.5.0] - 2026-08-24
+
+### Changed
+
+- **`sdlc-orchestrator` 1.15.0:** MINOR — thêm **Architecture Gate** vào Bước 3 Foundation Gate.
+  Task flow bắt buộc đảm bảo `agent_docs/architecture.md` tồn tại trước SRS (MISSING → gọi
+  `Skill("sdlc-architect")` → plan-mode human gate → post-verify; vẫn missing → BLOCKED, không
+  proceed SRS). Cr flow có điều kiện (chỉ khi chạm service boundary / human yêu cầu). Thêm
+  `sdlc-architect` vào Skill Reference; procedures.md §5.2 thêm row `agent_docs/architecture.md`.
+  **Giải quyết TODO v3.3.0 "chưa tích hợp vào pipeline"** cho orchestrator; automation + codebase
+  (reverse) defer.
+
+## [3.4.0] - 2026-08-21
+
+### Changed
+
+- **`sdlc-architect` 1.1.0:** MINOR — đổi từ skill self-contained sang **gate/router**.
+  Tự self-check `agent_docs/architecture.md`; chưa có → **bắt buộc** invoke skill `architect`
+  (workflow `design`) để thiết kế; plan mode là human gate (human là **validator**, KHÔNG
+  `--auto`); verify `architecture.md` tồn tại sau khi hoàn tất (MISSING → BLOCKED). Note
+  status vào `.work/architecture-discussion-recap/architecture-discussion.md` trước khi route.
+- **`architect` 1.1.0:** MINOR — align theo hướng **agent_docs/** (agent SSOT): design mode
+  input từ `agent_docs/project-overview.md` (pre-SRS) thay vì `docs/product/SRS.md`; output
+  CHỈ vào agent_docs/ (`architecture.md` C4 inline, `adrs/ADR-{NNN}--{slug}.md`,
+  `domain-service-mapping.yaml`, `hard-boundaries.md`, `contracts/`); KHÔNG viết `docs/` —
+  human docs xử lý riêng qua human-docs pipeline. **Bỏ gate-verifier** (agent `gate-verifier`
+  không tồn tại) — không cần gate agent riêng; architect-specialist tự self-check output
+  theo Gate Criteria của nó, human là validator qua plan mode.
+- **`architect-specialist`:** align theo agent_docs/ — design/review/advisory output vào
+  agent_docs/; C4 diagrams inline trong `architecture.md`; backfill điều kiện (chỉ khi post-SRS).
+- **`sdlc-hld`:** đổi sang **REFINE, không recreate** — nếu `agent_docs/architecture.md` +
+  `adrs/` đã tồn tại từ architect-specialist (pre-SRS logical architecture), giữ nguyên quyết
+  định logical (style, service boundaries, event taxonomy), chỉ bổ sung chi tiết physical
+  (data, security, infra) grounded trên FR/SRS. Không xóa quyết định pre-SRS nếu không có
+  FR evidence + ADR thay thế.
+- **`architect-specialist`:** 6 fix — (1) hook sửa từ `validate-output-path.sh` (KHÔNG tồn tại,
+  guard "no docs/" đang silent no-op) sang `sdlc-validate-agent-output.sh architect` + thêm
+  Bash matcher — guard giờ active; (2) input post-SRS trỏ `agent_docs/features/FR-*.md` +
+  `traceability/requirements-matrix.md` thay `docs/product/SRS.md` (stale, mâu thuẫn agent_docs/
+  direction); (3) bỏ Reverse-Engineering mode (reverse pipeline dùng `codebase-*`, không
+  architect-specialist); (4) thêm Self-Check section bắt buộc — chạy Gate Criteria lên output
+  thật, report PASS/FAIL từng criterion trước khi báo cáo; (5) example `domain-service-mapping.yaml`
+  bỏ `ports` (implementation detail, mâu thuẫn gate "no implementation details").
+- **`sdlc-validate-agent-output.sh`:** thêm phase `architect` (allow `architecture.md`, `adrs/`,
+  `domain-service-mapping.yaml`, `hard-boundaries.md`, `contracts/`, `architecture-reviews/`,
+  backfill `features/FR-*.md`); **fix regex `adr/` → `adrs/`** trong branch `sdlc-hld|codebase-hld`
+  — trước đây block ADR writes vào `agent_docs/adrs/` (số nhiều) trong khi agent ghi `adrs/`,
+  không phải `adr/`.
+- **`architect` 1.1.0:** MINOR — **reframe thành consultant**: trao đổi, hướng dẫn, cấu trúc
+  kiến trúc hệ thống — cùng human thảo luận để đạt kiến trúc mong muốn (hệ thống mới/khác,
+  nâng cấp hiện tại, trao đổi thuần túy). Input (architecture.md, project-overview,
+  user-context, FR) thành **optional context** — thiếu không blocker. **Bỏ sprint/sync** —
+  không update sprint/backlog/roadmap (thuộc controller). Thêm **Discussion Mode** (trao đổi
+  thuần túy, không bắt buộc viết file). Skill chỉ **tự trigger** qua Claude context — human
+  không gõ `/architect` (giữ `user-invocable: false`).
+- **`architect-specialist`:** reframe tương tự — role consultant, input optional, thêm
+  **Discussion Mode** (trao đổi thuần túy, không viết file); Self-Check + Gate Criteria chỉ
+  áp dụng khi có file output. KHÔNG liên quan sprint/sync.
+
+### Added
+
+- **`.claude/rules/sdlc-architect-rules.md`:** rule mới map hoàn cảnh sử dụng skill
+  `architect` + agent `architect-specialist` trong SDLC — auto-trigger qua `sdlc-architect`
+  (kiến trúc chưa có = bắt buộc tạo, không có path bỏ qua), boundaries (reverse pipeline,
+  post-SRS sdlc-hld, CR/quick, double-invoke), plan-mode human gate, agent_docs/ direction,
+  anti-patterns.
+- **`sdlc-routing-rules.md`:** thêm intent "tạo/thiết kế kiến trúc hệ thống trước SRS" →
+  flow `architect` → available qua `sdlc-architect` skill.
+
+## [3.3.0] - 2026-08-21
+
+### Added
+
+- **`sdlc-architect` 1.0.0:** MINOR — skill standalone cho **logical architecture** trong luồng
+  forward/greenfield. Tự self-check đã có `agent_docs/architecture.md` chưa — chưa có thì
+  **bắt buộc phải tạo**: thảo luận với human (skill `fable-thinking`; human là **validator**,
+  không phải tác giả), note từng quyết định vào
+  `.work/architecture-discussion-recap/architecture-discussion.md` (cumulative — giữ context
+  khi conversation compact), chỉ viết `architecture.md` khi human xác nhận mọi thứ clear VÀ
+  yêu cầu triển khai. Physical HLD (C4, ADR) vẫn do `sdlc-hld` sau SRS. Luồng reverse codebase
+  không dùng. **Chưa tích hợp vào pipeline** — preflight/orchestrator giữ nguyên, integration
+  quyết định sau.
+
 ## [3.2.0] - 2026-08-20
 
 ### Changed
