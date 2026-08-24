@@ -48,7 +48,12 @@ check_path() {
       fi
       ;;
     sdlc-hld|codebase-hld)
-      if echo "$file_path" | grep -qE '^agent_docs/architecture\.md$|^agent_docs/domain-service-mapping\.yaml$|^agent_docs/hard-boundaries\.md$|^agent_docs/contracts/|^agent_docs/adr/ADR-.*\.md$'; then
+      if echo "$file_path" | grep -qE '^agent_docs/architecture\.md$|^agent_docs/domain-service-mapping\.yaml$|^agent_docs/hard-boundaries\.md$|^agent_docs/contracts/|^agent_docs/adrs/ADR-.*\.md$'; then
+        return 0
+      fi
+      ;;
+    architect)
+      if echo "$file_path" | grep -qE '^agent_docs/architecture\.md$|^agent_docs/adrs/ADR-.*\.md$|^agent_docs/domain-service-mapping\.yaml$|^agent_docs/hard-boundaries\.md$|^agent_docs/contracts/|^agent_docs/architecture-reviews/|^agent_docs/features/FR-.*\.md$'; then
         return 0
       fi
       ;;
