@@ -52,7 +52,9 @@ Không đụng đến auth middleware, billing logic, PII, data integrity.
 
 ### G4: Không Service/Boundary Mới
 
-Không service mới, không module boundary mới.
+Không service mới, không module boundary mới. Nếu human yêu cầu đánh giá kiến trúc hoặc
+change chạm service boundary → KHÔNG mở rộng scope sang architecture trong quick; escalate
+lên orchestrator (sdlc-architect xử lý riêng).
 
 | PASS ✅ | FAIL ❌ |
 |---|---|

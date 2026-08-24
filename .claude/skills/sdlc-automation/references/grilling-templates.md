@@ -122,6 +122,10 @@ AskUserQuestion({
 
 ## Round 3: Architecture & Integration (cho HLD + LLD)
 
+> **Note**: Kiến trúc system đã được chốt ở Architecture Gate (SKILL.md Bước 3) trước khi
+> dispatch — nếu `agent_docs/architecture.md` tồn tại, Round 3 này dùng để validate + thu
+> thập context bổ sung (service ảnh hưởng, API contracts, dependencies), KHÔNG re-design.
+
 ### 3.1 Services & APIs
 
 > "Có service mới không? Service nào bị ảnh hưởng? Giao tiếp sync/async?

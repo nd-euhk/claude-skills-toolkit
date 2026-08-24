@@ -8,8 +8,10 @@ description: >-
   "automation pipeline", "autonomous SDLC", "tự động sinh specs", "auto pipeline".
   Khác với sdlc-orchestrator (human-in-the-loop từng phase) và sdlc-quick
   (làn nhanh cho task nhỏ, không specs), skill này chỉ tương tác MỘT LẦN
-  upfront rồi chạy autonomously.
-version: 1.10.1
+  upfront rồi chạy autonomously. Tự động gọi sdlc-architect để đảm bảo
+  agent_docs/architecture.md tồn tại trước khi dispatch (task flow, trong
+  interactive phase).
+version: 1.11.0
 allowed-tools: Read, Write, Edit, Bash, Skill, Agent, AskUserQuestion, Workflow
 ---
 
@@ -119,6 +121,26 @@ done
 
 Báo cáo: `🏗️ Foundation: [status từng file]`
 
+**Architecture Gate (áp dụng task + cr — logical architecture trước dispatch):**
+
+Kiểm tra kiến trúc hệ thống đã có chưa:
+
+```bash
+test -f agent_docs/architecture.md && echo "EXISTS" || echo "MISSING"
+```
+
+**task flow** — `agent_docs/architecture.md` PHẢI tồn tại trước khi dispatch workflow (logical architecture quyết định trước FR decomposition trong SRS):
+
+1. MISSING → `Skill("sdlc-architect")` → đợi complete (architect skill tự self-check + orchestrate qua architect-specialist; plan mode = human gate, KHÔNG `--auto`). Đây là bước interactive trong preflight — human đang hiện diện, kiến trúc được chốt tại đây trước khi chạy autonomously
+2. Post-verify — nếu `architecture.md` vẫn missing (human chưa approve trong architect plan mode) → **BLOCKED**: báo "đang chờ human confirm trong architect plan mode". KHÔNG dispatch workflow
+
+**cr flow** — có điều kiện:
+
+1. Nếu change chạm service boundary HOẶC human yêu cầu kiến trúc → `Skill("sdlc-architect")` → đợi complete
+2. Change bounded, không chạm boundary → không gọi. Giữ nguyên
+
+Báo cáo: `🏗️ Architecture: [EXISTS | MISSING]`
+
 ---
 
 ## Task Automation Flow
@@ -163,6 +185,7 @@ Mọi error scenario có structured fallback pattern. Nguyên tắc chung: **fai
 |----------|----------|----------|
 | Preflight | Git dirty → Abort | Dừng, báo cáo |
 | Preflight | Foundation missing | Preflight → verify → dừng nếu vẫn thiếu |
+| Preflight | Architecture missing (task flow) | Architecture Gate → `Skill("sdlc-architect")` → verify → BLOCKED nếu vẫn thiếu (chờ human approve trong plan mode) |
 | Grilling | Thiếu exit criteria | Hỏi thêm → fallback orchestrator sau 2 attempts |
 | Dispatch | Script not found | Dừng, báo cáo missing dependency |
 | Dispatch | Workflow timeout | AskUserQuestion: đợi/kill-resume/fallback |

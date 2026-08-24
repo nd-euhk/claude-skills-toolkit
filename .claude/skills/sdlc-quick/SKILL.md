@@ -12,7 +12,7 @@ description: >-
   full pipeline), skill này BỎ QUA toàn bộ SRS/HLD/LLD/IMP/TST specs
   và REFACTOR-full/GATE-full, chỉ giữ guard test tối thiểu + GATE-light.
   Tự động phát hiện task không trivial → escalation về orchestrator.
-version: 1.0.1
+version: 1.0.2
 allowed-tools: Read, Write, Edit, Bash, Glob, Skill, Agent, AskUserQuestion
 ---
 
@@ -111,6 +111,11 @@ Kiểm tra 5 criteria. **Fail bất kỳ criteria nào → escalation ngay, khô
 > Không bao giờ "đoán" là trivial. Borderline = escalate.
 >
 > Ví dụ PASS/FAIL cho từng criteria (G1-G5): `references/triage-grill.md#trivial-gate-criteria`
+>
+> **Architecture scope**: quick KHÔNG bao giờ mở rộng scope sang architecture. Change chạm
+> service/boundary mới (G4 fail) → escalate. User yêu cầu đánh giá/trade-off kiến trúc → đây
+> là tín hiệu task không trivial → escalate lên orchestrator (sdlc-architect xử lý riêng qua
+> architect skill). Không tự thiết kế kiến trúc inline trong quick.
 
 Nếu **PASS tất cả 5 criteria**:
 ```
@@ -286,6 +291,7 @@ Cập nhật board status. Non-blocking — nếu fail, báo cáo và tiếp t�
 - **Feature mới** — dù nhỏ đến đâu. "Thêm field" là feature mới → flow cr
 - **Human muốn review kỹ** — preference cá nhân
 - **Codebase chưa quen** — project mới, kiến trúc lạ
+- **User yêu cầu kiến trúc** — đánh giá/trade-off/service boundary → ngoài scope quick, escalate
 
 **Ví dụ thực tế:**
 
@@ -297,6 +303,7 @@ Cập nhật board status. Non-blocking — nếu fail, báo cáo và tiếp t�
 | "Thêm field phone vào form đăng ký" | ❌ | API/schema mới → flow cr |
 | "Sửa logic tính thuế trong billing" | ❌ | G3: billing → flow cr |
 | "Đổi tên function dùng chung (ảnh hưởng 8 file)" | ❌ | G1: >2 files + G5: cascading → flow cr |
+| "Chọn DB / đánh giá kiến trúc / service boundary" | ❌ | Ngoài scope quick → escalate orchestrator (sdlc-architect xử lý) |
 
 Phát hiện tín hiệu trên trong trivial gate hoặc triage grill → dừng:
 

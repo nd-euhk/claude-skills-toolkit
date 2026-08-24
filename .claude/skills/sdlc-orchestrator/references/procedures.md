@@ -480,6 +480,7 @@ Sau khi sdlc-gate trả về kết quả:
 | `agent_docs/project-overview.md` | "Missing → Preflight Bước 3 tự động gọi `Skill(sdlc-preflight, '--project-overview')`" |
 | `agent_docs/user-context.md` | "Missing → Preflight Bước 3 tự động gọi `Skill(sdlc-preflight, '--user-context')`" |
 | `agent_docs/conventions.md` | "Missing → Preflight Bước 3 tự động gọi `Skill(sdlc-preflight, '--conventions')` (cho task flow)" |
+| `agent_docs/architecture.md` | "Missing + task flow → Architecture Gate (SKILL.md Bước 3) tự động gọi `Skill(sdlc-architect)` — bắt buộc trước SRS. cr flow → chỉ khi chạm service boundary / human yêu cầu." |
 | Feature spec | "FR-{ID} không tồn tại. Tạo mới từ SRS?" |
 
 ### 5.3 Git State Conflicts

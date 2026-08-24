@@ -10,10 +10,12 @@ description: >-
   "sửa bug", "fix bug", "debug lỗi", hoặc bất kỳ yêu cầu phát triển
   nào cần SDLC pipeline có cấu trúc. Tự động phát hiện intent và route
   đến flow phù hợp. Tự động gọi sdlc-preflight để khởi tạo foundation
-  files (project-overview, user-context, conventions) khi thiếu. Điều
-  phối toàn bộ pipeline từ requirements qua documentation đến production
-  code, coordinating subagents, skills, và sprint artifacts.
-version: 1.14.2
+  files (project-overview, user-context, conventions) khi thiếu. Tự động gọi
+  sdlc-architect để đảm bảo agent_docs/architecture.md tồn tại trước SRS khi
+  thiếu (task flow). Điều phối toàn bộ pipeline từ requirements qua
+  documentation đến production code, coordinating subagents, skills, và sprint
+  artifacts.
+version: 1.15.0
 allowed-tools: Read, Write, Edit, Bash, Glob, Skill, Agent, EnterPlanMode, ExitPlanMode
 ---
 
@@ -156,6 +158,26 @@ done
 
 **fixbug flow** — chỉ hiển thị trạng thái. Không block, không invoke.
 
+**Architecture Gate (áp dụng task + cr — logical architecture trước SRS):**
+
+Kiểm tra kiến trúc hệ thống đã có chưa:
+
+```bash
+test -f agent_docs/architecture.md && echo "EXISTS" || echo "MISSING"
+```
+
+**task flow** — `agent_docs/architecture.md` PHẢI tồn tại trước SRS (logical architecture quyết định trước FR decomposition):
+
+1. MISSING → `Skill("sdlc-architect")` → đợi complete (architect skill tự self-check + orchestrate qua architect-specialist; plan mode = human gate, KHÔNG `--auto`)
+2. Post-verify — nếu `architecture.md` vẫn missing (human chưa approve trong architect plan mode) → **BLOCKED**: báo "đang chờ human confirm trong architect plan mode". KHÔNG proceed SRS
+
+**cr flow** — có điều kiện:
+
+1. Nếu change chạm service boundary HOẶC human yêu cầu kiến trúc → `Skill("sdlc-architect")` → đợi complete
+2. Change bounded, không chạm boundary → không gọi. Giữ nguyên
+
+**fixbug / quick flow** — không cần. Không block, không invoke.
+
 ### Bước 4: Route đến Flow
 
 Khi flow đã được xác nhận, load file flow tương ứng và thực thi procedure:
@@ -232,6 +254,7 @@ Báo cáo cho human theo template:
 | `git` | fixbug | Commit, push, branch management |
 | `sdlc-scout` | Tất cả | Khám phá codebase để lấy context |
 | `sdlc-preflight` | Tất cả | Khởi tạo foundation files (project-overview, user-context, conventions) |
+| `sdlc-architect` | task, cr | Gate/router đảm bảo agent_docs/architecture.md tồn tại (task bắt buộc, cr có điều kiện) |
 
 ### Subagents (spawn qua Agent tool)
 
