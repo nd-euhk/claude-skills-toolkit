@@ -18,6 +18,7 @@ những từ khác nhau phải resolve về cùng flow.
 | Fix defect, repair broken behavior, resolve bug | `fixbug` | **orchestrator only** | Root-cause diagnosis + targeted fix: scout → diagnose → fix → verify |
 | Write code từ ready specs, implement từ agent_docs, execute TDD cycle | `cook` | sdlc-cook skill | TDD execution: worktree isolation → baseline → per-TC RED→GREEN→INTERFERENCE→REFACTOR→GATE → PR → cleanup |
 | Reverse-engineer specs từ existing codebase, document what code does | `reverse` | orchestrator, sdlc-codebase skill | Reverse pipeline: scout → HLD → LLD → SRS → VERIFY → CROSS-CUTTING → IMP∥TST |
+| Tạo/thiết kế kiến trúc hệ thống trước SRS, logical architecture, "kiến trúc hệ thống" | `architect` | **sdlc-architect skill** | Self-check `agent_docs/architecture.md` → MISSING thì BẮT BUỘC tạo qua skill `architect` (workflow design, plan mode human gate). Đã có → skip. Post-SRS physical HLD do sdlc-hld |
 | Quét/kiểm tra license OSS compliance cho một hoặc nhiều project, kiểm kê dependency trước release, cần quyết định license per project | `oss-scan` | **oss-scan skill** (standalone) | OSS compliance: nhận **target path** (folder nhiều project hoặc 1 project đơn lẻ) → phát hiện project → xác nhận → workflow scan → risk-research → gate → report + decisions cần LRB |
 
 ## Entry Point Selection
@@ -31,6 +32,7 @@ involvement cần thiết.
 | Requirement đã rõ, human muốn một upfront interview rồi autonomous execution | **automation** — grill once, dispatch workflow, monitor |
 | Change bounded ≤2 files, no API/schema/security/auth/billing impact, no new service boundary | **quick** — triage grill, guard test only, GATE-light |
 | Đã có specs (SRS + IMP + TST hoặc ít nhất IMP + TST) và chỉ cần implement code theo specs có sẵn | **cook** — TDD execution: worktree isolation, RED→GREEN→REFACTOR→GATE per-TC |
+| Forward/greenfield, chưa có `agent_docs/architecture.md`, cần logical architecture trước SRS | **sdlc-architect** — self-check + bắt buộc tạo qua skill `architect` (plan mode human gate) |
 
 ## Priority Rules
 
