@@ -2,6 +2,16 @@
 
 All notable changes to the skills-toolkit plugin are documented here.
 
+## [3.7.1] - 2026-08-25
+
+### Changed
+
+- **`agent-routing-TEMPLATE.md`:** chuẩn hóa ADR path còn sót `adr/` → `adrs/` — routing table
+  (row 8) và directory tree khớp convention `agent_docs/adrs/`. Cùng class bug đã fix ở 3.6.0
+  (validate script regex `adr/` → `adrs/`).
+- **`workflow-sdlc-review-code.js`:** ARCH_PROMPT glob tìm ADR `**/adr/*.md` → `**/adrs/*.md` —
+  glob cũ không match canonical `adrs/`, review bỏ sót ADR khi project theo convention mới.
+
 ## [3.7.0] - 2026-08-25
 
 ### Changed

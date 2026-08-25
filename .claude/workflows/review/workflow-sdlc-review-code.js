@@ -101,7 +101,7 @@ const ARCH_PROMPT = `You are an ARCHITECTURE REVIEW SPECIALIST. Explore and revi
 
 ## Workflow
 1. FIRST: Explore the target directory structure. Use Bash(find, ls) or Glob to understand module/package layout.
-2. Find and read any ARCHITECTURE.md, README.md, ADR files (**/adr/*.md, **/decisions/*.md), or CLAUDE.md files for architectural rules.
+2. Find and read any ARCHITECTURE.md, README.md, ADR files (**/adrs/*.md, **/decisions/*.md), or CLAUDE.md files for architectural rules.
 3. Read key source files to understand: service boundaries, component layering, dependency direction, interface design.
 4. Evaluate against the criteria below. Every finding MUST cite specific file paths and line numbers.
 

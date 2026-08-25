@@ -25,7 +25,7 @@ changelog:
 | 5        | `{backend\|frontend}/{svc}/implementation/FR-{DOMAIN}-{NNN}--*-impl.md` | Khi implement                     |
 | 6        | `{backend\|frontend}/{svc}/test-specs/FR-{DOMAIN}-{NNN}--*-test.md`     | Khi write tests                   |
 | 7        | `tech-design/{service}-service.md`                                      | Khi cần architecture context      |
-| 8        | `adr/ADR-{NNN}.md`                                                      | Khi cần hiểu quyết định kiến trúc |
+| 8        | `adrs/ADR-{NNN}.md`                                                     | Khi cần hiểu quyết định kiến trúc |
 | 9        | `error-handling.md`                                                     | Khi implement error handling      |
 | 10       | `caching-strategy.md`                                                   | Khi implement caching             |
 | 11       | `event-schema.md`                                                       | Khi implement event-driven        |
@@ -73,7 +73,7 @@ agent_docs/
 │   ├── README.md                  ← Dependency graph + impl order
 │   └── FR-{DOMAIN}-{NNN}--{slug}.md
 │
-├── adr/
+├── adrs/
 │   └── ADR-{NNN}--{slug}.md      ← Architecture Decision Records
 │
 ├── contracts/

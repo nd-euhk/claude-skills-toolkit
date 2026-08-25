@@ -10,38 +10,37 @@ changelog:
   - 1.0 | YYYY-MM-DD | Initial decision
 ---
 
-# ADR-{NNN}: {Decision Title}
+# ADR-{{NNN}}: {{decision_title}}
+
+> **Status**: Proposed / Accepted / Deprecated / Superseded by ADR-{{NNN}}
 
 ## Context
 
-{Bối cảnh dẫn đến quyết định này. Vấn đề gì cần giải quyết?}
+{{Mô tả vấn đề hoặc nhu cầu dẫn đến quyết định này. Bao gồm constraints, requirements, và forces tác động.}}
 
 ## Decision
 
-{Quyết định cụ thể. "Chúng tôi sẽ dùng X thay vì Y."}
+{{Mô tả quyết định đã chọn. Viết rõ ràng, cụ thể — agent đọc section này để biết PHẢI làm gì.}}
 
-## Rationale
+## Alternatives Considered
 
-{Tại sao chọn cách này? So sánh với alternatives.}
-
-| Option | Pros | Cons |
-|--------|------|------|
-| Option A (chosen) | | |
-| Option B | | |
-| Option C | | |
+| Option | Pros | Cons | Lý do loại |
+|--------|------|------|-----------|
+| {{Option A}} | {{pros}} | {{cons}} | {{lý_do}} |
+| {{Option B}} | {{pros}} | {{cons}} | {{lý_do}} |
 
 ## Consequences
 
 ### Positive
-- {benefit 1}
+- {{Lợi ích 1}}
+- {{Lợi ích 2}}
 
 ### Negative
-- {trade-off 1}
+- {{Trade-off 1}}
+- {{Trade-off 2}}
 
 ### Risks
-- {risk 1 → mitigation}
+- {{Rủi ro cần theo dõi}}
 
-## Related
-
-- NFR: {NFR-xxx}
-- BRD Risk: {R-xxx}
+## References
+- {{Link tới tài liệu, RFC, hoặc discussion liên quan}}
