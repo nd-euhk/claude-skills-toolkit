@@ -22,6 +22,16 @@ changelog:
 
 {{Mô tả quyết định đã chọn. Viết rõ ràng, cụ thể — agent đọc section này để biết PHẢI làm gì.}}
 
+## Rationale
+
+{Tại sao chọn cách này? So sánh với alternatives.}
+
+| Option | Pros | Cons |
+|--------|------|------|
+| Option A (chosen) | | |
+| Option B | | |
+| Option C | | |
+
 ## Alternatives Considered
 
 | Option | Pros | Cons | Lý do loại |
