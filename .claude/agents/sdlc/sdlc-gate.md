@@ -8,7 +8,7 @@ description: >-
   artifacts meet minimum criteria. Read-only — never modifies files. Returns
   structured PASS/FAIL with specific failures for retry. Phase-aware — loads
   correct criteria set per phase.
-version: 1.0.3
+version: 1.0.4
 model: sonnet
 maxTurn: 20
 tools: Read, Bash, Glob, Agent
@@ -16,10 +16,6 @@ permissionMode: acceptEdits
 hooks:
   PreToolUse:
     - matcher: "Write|Edit"
-      hooks:
-        - type: command
-          command: "${CLAUDE_PROJECT_DIR}/.claude/scripts/sdlc-validate-agent-output.sh sdlc-gate"
-    - matcher: "Bash"
       hooks:
         - type: command
           command: "${CLAUDE_PROJECT_DIR}/.claude/scripts/sdlc-validate-agent-output.sh sdlc-gate"

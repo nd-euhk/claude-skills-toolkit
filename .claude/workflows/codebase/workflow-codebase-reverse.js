@@ -6,9 +6,11 @@ export const meta = {
     { title: 'Gate:HLD', detail: 'Validate HLD outputs against 6 criteria' },
     { title: 'LLD', detail: 'Fan-out per service + cross-service synthesis' },
     { title: 'Gate:LLD', detail: 'Validate LLD outputs against 5 criteria per service' },
+    { title: 'Gate:LLD-SYNTHESIS', detail: 'Validate LLD synthesis outputs (contracts/api-*.yaml, contracts/error-codes.md) against 4 criteria — non-cascading' },
     { title: 'SRS', detail: 'Fan-out per domain + cross-domain synthesis' },
     { title: 'SRS-Verify', detail: 'Adversarially verify inferred FRs with codebase-srs-verify agent (3-lens analysis + Explore subagents) per domain' },
     { title: 'Gate:SRS', detail: 'Validate SRS outputs against 4 criteria per domain' },
+    { title: 'Gate:SRS-SYNTHESIS', detail: 'Validate SRS synthesis outputs (features/README.md, traceability/requirements-matrix.md) against 4 criteria — non-cascading' },
     { title: 'Cross-Cutting', detail: 'Cross-cutting synthesis (5 dedicated agents): error-handling, caching-strategy, performance-test, frontend-architecture (Stage 1 ∥), then frontend-test-strategy (Stage 2)' },
     { title: 'Gate:Cross-Cutting', detail: 'Validate cross-cutting outputs against phase-specific criteria' },
     { title: 'IMP+TST', detail: 'Fan-out per domain (IMP ∥ TST per domain concurrently)' },
@@ -124,10 +126,12 @@ function parseGateResult(gateResult) {
 /**
  * Run a gate check against phase outputs with retry.
  * On FAIL with retries remaining: calls rerunFn(failureFeedback) then re-gates.
- * On FAIL after MAX_RETRIES: sets skipRemaining = true.
+ * On FAIL after MAX_RETRIES: sets skipRemaining = true (unless cascade=false).
+ * cascade=false is for synthesis gates (lld-synthesis, srs-synthesis) — a failed
+ * synthesis gate degrades the artifact but does NOT skip downstream phases.
  * Returns { passed, attempt, parsed }.
  */
-async function gateCheck(phase, context, rerunFn, expectedOutputs) {
+async function gateCheck(phase, context, rerunFn, expectedOutputs, cascade = true) {
   let previousFailure = null
 
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
@@ -143,7 +147,7 @@ async function gateCheck(phase, context, rerunFn, expectedOutputs) {
     })
 
     const parsed = parseGateResult(result)
-    gateResults.push({ phase, attempt, ...parsed })
+    gateResults.push({ phase, attempt, cascade, ...parsed })
 
     if (parsed.passed) {
       log(`✅ Gate ${phase}: PASS (${parsed.passedCount}/${parsed.totalCount} criteria met, attempt ${attempt}/${MAX_RETRIES})`)
@@ -161,9 +165,13 @@ async function gateCheck(phase, context, rerunFn, expectedOutputs) {
   }
 
   // All retries exhausted
-  log(`🛑 Gate ${phase}: FAILED after ${MAX_RETRIES} attempts — skipping all remaining phases`)
-  skipRemaining = true
-  return { passed: false, attempt: MAX_RETRIES, parsed: { passed: false, verdict: 'FAIL', summary: `Failed after ${MAX_RETRIES} attempts` } }
+  if (cascade) {
+    log(`🛑 Gate ${phase}: FAILED after ${MAX_RETRIES} attempts — skipping all remaining phases`)
+    skipRemaining = true
+  } else {
+    log(`⚠️ Gate ${phase}: FAILED after ${MAX_RETRIES} attempts — continuing pipeline (non-cascading synthesis gate)`)
+  }
+  return { passed: false, attempt: MAX_RETRIES, cascade, parsed: { passed: false, verdict: 'FAIL', summary: `Failed after ${MAX_RETRIES} attempts` } }
 }
 
 function gatePrompt(phase, attempt, previousFailure, context, expectedOutputs) {
@@ -519,8 +527,8 @@ Document all 9 sections for ${svc.name}, with code evidence (file:line) for each
   return p
 }
 
-function lldSynthesisPrompt(lldSummaries) {
-  return `## MODE: CROSS-SERVICE SYNTHESIS — LLD
+function lldSynthesisPrompt(lldSummaries, failureFeedback) {
+  let p = `## MODE: CROSS-SERVICE SYNTHESIS — LLD
 
 Merge per-service LLD outputs — API contracts, error codes, FR candidates, service interaction map.
 Cross-cutting concerns (error-handling, caching, etc.) are handled by dedicated codebase-cross-cutting-* agents in Phase 4.
@@ -559,6 +567,8 @@ codebase-cross-cutting-* agents in Phase 4 after SRS — do NOT generate cross-c
 ## CRITICAL
 - Work from LLD outputs — do NOT re-analyze code
 - Include "Summary for Synthesis" section with suggested domains for SRS`
+  if (failureFeedback) p += failureFeedback
+  return p
 }
 
 function srsPrompt(domain, failureFeedback) {
@@ -595,7 +605,7 @@ Infer functional and non-functional requirements from EXISTING code for domain "
   return p
 }
 
-function srsSynthesisPrompt(srsSummaries, verificationResult) {
+function srsSynthesisPrompt(srsSummaries, verificationResult, failureFeedback) {
   let verificationContext = ''
   if (verificationResult) {
     const { verdicts, stats } = verificationResult
@@ -664,6 +674,8 @@ ${verificationContext}
 - Do NOT modify per-domain feature files
 - Include "Summary for Synthesis" section
 `
+  if (failureFeedback) p += failureFeedback
+  return p
 }
 
 function impPrompt(domain, failureFeedback) {
@@ -675,6 +687,7 @@ Document implementation patterns from EXISTING code for domain "${domain.name}".
 - **Scout Report**: ${scoutReportPath}
 - **Domain**: ${domain.name}
 - **Services**: ${(domain.services || []).join(', ')}
+- **Service types**: ${services.map(s => `${s.name}:${s.type}`).join(', ')}
 - **SRS Features**: ${foundationPath}features/FR-${domain.name.toUpperCase()}-*.md
 - **LLD**: ${foundationPath}tech-design/*.md
 - **Cross-cutting**: ${foundationPath}cross-cutting.md
@@ -686,7 +699,13 @@ Document implementation patterns from EXISTING code for domain "${domain.name}".
 4. **Error Mapping** — exception types -> HTTP status codes -> error response bodies
 5. **Security** — auth mechanism, input validation, data sanitization
 
-Output: ${foundationPath}backend/{svc}/implementation/FR-${domain.name.toUpperCase()}-{NNN}-impl.md
+Output: ${foundationPath}{backend|frontend}/{svc}/implementation/FR-${domain.name.toUpperCase()}-{NNN}-impl.md
+
+## ROUTING (backend vs frontend)
+For each FR, read its frontmatter \`services:\` field and resolve each listed service's type from **Service types** above:
+- Type backend|node|go|java → \`backend/{svc}/implementation/...\`
+- Type frontend|nextjs|react → \`frontend/{svc}/implementation/...\`
+- An FR spanning both types → write ONE impl file per implementing service, each under its correct prefix.
 
 ## CRITICAL
 - ALL features in this domain, not one feature per agent
@@ -708,8 +727,9 @@ Document test patterns from EXISTING test code for domain "${domain.name}".
 - **Scout Report**: ${scoutReportPath}
 - **Domain**: ${domain.name}
 - **Services**: ${(domain.services || []).join(', ')}
+- **Service types**: ${services.map(s => `${s.name}:${s.type}`).join(', ')}
 - **SRS Features**: ${foundationPath}features/FR-${domain.name.toUpperCase()}-*.md
-- **IMP**: ${foundationPath}backend/*/implementation/FR-${domain.name.toUpperCase()}-*-impl.md
+- **IMP**: ${foundationPath}{backend,frontend}/*/implementation/FR-${domain.name.toUpperCase()}-*-impl.md
 
 ## Task — For EACH feature in this domain, document 4 aspects:
 1. **Test Architecture** — frameworks, test types, mock/stub strategy, CI integration
@@ -717,7 +737,13 @@ Document test patterns from EXISTING test code for domain "${domain.name}".
 3. **Test Data & Fixtures** — factory classes, test data files, mock server configs
 4. **Coverage Patterns** — coverage config, naming conventions, GAP ANALYSIS
 
-Output: ${foundationPath}backend/{svc}/test-specs/FR-${domain.name.toUpperCase()}-{NNN}-test.md
+Output: ${foundationPath}{backend|frontend}/{svc}/test-specs/FR-${domain.name.toUpperCase()}-{NNN}-test.md
+
+## ROUTING (backend vs frontend)
+For each FR, read its frontmatter \`services:\` field and resolve each listed service's type from **Service types** above:
+- Type backend|node|go|java → \`backend/{svc}/test-specs/...\`
+- Type frontend|nextjs|react → \`frontend/{svc}/test-specs/...\`
+- An FR spanning both types → write ONE test spec file per implementing service, each under its correct prefix.
 
 ## CRITICAL
 - ALL features in this domain, not one feature per agent
@@ -935,6 +961,28 @@ async function rerunSRS(failureDetails) {
   )
 }
 
+async function rerunLldSynthesis(failureDetails) {
+  const feedback = failureFeedbackForAgent('lld-synthesis', failureDetails)
+  log('  Re-running LLD synthesis agent with targeted feedback...')
+  const lldSummaries = lldResults.map((r, i) => extractSummary(r, `LLD:${services[i]?.name || i}`))
+  return await agent(lldSynthesisPrompt(lldSummaries, feedback), {
+    label: 'LLD synthesis (retry)',
+    phase: 'LLD',
+    agentType: 'codebase-lld-synthesis',
+  })
+}
+
+async function rerunSrsSynthesis(failureDetails) {
+  const feedback = failureFeedbackForAgent('srs-synthesis', failureDetails)
+  log('  Re-running SRS synthesis agent with targeted feedback...')
+  const srsSummaries = srsResults.map((r, i) => extractSummary(r, `SRS:${domains[i]?.name || i}`))
+  return await agent(srsSynthesisPrompt(srsSummaries, srsVerificationResult, feedback), {
+    label: 'SRS synthesis (retry)',
+    phase: 'SRS',
+    agentType: 'codebase-srs-synthesis',
+  })
+}
+
 async function rerunIMP(failureDetails) {
   const feedback = failureFeedbackForAgent('imp', failureDetails)
   log(`  Re-running IMP for ${domainCount} domain(s) with targeted feedback...`)
@@ -1050,6 +1098,7 @@ if (completedPhases.has('HLD')) {
 let lldResults = []
 let lldSynthesisResult = null
 let lldGatePassed = false
+let lldSynthGatePassed = false
 if (completedPhases.has('LLD')) {
   log('⏭️ LLD — already DONE (resumed)')
   lldResults = resumeResults.LLD || []
@@ -1081,6 +1130,14 @@ if (completedPhases.has('LLD')) {
       agentType: 'codebase-lld-synthesis',
     })
     log(`LLD synthesis complete — ${countIssues(lldSynthesisResult)} UNCERTAINTY flag(s)`)
+
+    // LLD-Synthesis gate — non-cascading: a failed contracts gate degrades the artifact but does NOT skip SRS/IMP/TST
+    const lldSynthGate = await gateCheck('lld-synthesis', { services, domains },
+      async (fd) => { lldSynthesisResult = await rerunLldSynthesis(fd) },
+      [foundationPath + 'contracts/api-*.yaml', foundationPath + 'contracts/error-codes.md'],
+      false
+    )
+    lldSynthGatePassed = lldSynthGate.passed
   } else if (successfulLLD === 1) {
     log('LLD: Single service — synthesis skipped (no cross-service patterns to merge)')
   }
@@ -1102,6 +1159,7 @@ if (completedPhases.has('LLD')) {
 let srsResults = []
 let srsSynthesisResult = null
 let srsGatePassed = false
+let srsSynthGatePassed = false
 let srsVerificationResult = null
 if (completedPhases.has('SRS')) {
   log('⏭️ SRS — already DONE (resumed)')
@@ -1268,6 +1326,14 @@ ${[...new Set(allConcerns)].map(c => `- ${c}`).join('\n')}
       agentType: 'codebase-srs-synthesis',
     })
     log(`SRS synthesis complete — ${countIssues(srsSynthesisResult)} UNCERTAINTY flag(s)`)
+
+    // SRS-Synthesis gate — non-cascading: a failed README/traceability gate degrades the artifact but does NOT skip IMP/TST
+    const srsSynthGate = await gateCheck('srs-synthesis', { services, domains },
+      async (fd) => { srsSynthesisResult = await rerunSrsSynthesis(fd) },
+      [foundationPath + 'features/README.md', foundationPath + 'traceability/requirements-matrix.md'],
+      false
+    )
+    srsSynthGatePassed = srsSynthGate.passed
   } else if (successfulSRS === 1 && !skipRemaining) {
     log('SRS: Single domain — synthesis skipped (domain-level README.md in features/ covers this domain, no cross-domain patterns to merge)')
   } else if (skipRemaining) {
@@ -1475,7 +1541,7 @@ if (completedPhases.has('IMP') && completedPhases.has('TST')) {
         const retried = await rerunIMP(fd)
         impResults = retried.filter(Boolean).filter(r => r.type === 'imp' && r.result)
       },
-      domains.map(d => foundationPath + 'backend/*/implementation/FR-' + d.name.toUpperCase() + '-*-impl.md')
+      domains.flatMap(d => [foundationPath + 'backend/*/implementation/FR-' + d.name.toUpperCase() + '-*-impl.md', foundationPath + 'frontend/*/implementation/FR-' + d.name.toUpperCase() + '-*-impl.md'])
     )
     impGatePassed = impGate.passed
   }
@@ -1487,7 +1553,7 @@ if (completedPhases.has('IMP') && completedPhases.has('TST')) {
         const retried = await rerunTST(fd)
         tstResults = retried.filter(Boolean).filter(r => r.type === 'tst' && r.result)
       },
-      domains.map(d => foundationPath + 'backend/*/test-specs/FR-' + d.name.toUpperCase() + '-*-test.md')
+      domains.flatMap(d => [foundationPath + 'backend/*/test-specs/FR-' + d.name.toUpperCase() + '-*-test.md', foundationPath + 'frontend/*/test-specs/FR-' + d.name.toUpperCase() + '-*-test.md'])
     )
     tstGatePassed = tstGate.passed
   }
@@ -1550,7 +1616,9 @@ const tstOk = tstResults.length
 // Gate summary
 const gatePasses = gateResults.filter(g => g.passed).length
 const gateFails = gateResults.filter(g => !g.passed).length
-const exhaustedGates = gateResults.filter(g => !g.passed && g.attempt === MAX_RETRIES)
+// Cascading exhaustion → remaining phases skipped. Non-cascading (synthesis) exhaustion → pipeline continued.
+const exhaustedGates = gateResults.filter(g => !g.passed && g.attempt === MAX_RETRIES && g.cascade !== false)
+const nonCascadingExhausted = gateResults.filter(g => !g.passed && g.attempt === MAX_RETRIES && g.cascade === false)
 
 const pipelineStatus = skipRemaining
   ? 'partial (gate exhaustion)'
@@ -1561,8 +1629,8 @@ const pipelineStatus = skipRemaining
 log('')
 log(`🏁 Pipeline ${pipelineStatus}`)
 log(`   ✅ HLD: ${hldOk ? 'complete' : 'skipped'} | Gate: ${hldGatePassed ? 'PASS' : (hldOk ? 'FAIL' : 'N/A')}`)
-log(`   ✅ LLD: ${lldOk}/${serviceCount} services | Synthesis: ${lldSynthOk ? 'done' : 'skipped'} | Gate: ${lldGatePassed ? 'PASS' : (lldOk > 0 ? 'FAIL' : 'N/A')}`)
-log(`   ✅ SRS: ${srsOk}/${domainCount} domains | Synthesis: ${srsSynthOk ? 'done' : 'skipped'} | Gate: ${srsGatePassed ? 'PASS' : (srsOk > 0 ? 'FAIL' : 'N/A')}`)
+log(`   ✅ LLD: ${lldOk}/${serviceCount} services | Synthesis: ${lldSynthOk ? 'done' : 'skipped'} | Synth gate: ${lldSynthGatePassed ? 'PASS' : (lldSynthOk ? 'FAIL' : 'N/A')} | Gate: ${lldGatePassed ? 'PASS' : (lldOk > 0 ? 'FAIL' : 'N/A')}`)
+log(`   ✅ SRS: ${srsOk}/${domainCount} domains | Synthesis: ${srsSynthOk ? 'done' : 'skipped'} | Synth gate: ${srsSynthGatePassed ? 'PASS' : (srsSynthOk ? 'FAIL' : 'N/A')} | Gate: ${srsGatePassed ? 'PASS' : (srsOk > 0 ? 'FAIL' : 'N/A')}`)
 log(`   ✅ CC: ${ccOk}/5 cross-cutting agents | Gate: ${ccGatePassed ? 'PASS' : (ccOk > 0 ? 'FAIL' : 'N/A')}`)
 log(`   ✅ IMP: ${impOk}/${domainCount} domains | Gate: ${impGatePassed ? 'PASS' : (impOk > 0 ? 'FAIL' : 'N/A')}`)
 log(`   ✅ TST: ${tstOk}/${domainCount} domains | Gate: ${tstGatePassed ? 'PASS' : (tstOk > 0 ? 'FAIL' : 'N/A')}`)
@@ -1573,6 +1641,9 @@ if (srsVerificationResult) {
   log(`   🔍 SRS Verification: ${vs.total} FRs — ${vs.confirmed} CONFIRMED, ${vs.uncertain} UNCERTAIN, ${vs.rejected} REJECTED`)
 }
 log(`   🚦 Gate summary: ${gatePasses} passed, ${gateFails} failed${exhaustedGates.length > 0 ? ` (${exhaustedGates.length} exhausted at ${MAX_RETRIES} retries)` : ''}`)
+if (nonCascadingExhausted.length > 0) {
+  log(`   ⚠️ Non-cascading synthesis gates exhausted (pipeline continued): ${nonCascadingExhausted.map(g => g.phase).join(', ')}`)
+}
 
 if (allWarnings.length > 0) {
   allWarnings.forEach(w => log(`      ${w}`))
@@ -1617,6 +1688,7 @@ Review the completed reverse engineering pipeline and identify gaps.
 - **Total outputs**: ${allOutputs.size} files
 - **Warnings**: ${allWarnings.length} (${allWarnings.join('; ') || 'none'})
 ${exhaustedGates.length > 0 ? `- **GATE EXHAUSTED**: ${exhaustedGates.map(g => g.phase).join(', ')} — remaining phases skipped` : ''}
+${nonCascadingExhausted.length > 0 ? `- **SYNTHESIS GATES EXHAUSTED (non-cascading)**: ${nonCascadingExhausted.map(g => g.phase).join(', ')} — artifacts degraded, pipeline continued` : ''}
 
 ## ${exhaustedGates.length > 0 ? 'CRITICAL — Gate exhaustion occurred. In addition to normal checks, also:' : 'Check For'}
 1. Any service NOT covered by LLD?
@@ -1673,15 +1745,17 @@ return {
     passed: gatePasses,
     failed: gateFails,
     exhausted: exhaustedGates.length,
+    exhaustedNonCascading: nonCascadingExhausted.length,
     results: gateResults.map(g => ({
       phase: g.phase,
       attempt: g.attempt,
       passed: g.passed,
+      cascade: g.cascade,
       summary: g.summary,
     })),
   },
   outputs: [...allOutputs],
   warnings: allWarnings,
   criticFindings: criticResult ? extractSummary(criticResult, 'critic') : null,
-  summary: `Reverse engineered ${serviceCount} service(s) across ${domainCount} domain(s) with ${ccOk}/5 cross-cutting agent(s). ${allOutputs.size} files generated. ${gatePasses}/${gateResults.length} gates passed${exhaustedGates.length > 0 ? `, ${exhaustedGates.length} gates exhausted (remaining phases skipped)` : ''}. ${allWarnings.length} warnings.`,
+  summary: `Reverse engineered ${serviceCount} service(s) across ${domainCount} domain(s) with ${ccOk}/5 cross-cutting agent(s). ${allOutputs.size} files generated. ${gatePasses}/${gateResults.length} gates passed${exhaustedGates.length > 0 ? `, ${exhaustedGates.length} gates exhausted (remaining phases skipped)` : ''}${nonCascadingExhausted.length > 0 ? `, ${nonCascadingExhausted.length} synthesis gate(s) exhausted (pipeline continued)` : ''}. ${allWarnings.length} warnings.`,
 }

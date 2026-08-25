@@ -8,7 +8,7 @@ description: >-
   code", "tạo agent_docs từ codebase", "document codebase", "extract specs
   from code", "đồng bộ tài liệu với code", "generate SDLC docs from source".
 argument-hint: "[--focus <description>] [--scope <path>] [--artifacts hld,lld,srs,imp,tst] [--dry-run]"
-version: 1.5.2
+version: 1.6.0
 user-invocable: true
 category: sdlc
 keywords: [reverse-engineer, codebase, agent-docs, documentation, sdlc, specs-from-code]
@@ -117,8 +117,8 @@ test -f agent_docs/architecture.md && echo "  architecture (HLD)" || true
 test -f agent_docs/README.md && echo "  README (feature index)" || true
 	n=$(ls agent_docs/features/*.md 2>/dev/null | wc -l); [ "$n" -gt 0 ] && echo "  SRS features: $n"
 	n=$(ls agent_docs/tech-design/*.md 2>/dev/null | wc -l); [ "$n" -gt 0 ] && echo "  LLD docs: $n"
-	n=$(ls agent_docs/backend/*/implementation/*.md 2>/dev/null | wc -l); [ "$n" -gt 0 ] && echo "  IMP specs: $n"
-	n=$(ls agent_docs/backend/*/test-specs/*.md 2>/dev/null | wc -l); [ "$n" -gt 0 ] && echo "  TST specs: $n"
+	n=$(ls agent_docs/{backend,frontend}/*/implementation/*.md 2>/dev/null | wc -l); [ "$n" -gt 0 ] && echo "  IMP specs: $n"
+	n=$(ls agent_docs/{backend,frontend}/*/test-specs/*.md 2>/dev/null | wc -l); [ "$n" -gt 0 ] && echo "  TST specs: $n"
 test -f agent_docs/error-handling.md && echo "  error-handling (cross-cutting)" || true
 test -f agent_docs/caching-strategy.md && echo "  caching-strategy (cross-cutting)" || true
 test -f agent_docs/performance-test.md && echo "  performance-test (cross-cutting)" || true

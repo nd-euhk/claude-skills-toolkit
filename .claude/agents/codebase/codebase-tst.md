@@ -37,7 +37,7 @@ where features lack test coverage. Every pattern must have code evidence (`file:
 ## Input Detection
 
 1. **READ scout report FIRST** — primary structured input
-2. Read domain's IMP outputs: `agent_docs/backend/*/implementation/FR-{DOMAIN}-*-impl.md`
+2. Read domain's IMP outputs: `agent_docs/{backend,frontend}/*/implementation/FR-{DOMAIN}-*-impl.md`
 3. Read domain's SRS features: `agent_docs/features/FR-{DOMAIN}-*.md`
 4. Read `agent_docs/architecture.md` — service topology
 5. Your task prompt specifies WHICH domain and its services to analyze
@@ -73,7 +73,9 @@ Agent({
 
 For each feature in your assigned domain, document 4 aspects.
 
-Create `agent_docs/backend/{svc}/test-specs/FR-{DOMAIN}-{NNN}-test.md` for each feature.
+Create `agent_docs/{backend|frontend}/{svc}/test-specs/FR-{DOMAIN}-{NNN}-test.md` for each feature.
+Route by the implementing service's type (from scout report / architecture.md): `backend|node|go|java` →
+`backend/{svc}/...`, `frontend|nextjs|react` → `frontend/{svc}/...`.
 
 ### Per-Feature Test Documentation
 
@@ -171,7 +173,7 @@ End your output with:
 - [ ] Coverage gaps explicitly flagged (NO TESTS FOUND, PARTIAL COVERAGE)
 - [ ] All evidence uses file:line format
 - [ ] Summary for Synthesis section present
-- [ ] All files at correct path: `agent_docs/backend/{svc}/test-specs/FR-{DOMAIN}-{NNN}-test.md`
+- [ ] All files at correct path: `agent_docs/{backend|frontend}/{svc}/test-specs/FR-{DOMAIN}-{NNN}-test.md`
 
 ## Hard Boundaries
 

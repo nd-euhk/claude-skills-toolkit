@@ -143,10 +143,13 @@ const lldSynthesisResult = await agent(lldSynthesisPrompt(lldResults), {
 **Synthesis (1 agent):**
 | Output | Mô tả |
 |--------|-------|
-| `agent_docs/cross-cutting.md` | Cross-service patterns (auth, errors, logging, data, deployment) |
 | `agent_docs/contracts/api-{domain}.yaml` | API contracts grouped by domain |
 | `agent_docs/contracts/error-codes.md` | Canonicalized error codes |
-| FR candidates | For SRS phase domain grouping |
+| FR candidates | For SRS phase domain grouping (trả về dạng text, không phải file) |
+
+> **Ghi chú:** Cross-cutting (error-handling, caching-strategy, performance-test,
+> frontend-architecture, frontend-test-strategy) KHÔNG phải output của LLD Synthesis —
+> chúng do các `codebase-cross-cutting-*` agents tạo trong phase riêng sau SRS.
 
 ### Domain Refinement từ LLD Synthesis
 
@@ -337,12 +340,12 @@ if (allTasks.length > 0) {
 **IMP (M files — 1 per domain, covering all features in domain):**
 | Output | Mô tả |
 |--------|-------|
-| `agent_docs/backend/{svc}/implementation/FR-{DOMAIN}-{NNN}-impl.md` | Execution flow, business rules, data impact, error mapping, security |
+| `agent_docs/{backend|frontend}/{svc}/implementation/FR-{DOMAIN}-{NNN}-impl.md` | Execution flow, business rules, data impact, error mapping, security. Path prefix route theo service type: `backend|node|go|java` → `backend/`, `frontend|nextjs|react` → `frontend/` |
 
 **TST (M files — 1 per domain, covering all features in domain):**
 | Output | Mô tả |
 |--------|-------|
-| `agent_docs/backend/{svc}/test-specs/FR-{DOMAIN}-{NNN}-test.md` | Test architecture, test cases, fixtures, coverage gaps |
+| `agent_docs/{backend|frontend}/{svc}/test-specs/FR-{DOMAIN}-{NNN}-test.md` | Test architecture, test cases, fixtures, coverage gaps. Path prefix route theo service type như IMP |
 
 ---
 

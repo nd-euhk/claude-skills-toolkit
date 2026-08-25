@@ -3,12 +3,12 @@ name: codebase-gate
 description: >-
   Verify reverse-engineered SDLC artifacts against phase-specific gate criteria
   between workflow phases. Use when validating HLD, LLD, LLD-synthesis, SRS,
-  SRS-synthesis, IMP, or TST outputs during the codebase-reverse workflow,
+  SRS-synthesis, cross-cutting, IMP, or TST outputs during the codebase-reverse workflow,
   running post-phase quality gates before proceeding to the next phase, or
   checking if reverse-engineered artifacts meet minimum criteria. Read-only —
   never modifies files. Returns structured PASS/FAIL with specific failures
   for retry. Phase-aware — loads correct criteria set per phase.
-version: 1.0.1
+version: 1.1.0
 model: sonnet
 maxTurn: 15
 tools: Read, Bash
@@ -16,10 +16,6 @@ permissionMode: acceptEdits
 hooks:
   PreToolUse:
     - matcher: "Write|Edit"
-      hooks:
-        - type: command
-          command: "${CLAUDE_PROJECT_DIR}/.claude/scripts/sdlc-validate-agent-output.sh codebase-gate"
-    - matcher: "Bash"
       hooks:
         - type: command
           command: "${CLAUDE_PROJECT_DIR}/.claude/scripts/sdlc-validate-agent-output.sh codebase-gate"
@@ -43,11 +39,12 @@ You receive the phase to validate from the workflow prompt. Gate criteria differ
 |-------|-------------------|
 | `hld` | architecture.md, adrs/, contracts/, hard-boundaries.md |
 | `lld` | Per-service tech-design/*.md (9 sections) |
-| `lld-synthesis` | cross-cutting.md, contracts/api-*.yaml, contracts/error-codes.md |
+| `lld-synthesis` | contracts/api-*.yaml, contracts/error-codes.md |
 | `srs` | Per-domain features/FR-*.md |
 | `srs-synthesis` | features/README.md, traceability/requirements-matrix.md |
-| `imp` | Per-domain backend/*/implementation/FR-*-impl.md |
-| `tst` | Per-domain backend/*/test-specs/FR-*-test.md |
+| `cross-cutting` | Root-level error-handling.md, caching-strategy.md, performance-test.md, frontend-architecture.md, frontend-test-strategy.md (per scope) |
+| `imp` | Per-domain {backend,frontend}/*/implementation/FR-*-impl.md |
+| `tst` | Per-domain {backend,frontend}/*/test-specs/FR-*-test.md |
 
 ## Input Detection
 
@@ -95,14 +92,17 @@ Report per-service: which services pass, which fail, which criteria failed for e
 
 ### GATE: LLD-Synthesis (cross-service merge)
 
-Read `agent_docs/cross-cutting.md`, `agent_docs/contracts/api-*.yaml`, `agent_docs/contracts/error-codes.md`.
+Read `agent_docs/contracts/api-*.yaml`, `agent_docs/contracts/error-codes.md`.
+FR candidates and the service interaction map are returned as agent text (not files) — do NOT
+expect a cross-cutting.md here; cross-cutting concerns are produced by dedicated
+codebase-cross-cutting-* agents in a later phase.
 
 | # | Criterion | How to check |
 |---|-----------|--------------|
-| LS1 | cross-cutting.md covers auth, errors, logging, data, deployment | grep for each of the 5 pattern categories |
-| LS2 | api-{domain}.yaml exists for each cross-service domain | Count domain API contract files vs expected domains |
-| LS3 | error-codes.md canonicalized across all services | grep for deduplicated error codes — no duplicate semantics |
-| LS4 | FR candidates with domain grouping suggestions | grep for FR candidate list or domain grouping in cross-cutting.md |
+| LS1 | Each api-{domain}.yaml has valid OpenAPI structure | grep for `openapi:` and `paths:` in each api yaml |
+| LS2 | API contracts grouped by business domain (not per-service) | Count api-*.yaml files; verify coverage of the domains listed in the workflow context, flag per-service-file grouping |
+| LS3 | error-codes.md canonicalized across all services | grep for deduplicated error codes — no duplicate semantics, consistent format |
+| LS4 | error-codes.md maps each error code to owning service | grep for per-service mapping (service → codes) in error-codes.md |
 
 ### GATE: SRS (per-domain feature extraction)
 
@@ -128,9 +128,25 @@ Read `agent_docs/features/README.md`, `agent_docs/traceability/requirements-matr
 | SS3 | Evidence quality rating per FR (HIGH/MEDIUM/LOW/UNCERTAIN) | grep for `HIGH\|MEDIUM\|LOW\|UNCERTAIN` in requirements-matrix.md |
 | SS4 | Cross-domain dependencies documented | grep for cross-domain or dependency section in requirements-matrix.md |
 
+### GATE: Cross-Cutting (system-wide standards)
+
+Read ONLY the cross-cutting files listed in the workflow `expectedOutputs` — scope varies by project
+(error-handling for backend, caching-strategy when cache infra exists, performance-test when quantified
+NFRs exist, frontend-architecture when frontend services exist, frontend-test-strategy when both
+frontend-architecture and error-handling exist). A criterion whose file is NOT in `expectedOutputs`
+→ mark N/A, do not fail.
+
+| # | Criterion | How to check |
+|---|-----------|--------------|
+| C1 | error-handling.md covers error taxonomy, HTTP mapping, security patterns, logging matrix | grep for taxonomy/HTTP/security/logging sections |
+| C2 | caching-strategy.md covers cache layers, per-service inventory, invalidation, stampede prevention | grep for cache layer/invalidation/stampede sections |
+| C3 | performance-test.md maps SRS NFR targets to test types with pass/fail assertions | grep for NFR targets + test type sections |
+| C4 | frontend-architecture.md covers rendering strategy, state management, data fetching, auth & security | grep for rendering/state/data-fetching sections |
+| C5 | frontend-test-strategy.md covers test pyramid, framework setup, coverage targets | grep for pyramid/framework/coverage sections |
+
 ### GATE: IMP (per-domain implementation documentation)
 
-Read `agent_docs/backend/{svc}/implementation/FR-{DOMAIN}-*-impl.md` for each domain.
+Read `agent_docs/{backend,frontend}/{svc}/implementation/FR-{DOMAIN}-*-impl.md` for each domain.
 
 | # | Criterion | How to check |
 |---|-----------|--------------|
@@ -144,7 +160,7 @@ Report per-domain: which domains pass, which fail, which criteria failed for eac
 
 ### GATE: TST (per-domain test documentation)
 
-Read `agent_docs/backend/{svc}/test-specs/FR-{DOMAIN}-*-test.md` for each domain.
+Read `agent_docs/{backend,frontend}/{svc}/test-specs/FR-{DOMAIN}-*-test.md` for each domain.
 
 | # | Criterion | How to check |
 |---|-----------|--------------|

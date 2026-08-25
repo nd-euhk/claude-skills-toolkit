@@ -73,8 +73,10 @@ Agent({
 
 For each feature in your assigned domain, document 5 aspects.
 
-Create `agent_docs/backend/{svc}/implementation/FR-{DOMAIN}-{NNN}-impl.md` for each feature.
-For cross-service features, create one file referencing all involved services.
+Create `agent_docs/{backend|frontend}/{svc}/implementation/FR-{DOMAIN}-{NNN}-impl.md` for each feature.
+Route by the implementing service's type (from scout report / architecture.md): `backend|node|go|java` →
+`backend/{svc}/...`, `frontend|nextjs|react` → `frontend/{svc}/...`. For cross-service features spanning
+both types, create one file per implementing service, each under its correct prefix.
 
 ### Per-Feature Documentation
 
@@ -158,7 +160,7 @@ End your output with:
 - [ ] Security: authZ rules, input validation, data sanitization
 - [ ] All evidence uses file:line format
 - [ ] Summary for Synthesis section present
-- [ ] All files at correct path: `agent_docs/backend/{svc}/implementation/FR-{DOMAIN}-{NNN}-impl.md`
+- [ ] All files at correct path: `agent_docs/{backend|frontend}/{svc}/implementation/FR-{DOMAIN}-{NNN}-impl.md`
 
 ## Hard Boundaries
 

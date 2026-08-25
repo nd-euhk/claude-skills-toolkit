@@ -97,8 +97,8 @@ check_path() {
       fi
       ;;
     codebase-imp)
-      # Reverse pipeline: backend impl specs only
-      if echo "$file_path" | grep -qE '^agent_docs/backend/[a-z0-9-]+/implementation/FR-[A-Za-z0-9]+-[0-9]{3,}-impl\.md$'; then
+      # Reverse pipeline: backend + frontend impl specs
+      if echo "$file_path" | grep -qE '^agent_docs/(backend|frontend)/[a-z0-9-]+/implementation/FR-[A-Za-z0-9]+-[0-9]{3,}-impl\.md$'; then
         return 0
       fi
       ;;
@@ -108,8 +108,8 @@ check_path() {
       fi
       ;;
     codebase-tst)
-      # Reverse pipeline: backend test-specs only (no performance files)
-      if echo "$file_path" | grep -qE '^agent_docs/backend/[a-z0-9-]+/test-specs/FR-[A-Za-z0-9]+-[0-9]{3,}-test\.md$'; then
+      # Reverse pipeline: backend + frontend test-specs (no performance files)
+      if echo "$file_path" | grep -qE '^agent_docs/(backend|frontend)/[a-z0-9-]+/test-specs/FR-[A-Za-z0-9]+-[0-9]{3,}-test\.md$'; then
         return 0
       fi
       ;;
@@ -130,8 +130,8 @@ check_path() {
       ;;
     sdlc-gate|codebase-gate|sdlc-tdd-be-gate|sdlc-tdd-fe-gate)
       # Read-only gate agents — should never write/edit files.
-      # If this case is reached (via PreToolUse hook), block ALL paths.
-      # Normally no hooks are configured for gate agents, so this is defense-in-depth.
+      # Only Write|Edit PreToolUse hooks remain (Bash hooks removed so gates can
+      # enumerate files read-only). If this case is reached, block ALL write paths.
       echo "[sdlc-validate][$PHASE] BLOCKED: $PHASE is read-only — Write/Edit/Bash output forbidden" >&2
       return 2
       ;;
@@ -176,10 +176,6 @@ extract_bash_paths() {
   # 6. install dest
   local install_dests=$(echo "$cmd" | grep -oP '\binstall\s+(?:-\S+\s+)*.*?\s+\K[^\s;|&]+(?=\s*$|[\s;|&])' | head -10)
   paths+="$install_dests"$'\n'
-
-  # 7. mkdir -p dir (creating directories for files)
-  paths+=$(echo "$cmd" | grep -oP '\bmkdir\s+-p\s+\K[^\s;|&]+' | head -10)
-  paths+=$'\n'
 
   # Filter: only return paths that look like file paths (contain / or common extensions)
   echo "$paths" | grep -E '(^\.work/|^agent_docs/|^projects/|^docs/|\.(md|yaml|yml|json|txt)$)' | sort -u

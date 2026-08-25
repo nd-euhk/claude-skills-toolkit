@@ -325,9 +325,10 @@ Sau mỗi phase trong workflow, parse kết quả và báo cáo:
    📄 Artifacts Generated:
       ✅ HLD — architecture.md, {A} ADRs
       ✅ LLD — {N} service design docs
-      ✅ LLD Synthesis — cross-cutting.md, {D} API domain contracts
+      ✅ LLD Synthesis — {D} API domain contracts, canonical error codes
       ✅ SRS — {M} feature specs across {D} domains
       ✅ SRS Synthesis — traceability matrix, feature index
+      ✅ Cross-Cutting — {C} system-wide standards (error-handling, caching, performance, frontend)
       ✅ IMP — {X} implementation specs
       ✅ TST — {Y} test specs
 
