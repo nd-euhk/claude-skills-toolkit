@@ -1,6 +1,6 @@
-# SDLC Rules — So sánh 8 phiên bản
+# SDLC Rules — So sánh 9 phiên bản
 
-> Dành cho team tự chọn phiên bản. Tags: `sdlc-skill-v4` → `sdlc-skill-v4.1` → `sdlc-skill-v4.2` → `sdlc-skill-v4.3` → `sdlc-skill-v4.4` → `sdlc-skill-v4.5` → `sdlc-skill-v4.6` → `sdlc-skill-v4.7`
+> Dành cho team tự chọn phiên bản. Tags: `sdlc-skill-v4` → `sdlc-skill-v4.1` → `sdlc-skill-v4.2` → `sdlc-skill-v4.3` → `sdlc-skill-v4.4` → `sdlc-skill-v4.5` → `sdlc-skill-v4.6` → `sdlc-skill-v4.7` → `sdlc-skill-v4.8`
 
 ---
 
@@ -177,6 +177,34 @@
 
 ---
 
+## v4.8 — Architecture-First & Review Decoupling
+
+**Làm được:** mọi thứ v4.7 + kiến trúc logical thành phase bắt buộc trước SRS (architect skill system) + review tách 2 skill theo đối tượng (MR vs code cục bộ) + cook-overnight unattended production-ready + output clarity governance.
+
+**Mới so với v4.7:**
+
+| Năng lực | Mô tả |
+|----------|-------|
+| **Architect skill system** | 3 thành phần: `sdlc-architect` (skill gate/router — self-check `agent_docs/architecture.md`, MISSING → BẮT BUỘC tạo), `architect` (skill doer, `user-invocable: false` — consultant, 4 workflow design/review/advisory/discuss, plan mode = human gate), `architect-specialist` (agent opus — executor). Logical architecture chạy PRE-SRS; `sdlc-hld` chuyển sang **REFINE** (giữ quyết định logical, bổ sung physical từ FR). Rule mới `sdlc-architect-rules.md` map hoàn cảnh dùng + boundaries + anti-patterns. |
+| **Architecture Gate** | Orchestrator (3.5.0) + automation (3.6.0) Foundation Gate: task flow bắt buộc `architecture.md` tồn tại trước SRS — MISSING → `Skill("sdlc-architect")` → plan-mode human gate → post-verify → vẫn missing → BLOCKED, không proceed SRS. quick làm rõ không mở rộng scope sang architecture (change chạm service/boundary → escalate orchestrator). |
+| **sdlc-review split (breaking)** | `sdlc-review` (1.3.1) XÓA → 2 skill: `sdlc-review-mr` 2.0.0 (review MR/PR trên gh/glab CLI, interactive-only, side-effect post comment) + `sdlc-review-codechange` 1.0.0 (review code cục bộ 7 dimension, **UNATTENDED contract** — zero prompt, error handling deterministic, verdict machine-readable cho CI/review đêm). Migration toàn bộ consumer (orchestrator, cook, quick, scout, oss-scan). |
+| **Diff-scope review** | `sdlc-review-codechange` 1.1.0: scope review vào **diff giữa 2 branch** — `--base <branch>` hoặc auto-detect `origin/HEAD` → fallback main/master; KHÔNG dùng `@{upstream}` (feature branch đã `-u` thì upstream = chính nó). `--full-tree` opt-out cho audit module / working copy. |
+| **Spec Compliance dimension** | `sdlc-review-codechange` 1.2.0: `--specs <path>` (SRS+IMP+TST) → trace business rule/Gherkin/execution-flow → code → traceability matrix GAP/PARTIAL/DIVERGENT/IMPLEMENTED. Bắt **requirement THIẾU** mà 7 dimension cũ không bắt được (Bugs bắt code sai chỗ CÓ, không ai bắt chỗ THIẾU). `--full` = 8 dimension; unattended default = lean gating trio `[security, bugs, spec]` (giảm ~60% chi phí đêm). |
+| **sdlc-cook-overnight** | Skill mới 1.0.0 → 1.3.0: batch-cook nhiều feature TDD **qua đêm, unattended**. Interactive Batch Plan (sequential/parallel/pick features) → unattended execution (dispatch `workflow-sdlc-cook.js` per feature) → auto PR (không auto-merge) → morning report `.work/reports/overnight-YYYYMMDD.md`. 2-type project model: Type 1 (submodule in-place tuần tự + restore `original_branch`), Type 2 (worktree isolation parallel an toàn khi disjoint service). Failure isolation — 1 feature fail không lan sang feature khác. |
+| **Overnight hardening** | Harness Setup (detect build tool → test command + JUnit output dir, cài deps cho worktree mới), Baseline Gate (HARD-FAIL không có baseline → SKIP feature + ghi rõ lý do, không dispatch mù), PR đa-host (GitHub→`gh`, GitLab→`glab` kể cả self-host + auth guard không treo đêm), Night review (lean trio trước PR, không chặn creation). |
+| **sdlc-output-rules** | Rule mới: **3 tầng acronym** — (1) chuẩn ngành = identifier giữ nguyên trong `agent_docs/`; (2) business/domain-specific hoặc viết tắt tự chế → mở rộng lần đầu hoặc glossary; (3) output human-facing (gate report, review, escalation, PR description, `docs/`) → mở rộng lần đầu. |
+| **Fable-thinking APPLY mode** | Rule mới: document-production từ context đã **human-chốt** → effort thấp, KHÔNG load skill/không viết moves/attack pass. Không dùng để né hard trigger — phần contested trong APPLY vẫn escalate lên gate/human. |
+| **Telemetry hooks removal** | Xóa SessionStart/SessionEnd telemetry hooks (`.claude/hooks.json` + settings). Bật Proactive output style. |
+| **Reverse pipeline hardening** | codebase-reverse: interpolate `${scoutReportPath}`/`${foundationPath}` (fix hardcoded path), LLD path nhất quán về top-level `tech-design/{svc}-service.md` (khớp forward + hook allowlist), **synthesis gates** (lld-synthesis + srs-synthesis, non-cascading — fail không skip SRS/IMP/TST) + **frontend routing** cho IMP/TST (`backend/{svc}/` vs `frontend/{svc}/` theo service type của FR). |
+| **FR granularity guard** | `sdlc-srs` granularity rule: mỗi FR = một business capability; KHÔNG tách field/validation/shared concern thành FR. Discriminator test (xóa FR đi mà không business rule biến mất → không phải FR). Criterion S5 backstop trong orchestrator + sdlc-gate. |
+| **Gate + validate hardening** | Gate agents (sdlc-gate, tdd-be/fe-gate) bỏ Bash PreToolUse hook (giữ Write|Edit — write vẫn bị chặn defense-in-depth). Validate script allowlist path từ prefix-loose → **exact filename patterns** + placeholder `${CLAUDE_PROJECT_DIR}` (fix 13 agent hook exit 127 — guard im lặng vô hiệu). Verified 103/103 test case. |
+
+**Khác biệt chính với v4.7:** Thêm tầng **architecture-first** — kiến trúc logical thành phase bắt buộc trước SRS với consultant-based architect skill + plan-mode human gate; sdlc-hld chỉ REFINE, không recreate. Review **decoupled theo đối tượng** — MR interactive vs code cục bộ có unattended contract cho CI/đêm. Cook-overnight trưởng thành 1.0.0 → 1.3.0 (harness setup, baseline gate, PR đa-host, night review). Output clarity governance qua sdlc-output-rules. Hardening đáng kể cho reverse pipeline (synthesis gates + frontend routing) và validate script (exact filename patterns).
+
+**Lưu ý:** v4.8 là **major** over v4.7 — `sdlc-review` bị xóa (breaking), tách thành `sdlc-review-mr` + `sdlc-review-codechange`. Plugin version 2.37.0 → 3.7.0 (breaking tại 3.0.0 — review split). Architect system chạy PRE-SRS; post-SRS physical HLD vẫn do sdlc-hld.
+
+---
+
 ## Bảng chọn theo nhu cầu
 
 | Nhu cầu | Chọn |
@@ -189,6 +217,7 @@
 | Muốn tất cả v4.4 + cook độc lập + production hardening + executable reasoning rules | **v4.5** |
 | Muốn v4.5 + agent không viết Java sai do knowledge cutoff (Java 25 / Spring Boot 4) + hardening fixes | **v4.6** |
 | Muốn v4.6 + tuân thủ license OSS trước release (batch scan → risk research → gate, decisions cần LRB) | **v4.7** |
+| Muốn v4.7 + kiến trúc được human chốt trước SRS + review tách MR/codechange (unattended) + batch-cook qua đêm | **v4.8** |
 
 ## Bảng chọn theo team profile
 
@@ -202,3 +231,4 @@
 | Muốn production-grade pipeline: cook độc lập, workflow production-hardened, reasoning rules executable | v4.5 | Tất cả v4.4 + production hardening + standalone cook + ~1400 dòng code chết bị xóa |
 | Muốn v4.5 + stack knowledge enforcement cho Java 25 / Spring Boot 4 + toàn bộ hardening fixes | v4.6 | Tất cả v4.5 + knowledge skills bắt buộc + 5 hardening fixes post-eval |
 | Muốn v4.6 + kiểm soát license OSS batch trước release, kết nối với sdlc-review | v4.7 | Tất cả v4.6 + oss-scan standalone + cross-skill suggestion từ review |
+| Muốn v4.7 + kiến trúc bắt buộc trước SRS + review tự động chạy đêm (CI) + output clarity chuẩn hóa | v4.8 | Tất cả v4.7 + architect system + review decoupling + cook-overnight unattended + output rules |
