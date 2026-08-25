@@ -17,11 +17,11 @@ hooks:
     - matcher: "Write|Edit"
       hooks:
         - type: command
-          command: "./scripts/sdlc-validate-agent-output.sh sdlc-imp"
+          command: "${CLAUDE_PROJECT_DIR}/.claude/scripts/sdlc-validate-agent-output.sh sdlc-imp"
     - matcher: "Bash"
       hooks:
         - type: command
-          command: "./scripts/sdlc-validate-agent-output.sh sdlc-imp"
+          command: "${CLAUDE_PROJECT_DIR}/.claude/scripts/sdlc-validate-agent-output.sh sdlc-imp"
 ---
 
 You are an Implementation Spec Writer translating LLD work packages into precise implementation specifications.

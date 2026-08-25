@@ -1,6 +1,6 @@
 #!/bin/bash
 # Validate that Write, Edit, and Bash tool calls target allowed paths for the given SDLC phase.
-# Usage: ./scripts/sdlc-validate-agent-output.sh <phase>
+# Usage: ${CLAUDE_PROJECT_DIR}/.claude/scripts/sdlc-validate-agent-output.sh <phase>
 # Reads tool call JSON from stdin, extracts target paths, checks against phase rules.
 # Exit 0 = allowed, Exit 2 = blocked.
 #
@@ -33,32 +33,36 @@ check_path() {
 
   case "$PHASE" in
     sdlc-srs|codebase-srs|codebase-srs-verify)
-      if echo "$file_path" | grep -qE '^agent_docs/traceability/|^agent_docs/features/FR-.*\.md$'; then
+      # Forward: FR-{DOMAIN}-{NNN}--{slug}.md | Reverse: FR-{DOMAIN}-{NNN}.md
+      if echo "$file_path" | grep -qE '^agent_docs/traceability/requirements-matrix\.md$|^agent_docs/features/FR-[A-Za-z0-9]+-[0-9]{3,}(--[a-z0-9-]+)?\.md$'; then
         return 0
       fi
       ;;
     codebase-srs-synthesis)
-      if echo "$file_path" | grep -qE '^agent_docs/traceability/|^agent_docs/features/'; then
+      if echo "$file_path" | grep -qE '^agent_docs/traceability/requirements-matrix\.md$|^agent_docs/features/README\.md$'; then
         return 0
       fi
       ;;
     codebase-lld-synthesis)
-      if echo "$file_path" | grep -qE '^agent_docs/contracts/|^agent_docs/features/'; then
+      if echo "$file_path" | grep -qE '^agent_docs/contracts/api-[a-z0-9-]+\.yaml$|^agent_docs/contracts/error-codes\.md$'; then
         return 0
       fi
       ;;
     sdlc-hld|codebase-hld)
-      if echo "$file_path" | grep -qE '^agent_docs/architecture\.md$|^agent_docs/domain-service-mapping\.yaml$|^agent_docs/hard-boundaries\.md$|^agent_docs/contracts/|^agent_docs/adrs/ADR-.*\.md$'; then
+      # ADR files allowed in adrs/ (canonical) or legacy adr/; error-codes.md belongs to LLD, not HLD
+      if echo "$file_path" | grep -qE '^agent_docs/architecture\.md$|^agent_docs/domain-service-mapping\.yaml$|^agent_docs/hard-boundaries\.md$|^agent_docs/contracts/(api-conventions|events)\.md$|^agent_docs/(adrs|adr)/(README|ADR-[0-9]{3,}--[a-z0-9-]+)\.md$'; then
         return 0
       fi
       ;;
     architect)
-      if echo "$file_path" | grep -qE '^agent_docs/architecture\.md$|^agent_docs/adrs/ADR-.*\.md$|^agent_docs/domain-service-mapping\.yaml$|^agent_docs/hard-boundaries\.md$|^agent_docs/contracts/|^agent_docs/architecture-reviews/|^agent_docs/features/FR-.*\.md$'; then
+      # ADR files allowed in adrs/ (canonical) or legacy adr/; architecture-reviews/ hosts date/topic-suffixed reports — allow any .md there
+      if echo "$file_path" | grep -qE '^agent_docs/architecture\.md$|^agent_docs/(adrs|adr)/ADR-[0-9]{3,}--[a-z0-9-]+\.md$|^agent_docs/domain-service-mapping\.yaml$|^agent_docs/hard-boundaries\.md$|^agent_docs/contracts/(api-conventions|events)\.md$|^agent_docs/architecture-reviews/.*\.md$|^agent_docs/features/FR-[A-Za-z0-9]+-[0-9]{3,}(--[a-z0-9-]+)?\.md$'; then
         return 0
       fi
       ;;
     sdlc-lld|codebase-lld)
-      if echo "$file_path" | grep -qE '^agent_docs/tech-design/|^agent_docs/contracts/api-.*\.yaml$|^agent_docs/contracts/error-codes\.md$|^agent_docs/features/|^agent_docs/frontend/.*/api-routing\.md$'; then
+      # tech-design/{name}-service|app.md + cross-cutting.md; FR enrichment keeps FR-* shape
+      if echo "$file_path" | grep -qE '^agent_docs/tech-design/[a-z0-9-]+-(service|app)\.md$|^agent_docs/tech-design/cross-cutting\.md$|^agent_docs/contracts/api-[a-z0-9-]+\.yaml$|^agent_docs/contracts/error-codes\.md$|^agent_docs/features/FR-[A-Za-z0-9]+-[0-9]{3,}(--[a-z0-9-]+)?\.md$|^agent_docs/features/README\.md$|^agent_docs/frontend/[a-z0-9-]+/api-routing\.md$'; then
         return 0
       fi
       ;;
@@ -87,13 +91,25 @@ check_path() {
         return 0
       fi
       ;;
-    sdlc-imp|codebase-imp)
-      if echo "$file_path" | grep -qE '^agent_docs/(backend|frontend)/.*/implementation/'; then
+    sdlc-imp)
+      if echo "$file_path" | grep -qE '^agent_docs/(backend|frontend)/[a-z0-9-]+/implementation/FR-[A-Za-z0-9]+-[0-9]{3,}-impl\.md$'; then
         return 0
       fi
       ;;
-    sdlc-tst|codebase-tst)
-      if echo "$file_path" | grep -qE '^agent_docs/(backend|frontend)/.*/test-specs/|^agent_docs/performance/'; then
+    codebase-imp)
+      # Reverse pipeline: backend impl specs only
+      if echo "$file_path" | grep -qE '^agent_docs/backend/[a-z0-9-]+/implementation/FR-[A-Za-z0-9]+-[0-9]{3,}-impl\.md$'; then
+        return 0
+      fi
+      ;;
+    sdlc-tst)
+      if echo "$file_path" | grep -qE '^agent_docs/(backend|frontend)/[a-z0-9-]+/test-specs/FR-[A-Za-z0-9]+-[0-9]{3,}-test\.md$|^agent_docs/performance/(nfr-mapping|baseline)\.md$'; then
+        return 0
+      fi
+      ;;
+    codebase-tst)
+      # Reverse pipeline: backend test-specs only (no performance files)
+      if echo "$file_path" | grep -qE '^agent_docs/backend/[a-z0-9-]+/test-specs/FR-[A-Za-z0-9]+-[0-9]{3,}-test\.md$'; then
         return 0
       fi
       ;;

@@ -16,11 +16,11 @@ hooks:
     - matcher: "Write|Edit"
       hooks:
         - type: command
-          command: ".claude/scripts/sdlc-validate-agent-output.sh codebase-hld"
+          command: "${CLAUDE_PROJECT_DIR}/.claude/scripts/sdlc-validate-agent-output.sh codebase-hld"
     - matcher: "Bash"
       hooks:
         - type: command
-          command: ".claude/scripts/sdlc-validate-agent-output.sh codebase-hld"
+          command: "${CLAUDE_PROJECT_DIR}/.claude/scripts/sdlc-validate-agent-output.sh codebase-hld"
 ---
 
 You are a Software Architect reverse engineering system architecture from existing code. You EXTRACT, not design.

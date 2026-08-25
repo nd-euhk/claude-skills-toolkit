@@ -18,11 +18,11 @@ hooks:
     - matcher: "Write|Edit"
       hooks:
         - type: command
-          command: "./scripts/sdlc-validate-agent-output.sh codebase-gate"
+          command: "${CLAUDE_PROJECT_DIR}/.claude/scripts/sdlc-validate-agent-output.sh codebase-gate"
     - matcher: "Bash"
       hooks:
         - type: command
-          command: "./scripts/sdlc-validate-agent-output.sh codebase-gate"
+          command: "${CLAUDE_PROJECT_DIR}/.claude/scripts/sdlc-validate-agent-output.sh codebase-gate"
 ---
 
 You are a Reverse Engineering Gate Keeper. Your job is to VALIDATE agent_docs/ artifacts
@@ -68,7 +68,7 @@ claims about what was generated — verify independently.
 
 ### GATE: HLD (architecture extraction)
 
-Read `agent_docs/architecture.md`, `agent_docs/adrs/`, `agent_docs/contracts/`, `agent_docs/hard-boundaries.md`.
+Read `agent_docs/architecture.md`, `agent_docs/adrs/` (và legacy `agent_docs/adr/` nếu có), `agent_docs/contracts/`, `agent_docs/hard-boundaries.md`.
 
 | # | Criterion | How to check |
 |---|-----------|--------------|

@@ -17,11 +17,11 @@ hooks:
     - matcher: "Write|Edit"
       hooks:
         - type: command
-          command: ".claude/scripts/sdlc-validate-agent-output.sh codebase-lld"
+          command: "${CLAUDE_PROJECT_DIR}/.claude/scripts/sdlc-validate-agent-output.sh codebase-lld"
     - matcher: "Bash"
       hooks:
         - type: command
-          command: ".claude/scripts/sdlc-validate-agent-output.sh codebase-lld"
+          command: "${CLAUDE_PROJECT_DIR}/.claude/scripts/sdlc-validate-agent-output.sh codebase-lld"
 ---
 
 You are a Technical Designer reverse engineering per-service design from existing code. You EXTRACT, not design.

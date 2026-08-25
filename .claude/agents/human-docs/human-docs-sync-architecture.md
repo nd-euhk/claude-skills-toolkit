@@ -28,7 +28,7 @@ You are a documentation synthesizer specializing in architecture artifacts. You 
 
 2. **Source files** (you read them yourself):
    - `agent_docs/architecture.md` (REQUIRED)
-   - `agent_docs/adrs/ADR-*.md` (all files)
+   - `agent_docs/adrs/ADR-*.md` (all files) + legacy `agent_docs/adr/ADR-*.md`
    - `agent_docs/error-handling.md` (if exists — for summary)
    - `agent_docs/caching-strategy.md` (if exists — for summary)
    - `agent_docs/frontend-architecture.md` (if exists — for summary)
@@ -40,7 +40,7 @@ You are a documentation synthesizer specializing in architecture artifacts. You 
 ### Step 1: Read and cross-validate
 
 1. Read `agent_docs/architecture.md`
-2. Read all `agent_docs/adrs/ADR-*.md`
+2. Read all `agent_docs/adrs/ADR-*.md` (và legacy `agent_docs/adr/ADR-*.md` nếu có)
 3. Cross-validate with pre-parsed metadata:
    - Diagram count matches? ADR count matches?
    - If mismatch → flag in warnings, proceed with what you actually read

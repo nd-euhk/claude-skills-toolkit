@@ -2,6 +2,38 @@
 
 All notable changes to the skills-toolkit plugin are documented here.
 
+## [3.6.1] - 2026-08-25
+
+### Changed
+
+- **`sdlc-srs`:** fix FR over-splitting — thêm **granularity rule** vào Step 1 "Discover
+  Features": mỗi FR = một business capability (user-perceivable action có business rule riêng);
+  KHÔNG tách field, validation rule, shared data element, hay cross-cutting concern thành FR
+  độc lập (chúng là Input/validation trong FR, hoặc cross-cutting standards). Kèm
+  **discriminator test** (xóa FR đi mà không business rule nào biến mất → không phải FR) và
+  ví dụ `nextinput`. Thêm self-check tương ứng vào Step 5 Self-Check Gate.
+- **`sdlc-orchestrator` 1.15.1:** PATCH — thêm criterion **S5** vào SRS Gate: mỗi FR map đến
+  business capability, không có FR nào là field/validation/shared concern độc lập. Backstop
+  cho granularity rule của `sdlc-srs`.
+- **`sdlc-gate` 1.0.3:** PATCH — thêm criterion **S5** vào GATE: SRS (bảng criteria chính +
+  per-criteria summary): mỗi FR map đến business capability. Đảm bảo gate agent thực sự
+  enforce S5 khi chạy, không chỉ nằm ở orchestrator dispatch layer.
+- **`subagents` (hooks):** fix validate hook command — đồng bộ `${CLAUDE_PROJECT_DIR}/.claude/scripts/
+  sdlc-validate-agent-output.sh <phase>` cho toàn bộ 31 agent có PreToolUse hook. Trước đó 13 agent
+  dùng `./scripts/...` (path sai → exit 127 = guard im lặng vô hiệu), 18 agent dùng `.claude/scripts/...`.
+  Dùng placeholder `${CLAUDE_PROJECT_DIR}` vì hook command resolve theo cwd — deterministic bất kể
+  working directory.
+- **`.claude/scripts/sdlc-validate-agent-output.sh`:** siết allowlist path từ prefix-loose sang
+  **exact filename patterns** — chống agent tự bịa tên file (FR/impl/test) khi context lớn. FR bắt
+  buộc `FR-{DOMAIN}-{NNN}--{slug}.md` (forward) / `FR-{DOMAIN}-{NNN}.md` (reverse); impl/test bắt
+  buộc suffix `-impl`/`-test`; tách `codebase-imp`/`codebase-tst` (backend-only) khỏi `sdlc-imp`/
+  `sdlc-tst` (backend+frontend) theo đúng scope tài liệu; cho phép ADR index `adrs/README.md`; gate
+  agent chặn mọi write (defense-in-depth). Verified 103/103 test case.
+- **`agents` (ADR access):** cho phép đọc + refine ADR ở cả `agent_docs/adrs/` (canonical) và
+  `agent_docs/adr/` (legacy — bộ cũ có thể ghi vào `adr/`). Read-instruction của 6 agent đọc ADR
+  (sdlc-hld REFINE, sdlc-gate, codebase-gate, architect-specialist, human-docs-sync-architecture,
+  human-docs-review) cập nhật check cả 2 dir; HLD/architect write allowlist nhận cả `adr/`.
+
 ## [3.6.0] - 2026-08-24
 
 ### Changed

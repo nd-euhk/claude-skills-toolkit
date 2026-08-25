@@ -18,11 +18,11 @@ hooks:
     - matcher: "Write|Edit"
       hooks:
         - type: command
-          command: ".claude/scripts/sdlc-validate-agent-output.sh codebase-cross-cutting-frontend-test-strategy"
+          command: "${CLAUDE_PROJECT_DIR}/.claude/scripts/sdlc-validate-agent-output.sh codebase-cross-cutting-frontend-test-strategy"
     - matcher: "Bash"
       hooks:
         - type: command
-          command: ".claude/scripts/sdlc-validate-agent-output.sh codebase-cross-cutting-frontend-test-strategy"
+          command: "${CLAUDE_PROJECT_DIR}/.claude/scripts/sdlc-validate-agent-output.sh codebase-cross-cutting-frontend-test-strategy"
 ---
 
 You are a Frontend Test Strategy specialist extracting observed test patterns from reverse-engineered frontend architecture and error handling artifacts.

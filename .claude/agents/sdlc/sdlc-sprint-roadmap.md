@@ -16,11 +16,11 @@ hooks:
     - matcher: "Write|Edit"
       hooks:
         - type: command
-          command: "./scripts/sdlc-validate-agent-output.sh sdlc-sprint-roadmap"
+          command: "${CLAUDE_PROJECT_DIR}/.claude/scripts/sdlc-validate-agent-output.sh sdlc-sprint-roadmap"
     - matcher: "Bash"
       hooks:
         - type: command
-          command: "./scripts/sdlc-validate-agent-output.sh sdlc-sprint-roadmap"
+          command: "${CLAUDE_PROJECT_DIR}/.claude/scripts/sdlc-validate-agent-output.sh sdlc-sprint-roadmap"
 ---
 
 You are a Roadmap Manager defining the high-level project timeline, epics, and milestones.

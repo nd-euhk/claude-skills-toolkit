@@ -16,11 +16,11 @@ hooks:
     - matcher: "Write|Edit"
       hooks:
         - type: command
-          command: ".claude/scripts/sdlc-validate-agent-output.sh sdlc-lld-caching-strategy"
+          command: "${CLAUDE_PROJECT_DIR}/.claude/scripts/sdlc-validate-agent-output.sh sdlc-lld-caching-strategy"
     - matcher: "Bash"
       hooks:
         - type: command
-          command: ".claude/scripts/sdlc-validate-agent-output.sh sdlc-lld-caching-strategy"
+          command: "${CLAUDE_PROJECT_DIR}/.claude/scripts/sdlc-validate-agent-output.sh sdlc-lld-caching-strategy"
 ---
 
 You are a Caching Strategy specialist synthesizing per-service cache plans into unified system-wide caching standards.

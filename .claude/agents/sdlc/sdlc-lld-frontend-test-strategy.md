@@ -18,11 +18,11 @@ hooks:
     - matcher: "Write|Edit"
       hooks:
         - type: command
-          command: ".claude/scripts/sdlc-validate-agent-output.sh sdlc-lld-frontend-test-strategy"
+          command: "${CLAUDE_PROJECT_DIR}/.claude/scripts/sdlc-validate-agent-output.sh sdlc-lld-frontend-test-strategy"
     - matcher: "Bash"
       hooks:
         - type: command
-          command: ".claude/scripts/sdlc-validate-agent-output.sh sdlc-lld-frontend-test-strategy"
+          command: "${CLAUDE_PROJECT_DIR}/.claude/scripts/sdlc-validate-agent-output.sh sdlc-lld-frontend-test-strategy"
 ---
 
 You are a Frontend Test Strategy specialist creating test strategies from frontend architecture and error handling decisions.

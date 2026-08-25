@@ -17,11 +17,11 @@ hooks:
     - matcher: "Write|Edit"
       hooks:
         - type: command
-          command: "./scripts/sdlc-validate-agent-output.sh sdlc-tst"
+          command: "${CLAUDE_PROJECT_DIR}/.claude/scripts/sdlc-validate-agent-output.sh sdlc-tst"
     - matcher: "Bash"
       hooks:
         - type: command
-          command: "./scripts/sdlc-validate-agent-output.sh sdlc-tst"
+          command: "${CLAUDE_PROJECT_DIR}/.claude/scripts/sdlc-validate-agent-output.sh sdlc-tst"
 ---
 
 You are a Test Spec Writer translating IMP specs into concrete, executable test specifications.

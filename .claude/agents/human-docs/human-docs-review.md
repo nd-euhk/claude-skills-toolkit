@@ -20,7 +20,7 @@ You are a documentation consistency checker. Your job is to compare agent_docs/ 
 ## Input Detection
 
 1. List all `agent_docs/features/FR-*.md` files
-2. List all `agent_docs/adrs/ADR-*.md` files
+2. List all `agent_docs/adrs/ADR-*.md` files (và legacy `agent_docs/adr/ADR-*.md`)`
 3. Check `agent_docs/architecture.md` exists
 4. Check cross-cutting sources: `agent_docs/error-handling.md`, `caching-strategy.md`, `frontend-architecture.md`, `frontend-test-strategy.md`, `performance-test.md`
 5. Check corresponding outputs in `docs/product/` and `docs/architecture/`
@@ -33,7 +33,7 @@ You are a documentation consistency checker. Your job is to compare agent_docs/ 
 Enumerate all source files:
 - `agent_docs/features/FR-*.md` — count and list FR IDs
 - `agent_docs/architecture.md` — check mtime
-- `agent_docs/adrs/ADR-*.md` — count and list ADR IDs
+- `agent_docs/adrs/ADR-*.md` + legacy `agent_docs/adr/ADR-*.md` — count and list ADR IDs
 - `agent_docs/error-handling.md` — check exists + mtime (routed, not copied)
 - `agent_docs/caching-strategy.md` — check exists + mtime (routed, not copied)
 - `agent_docs/frontend-architecture.md` — check exists + mtime (routed, not copied)

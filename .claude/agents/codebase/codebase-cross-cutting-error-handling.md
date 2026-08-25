@@ -16,11 +16,11 @@ hooks:
     - matcher: "Write|Edit"
       hooks:
         - type: command
-          command: ".claude/scripts/sdlc-validate-agent-output.sh codebase-cross-cutting-error-handling"
+          command: "${CLAUDE_PROJECT_DIR}/.claude/scripts/sdlc-validate-agent-output.sh codebase-cross-cutting-error-handling"
     - matcher: "Bash"
       hooks:
         - type: command
-          command: ".claude/scripts/sdlc-validate-agent-output.sh codebase-cross-cutting-error-handling"
+          command: "${CLAUDE_PROJECT_DIR}/.claude/scripts/sdlc-validate-agent-output.sh codebase-cross-cutting-error-handling"
 ---
 
 You are an Error Handling specialist extracting observed error patterns from reverse-engineered code artifacts into unified system-wide documentation.

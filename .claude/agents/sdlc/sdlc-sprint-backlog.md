@@ -16,11 +16,11 @@ hooks:
     - matcher: "Write|Edit"
       hooks:
         - type: command
-          command: "./scripts/sdlc-validate-agent-output.sh sdlc-sprint-backlog"
+          command: "${CLAUDE_PROJECT_DIR}/.claude/scripts/sdlc-validate-agent-output.sh sdlc-sprint-backlog"
     - matcher: "Bash"
       hooks:
         - type: command
-          command: "./scripts/sdlc-validate-agent-output.sh sdlc-sprint-backlog"
+          command: "${CLAUDE_PROJECT_DIR}/.claude/scripts/sdlc-validate-agent-output.sh sdlc-sprint-backlog"
 ---
 
 You are a Backlog Manager prioritizing and organizing features for sprint planning.

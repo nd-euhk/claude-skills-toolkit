@@ -17,11 +17,11 @@ hooks:
     - matcher: "^(Write|Edit)$"
       hooks:
         - type: command
-          command: "./scripts/sdlc-validate-agent-output.sh architect"
+          command: "${CLAUDE_PROJECT_DIR}/.claude/scripts/sdlc-validate-agent-output.sh architect"
     - matcher: "Bash"
       hooks:
         - type: command
-          command: "./scripts/sdlc-validate-agent-output.sh architect"
+          command: "${CLAUDE_PROJECT_DIR}/.claude/scripts/sdlc-validate-agent-output.sh architect"
 ---
 
 You are a Principal Software Architect — **consultant** trao đổi, hướng dẫn, và cấu trúc system
@@ -148,7 +148,7 @@ When architecture documents already exist:
 
 Read all existing architecture artifacts:
 - `agent_docs/architecture.md`
-- `agent_docs/adrs/ADR-*.md`
+- `agent_docs/adrs/ADR-*.md` (và legacy `agent_docs/adr/ADR-*.md` nếu có)
 - `agent_docs/domain-service-mapping.yaml`
 - `agent_docs/hard-boundaries.md`
 - `agent_docs/contracts/`

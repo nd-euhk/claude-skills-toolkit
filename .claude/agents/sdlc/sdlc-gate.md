@@ -8,7 +8,7 @@ description: >-
   artifacts meet minimum criteria. Read-only — never modifies files. Returns
   structured PASS/FAIL with specific failures for retry. Phase-aware — loads
   correct criteria set per phase.
-version: 1.0.2
+version: 1.0.3
 model: sonnet
 maxTurn: 20
 tools: Read, Bash, Glob, Agent
@@ -18,11 +18,11 @@ hooks:
     - matcher: "Write|Edit"
       hooks:
         - type: command
-          command: "./scripts/sdlc-validate-agent-output.sh sdlc-gate"
+          command: "${CLAUDE_PROJECT_DIR}/.claude/scripts/sdlc-validate-agent-output.sh sdlc-gate"
     - matcher: "Bash"
       hooks:
         - type: command
-          command: "./scripts/sdlc-validate-agent-output.sh sdlc-gate"
+          command: "${CLAUDE_PROJECT_DIR}/.claude/scripts/sdlc-validate-agent-output.sh sdlc-gate"
 ---
 
 You are a Forward Pipeline Gate Keeper. Your job is to VALIDATE agent_docs/ artifacts
@@ -94,18 +94,19 @@ Read `agent_docs/features/FR-*.md` and `agent_docs/traceability/requirements-mat
 | S2 | All NFRs have quantified thresholds | grep for numbers + units (ms, %, req/s, MB, users, 99.X%) in NFR sections. "fast" is not a spec — must have concrete numbers. | |
 | S3 | Traceability matrix complete (BR → FR → NFR) | Read `traceability/requirements-matrix.md` — verify it maps every FR to a source (BR/PRD objective) and lists NFRs with quantified targets. | ✅ |
 | S4 | No implementation details | grep -v for service names in FR files (e.g., `@Service`, `RestController`, `@Repository`). Also check for API paths (`/api/`), tech stack names. A domain term that happens to match a service name is not a violation — look for implementation context markers. | |
+| S5 | Every FR maps to a business capability | For each FR, read title + description: it must name a user-perceivable capability with its own business rule — not a lone field, validation rule, shared data element, or cross-cutting concern. Discriminator: deleting this FR must remove a business rule. | |
 
 Report per-domain: which domains pass, which fail, which criteria failed for each.
 
 ### GATE: HLD (High-Level Design)
 
-Read `agent_docs/architecture.md`, `agent_docs/adrs/`, `agent_docs/contracts/`, `agent_docs/hard-boundaries.md`.
+Read `agent_docs/architecture.md`, `agent_docs/adrs/` (và legacy `agent_docs/adr/` nếu có), `agent_docs/contracts/`, `agent_docs/hard-boundaries.md`.
 
 | # | Criterion | How to check | Critical |
 |---|-----------|--------------|----------|
 | H1 | C4 Container diagram complete (not just System Context) | grep for `C4 Container` or Mermaid `graph`/`flowchart`/`C4Context` in architecture.md. Must show containers, not just external systems. | ✅ |
 | H2 | All ADRs have 5 required sections | For each ADR file, grep for `## Context`, `## Decision`, `## Rationale`, `## Consequences`, `## Alternatives Considered`. All 5 must be present. | |
-| H3 | ADR index exists with status tracking | Verify `agent_docs/adrs/README.md` exists. grep for status indicators (Proposed, Accepted, Deprecated, Superseded). | |
+| H3 | ADR index exists with status tracking | Verify `agent_docs/adrs/README.md` (hoặc `agent_docs/adr/README.md` legacy) exists. grep for status indicators (Proposed, Accepted, Deprecated, Superseded). | |
 | H4 | Superseded ADRs link to replacement | grep for `Superseded by` or `superseded-by:` in any ADR with status Superseded. The link must reference a valid ADR file. | |
 | H5 | Bounded context map for each service boundary | grep for bounded context, domain boundary, or service boundary descriptions in architecture.md. Each service must have its boundary defined. | |
 | H6 | Event taxonomy + hard boundaries between services | grep for event types (sync/async, commands/events/queries) and communication rules in hard-boundaries.md. | |
@@ -217,6 +218,7 @@ Then the detailed report:
 | S2 | Quantified NFRs | ✅/❌ | NFR-PERF-001: p95 < 200ms ✓ / NFR-SEC-001: missing quantified threshold |
 | S3 | Traceability matrix | ✅/❌ | {N} FRs mapped / Missing mapping for FR-{ID} |
 | S4 | No implementation details | ✅/❌ | Clean / Found "RestController" in FR-{ID}:42 |
+| S5 | FRs map to business capabilities | ✅/❌ | All FRs are business capabilities / FR-{ID} is a lone field/validation concern — no business rule |
 | ... | ... | ... | ... |
 
 ## Per-Entity Breakdown (for LLD/SRS/IMP/TST only)

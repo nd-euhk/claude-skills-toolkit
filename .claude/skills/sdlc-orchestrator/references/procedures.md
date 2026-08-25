@@ -386,7 +386,7 @@ Agent({
 - Gate agent chỉ kiểm tra criteria cho file trong scope, đánh dấu N/A cho file không được chọn
 - Ví dụ: nếu chỉ chọn `error-handling` + `caching-strategy`, gate agent bỏ qua C3/C4/C5
 
-### 4.1 SRS Gate (4 criteria)
+### 4.1 SRS Gate (5 criteria)
 
 | # | Criterion | Critical |
 |---|-----------|----------|
@@ -394,6 +394,7 @@ Agent({
 | S2 | Tất cả NFRs có ngưỡng định lượng (p95 < Xms, availability: 99.X%) | |
 | S3 | Traceability matrix đầy đủ (BR → FR → NFR) | ✅ |
 | S4 | Không có service names, API paths, hoặc implementation details | |
+| S5 | Mỗi FR map đến business capability — không có FR nào là field/validation/shared concern độc lập | |
 
 ### 4.2 HLD Gate (7 criteria)
 

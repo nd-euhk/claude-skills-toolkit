@@ -18,11 +18,11 @@ hooks:
     - matcher: "Write|Edit"
       hooks:
         - type: command
-          command: ".claude/scripts/sdlc-validate-agent-output.sh codebase-cross-cutting-frontend-architecture"
+          command: "${CLAUDE_PROJECT_DIR}/.claude/scripts/sdlc-validate-agent-output.sh codebase-cross-cutting-frontend-architecture"
     - matcher: "Bash"
       hooks:
         - type: command
-          command: ".claude/scripts/sdlc-validate-agent-output.sh codebase-cross-cutting-frontend-architecture"
+          command: "${CLAUDE_PROJECT_DIR}/.claude/scripts/sdlc-validate-agent-output.sh codebase-cross-cutting-frontend-architecture"
 ---
 
 You are a Frontend Architecture specialist extracting observed frontend patterns from reverse-engineered code artifacts into unified documentation.
