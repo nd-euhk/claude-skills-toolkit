@@ -2,6 +2,31 @@
 
 All notable changes to the skills-toolkit plugin are documented here.
 
+## [3.7.0] - 2026-08-25
+
+### Changed
+
+- **`codebase-gate` 1.1.0:** MINOR — sửa **LLD-Synthesis criteria** cho khớp output thực tế của
+  `codebase-lld-synthesis` (chỉ `contracts/api-*.yaml` + `contracts/error-codes.md`): LS1/LS4 trước
+  đây check `cross-cutting.md` — file không bao giờ được sinh → gate không thể pass. LS1 → OpenAPI
+  structure (`openapi:`/`paths:`), LS4 → service-ownership mapping trong error-codes.md. Thêm GATE:
+  **CROSS-CUTTING** (5 criteria C1-C5, chỉ check file có trong `expectedOutputs`, còn lại N/A).
+  Thêm `cross-cutting` vào phase table; IMP/TST read globs → `{backend,frontend}/*`.
+- **`sdlc-codebase` 1.6.0:** MINOR — reverse pipeline giờ chạy **synthesis gates** (lld-synthesis +
+  srs-synthesis, non-cascading) và **frontend routing** cho IMP/TST (file impl/test đặt dưới
+  `backend/{svc}/` hoặc `frontend/{svc}/` theo service type của FR). Sửa reference `flow-reverse.md` +
+  `procedures.md` — bỏ `cross-cutting.md` khỏi output LLD Synthesis.
+- **`workflow-codebase-reverse.js`:** `gateCheck` nhận param `cascade` (default true) — synthesis
+  gate fail không skip SRS/IMP/TST. Report phân biệt cascading vs non-cascading exhaustion. Thêm
+  `rerunLldSynthesis`/`rerunSrsSynthesis` + feedback param cho 2 synthesis prompt. IMP/TST gate
+  expectedOutputs phủ cả frontend globs.
+- **`sdlc-gate` 1.0.4:** PATCH — bỏ Bash PreToolUse hook (chỉ giữ Write|Edit) để gate agent có thể
+  enumerate file read-only; write vẫn bị chặn (defense-in-depth).
+- **`sdlc-tdd-be-gate` / `sdlc-tdd-fe-gate`:** PATCH — bỏ Bash PreToolUse hook (giữ Write|Edit), tương tự `sdlc-gate`.
+- **`.claude/scripts/sdlc-validate-agent-output.sh`:** `codebase-imp`/`codebase-tst` allowlist mở
+  rộng sang `agent_docs/frontend/` (reverse pipeline giờ route frontend service). Bỏ mkdir path
+  extraction (`mkdir -p` là setup hợp lệ; Write tool tự tạo parent dir).
+
 ## [3.6.1] - 2026-08-25
 
 ### Changed
