@@ -18,7 +18,10 @@ TOOL_NAME=$(echo "$INPUT" | jq -r '.tool_name // empty')
 normalize_path() {
   local p="$1"
   p="${p#./}"
-  # If not absolute and doesn't start with known root, prefix with nothing (keep as-is)
+  # Absolute path nằm trong project → cắt root prefix về dạng relative
+  case "$p" in
+    "${CLAUDE_PROJECT_DIR}/"*) p="${p#"${CLAUDE_PROJECT_DIR}/"}" ;;
+  esac
   echo "$p"
 }
 
@@ -33,8 +36,8 @@ check_path() {
 
   case "$PHASE" in
     sdlc-srs|codebase-srs|codebase-srs-verify)
-      # Forward: FR-{DOMAIN}-{NNN}--{slug}.md | Reverse: FR-{DOMAIN}-{NNN}.md
-      if echo "$file_path" | grep -qE '^agent_docs/traceability/requirements-matrix\.md$|^agent_docs/features/FR-[A-Za-z0-9]+-[0-9]{3,}(--[a-z0-9-]+)?\.md$'; then
+      # Forward: FR-{DOMAIN}-{NNN}--{slug}.md | Reverse: FR-{DOMAIN}-{NNN}.md | README.md = feature index
+      if echo "$file_path" | grep -qE '^agent_docs/traceability/requirements-matrix\.md$|^agent_docs/features/FR-[A-Za-z0-9]+-[0-9]{3,}(--[a-z0-9-]+)?\.md$|^agent_docs/features/README\.md$'; then
         return 0
       fi
       ;;
@@ -165,17 +168,20 @@ extract_bash_paths() {
   paths+=$(echo "$cmd" | grep -oP 'dd\s+.*?\bof=\K[^\s;|&]+' | head -20)
   paths+=$'\n'
 
-  # 4. cp dest (last non-flag argument)
-  local cp_dests=$(echo "$cmd" | grep -oP '\bcp\s+(?:-\S+\s+)*\S+\s+\K[^\s;|&]+(?=\s*$|[\s;|&])' | head -10)
+  # 4. cp dest (last non-flag argument — handles multi-source: cp a b dest)
+  local cp_dests=$(echo "$cmd" | grep -oP '\bcp\s+(?:-\S+\s+)*(?:\S+\s+)*\K[^\s;|&]+(?=\s*$|[\s;|&])' | head -10)
   paths+="$cp_dests"$'\n'
 
   # 5. mv dest (last non-flag argument)
-  local mv_dests=$(echo "$cmd" | grep -oP '\bmv\s+(?:-\S+\s+)*\S+\s+\K[^\s;|&]+(?=\s*$|[\s;|&])' | head -10)
+  local mv_dests=$(echo "$cmd" | grep -oP '\bmv\s+(?:-\S+\s+)*(?:\S+\s+)*\K[^\s;|&]+(?=\s*$|[\s;|&])' | head -10)
   paths+="$mv_dests"$'\n'
 
   # 6. install dest
   local install_dests=$(echo "$cmd" | grep -oP '\binstall\s+(?:-\S+\s+)*.*?\s+\K[^\s;|&]+(?=\s*$|[\s;|&])' | head -10)
   paths+="$install_dests"$'\n'
+
+  # 7. touch: all non-flag args create files
+  paths+=$(echo "$cmd" | grep -oP '\btouch\b(?:\s+-[^\s;|&]+)*\s+\K(?:[^\s;|&]+\s*)+' | tr -s ' ' '\n' | head -20)
 
   # Filter: only return paths that look like file paths (contain / or common extensions)
   echo "$paths" | grep -E '(^\.work/|^agent_docs/|^projects/|^docs/|\.(md|yaml|yml|json|txt)$)' | sort -u

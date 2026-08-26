@@ -55,9 +55,11 @@ Before doing anything, determine what input is available:
 From the input documents, extract a complete feature list. Each feature gets a unique FR-ID following the pattern:
 `FR-{DOMAIN}-{NNN}--{short-slug}`
 
+**Naming rule:** `{DOMAIN}` = ONE uppercase token (`[A-Z0-9]+`), NO hyphen. If the business area is naturally compound (e.g. "Payment & Billing"), pick the primary domain for `{DOMAIN}` and put the qualifier in `{short-slug}`: `FR-PAYMENT-001--billing`, NOT `FR-PAYMENT-BILLING-001`. The validate guard rejects hyphenated domains — the pattern is `FR-[A-Z0-9]+-[0-9]{3,}`.
+
 **Granularity rule:** An FR = one business capability — a user-perceivable action with its own business rule. Do NOT promote fields, validation rules, shared data elements, or cross-cutting concerns into standalone FRs — they belong in the Input/validation sections of the FR that uses them, or in cross-cutting standards (error-handling, contracts). **Discriminator test:** if deleting this FR removes no business rule, it is not an FR. Example: 5 APIs share a `nextinput` field → each API is its own FR, `nextinput` is an Input field inside each; do NOT create a separate "nextinput" FR.
 
-Example: `FR-PAY-001--payment-authorization`
+Examples: `FR-PAY-001--payment-authorization` (single-token domain) · `FR-PAYMENT-001--billing` (compound area → domain chính + qualifier trong slug)
 
 ### Step 2: Create Traceability Matrix
 
@@ -96,6 +98,7 @@ Every NFR must have a number:
 Before finishing, verify:
 
 - [ ] Every FR has at least 1 Gherkin Scenario Outline
+- [ ] Every FR filename matches `FR-[A-Z0-9]+-[0-9]{3,}(--[a-z0-9-]+)?.md` — `{DOMAIN}` is a single token, no hyphen (compound area → qualifier in slug)
 - [ ] Every FR maps to ≥1 business capability — no FR is a lone field, validation rule, or shared data element (discriminator: removing it must remove a business rule)
 - [ ] All NFRs have concrete, measurable numbers
 - [ ] Traceability matrix maps every FR → BRD objective

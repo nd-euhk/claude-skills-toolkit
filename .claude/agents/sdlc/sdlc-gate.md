@@ -8,7 +8,7 @@ description: >-
   artifacts meet minimum criteria. Read-only — never modifies files. Returns
   structured PASS/FAIL with specific failures for retry. Phase-aware — loads
   correct criteria set per phase.
-version: 1.0.4
+version: 1.0.5
 model: sonnet
 maxTurn: 20
 tools: Read, Bash, Glob, Agent
@@ -91,6 +91,7 @@ Read `agent_docs/features/FR-*.md` and `agent_docs/traceability/requirements-mat
 | S3 | Traceability matrix complete (BR → FR → NFR) | Read `traceability/requirements-matrix.md` — verify it maps every FR to a source (BR/PRD objective) and lists NFRs with quantified targets. | ✅ |
 | S4 | No implementation details | grep -v for service names in FR files (e.g., `@Service`, `RestController`, `@Repository`). Also check for API paths (`/api/`), tech stack names. A domain term that happens to match a service name is not a violation — look for implementation context markers. | |
 | S5 | Every FR maps to a business capability | For each FR, read title + description: it must name a user-perceivable capability with its own business rule — not a lone field, validation rule, shared data element, or cross-cutting concern. Discriminator: deleting this FR must remove a business rule. | |
+| S6 | FR filenames follow single-token domain convention | List `agent_docs/features/` (Bash: `ls` + grep) and verify every `FR-*.md` name matches `FR-[A-Z0-9]+-[0-9]{3,}(--[a-z0-9-]+)?.md` — `{DOMAIN}` is one token, no hyphen (e.g. `FR-PAY-001`, not `FR-PAYMENT-BILLING-001`). Compound business area → qualifier in slug: `FR-PAYMENT-001--billing`. | |
 
 Report per-domain: which domains pass, which fail, which criteria failed for each.
 
@@ -215,6 +216,7 @@ Then the detailed report:
 | S3 | Traceability matrix | ✅/❌ | {N} FRs mapped / Missing mapping for FR-{ID} |
 | S4 | No implementation details | ✅/❌ | Clean / Found "RestController" in FR-{ID}:42 |
 | S5 | FRs map to business capabilities | ✅/❌ | All FRs are business capabilities / FR-{ID} is a lone field/validation concern — no business rule |
+| S6 | FR filenames single-token domain | ✅/❌ | All FR names match `FR-[A-Z0-9]+-[0-9]{3,}(--[a-z0-9-]+)?.md` / FR-{ID} name violates single-token convention |
 | ... | ... | ... | ... |
 
 ## Per-Entity Breakdown (for LLD/SRS/IMP/TST only)

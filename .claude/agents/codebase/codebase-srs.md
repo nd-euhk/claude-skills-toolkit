@@ -7,7 +7,7 @@ description: >-
   scenarios from request/response patterns, or identifying actors/roles from
   auth middleware code. One domain per agent invocation. Reads scout report,
   HLD, and LLD outputs. Writes to agent_docs/ only.
-version: 1.2.2
+version: 1.2.3
 model: opus
 maxTurn: 45
 tools: Read, Write, Edit, Bash, Glob, Agent
@@ -91,6 +91,8 @@ For each feature, create `agent_docs/features/FR-{DOMAIN}-{NNN}.md`:
 
 **FR-ID format:** FR-{DOMAIN}-{NNN} (e.g., FR-AUTH-001, FR-BILLING-002)
 
+**Naming rule:** `{DOMAIN}` = ONE uppercase token (`[A-Z0-9]+`), NO hyphen. If the code's domain is naturally compound (e.g. a `payment-billing` module), pick the primary domain for `{DOMAIN}` and put the qualifier in a slug suffix: `FR-PAYMENT-001--billing`, NOT `FR-PAYMENT-BILLING-001`. The validate guard rejects hyphenated domains — the pattern is `FR-[A-Z0-9]+-[0-9]{3,}(--[a-z0-9-]+)?.md`.
+
 **Each FR document:**
 
 ```markdown
@@ -162,6 +164,12 @@ Flag: `⚠️ NOT FOUND: {NFR} threshold — not detected in code`
 Create/update `agent_docs/features/README.md` for your domain:
 - Feature list with FR-IDs, titles, status, services
 - Domain overview
+
+### Step 5: Self-Check
+
+Before writing your summary:
+- [ ] Every FR filename matches `FR-[A-Z0-9]+-[0-9]{3,}(--[a-z0-9-]+)?.md` — `{DOMAIN}` is a single token, no hyphen (compound area → qualifier in slug: `FR-PAYMENT-001--billing`)
+- [ ] Every FR-ID in `features/README.md` matches its file name
 
 ## UNCERTAINTY Protocol
 

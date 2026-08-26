@@ -2,6 +2,39 @@
 
 All notable changes to the skills-toolkit plugin are documented here.
 
+## [3.7.3] - 2026-08-26
+
+### Changed
+
+- **`codebase-srs` 1.2.3:** PATCH — thêm **Naming rule** (reverse pipeline): `{DOMAIN}` = ONE
+  uppercase token, NO hyphen — compound domain (vd module `payment-billing`) → domain chính vào
+  `{DOMAIN}`, qualifier vào slug: `FR-PAYMENT-001--billing`, KHÔNG `FR-PAYMENT-BILLING-001`. Thêm
+  Step 5 Self-Check cho tên file FR.
+- **`codebase-gate` 1.1.1:** PATCH — thêm SRS criterion **S5**: FR filename theo single-token
+  domain convention (`FR-[A-Z0-9]+-[0-9]{3,}(--[a-z0-9-]+)?.md`) — khép lỗ hổng gate tương đương
+  sdlc-gate S6 ở reverse pipeline (post-write containment).
+- **`sdlc-validate-agent-output.sh`:** fix false-positive — phase regex `sdlc-srs|codebase-srs`
+  chặn `agent_docs/features/README.md`, nhưng codebase-srs Step 4 (Feature Index) bắt buộc viết
+  file này (mâu thuẫn pre-existing từ trước FR-granularity guard). Thêm README.md vào allow-list
+  cho cả forward + reverse; FR-*.md containment giữ nguyên.
+
+## [3.7.2] - 2026-08-25
+
+### Changed
+
+- **`sdlc-srs`:** PATCH — thêm **Naming rule** — `{DOMAIN}` = ONE uppercase token, NO hyphen.
+  Business area compound (vd "Payment & Billing") → domain chính vào `{DOMAIN}`, qualifier vào
+  slug: `FR-PAYMENT-001--billing`, KHÔNG `FR-PAYMENT-BILLING-001`. Thêm self-check item cho tên file.
+- **`sdlc-gate` 1.0.5:** PATCH — thêm SRS criterion **S6**: FR filename theo single-token domain
+  convention (`FR-[A-Z0-9]+-[0-9]{3,}(--[a-z0-9-]+)?.md`) — bắt file compound-domain vượt qua
+  validate hook (post-write containment).
+- **`sdlc-validate-agent-output.sh`:** harden `extract_bash_paths()` — bắt `touch` (toàn bộ file
+  args), sửa `cp`/`mv` capture **đúng** destination (last non-flag arg, xử lý multi-source). Khép
+  các kênh Bash write lọt guard cho filename FR.
+- **`sdlc-orchestrator` 1.15.2:** PATCH — flow-task spawn template chú thích `{DOMAIN}` single-token.
+- **Templates:** `requirements-matrix-TEMPLATE`, `FR-TEMPLATE`, `feature-index-TEMPLATE` — ghi ràng
+  buộc `{DOMAIN}` no-hyphen, compound → slug.
+
 ## [3.7.1] - 2026-08-25
 
 ### Changed

@@ -15,7 +15,7 @@ description: >-
   thiếu (task flow). Điều phối toàn bộ pipeline từ requirements qua
   documentation đến production code, coordinating subagents, skills, và sprint
   artifacts.
-version: 1.15.1
+version: 1.15.2
 allowed-tools: Read, Write, Edit, Bash, Glob, Skill, Agent, EnterPlanMode, ExitPlanMode
 ---
 

@@ -61,7 +61,7 @@ Auto-populated bởi `scripts/check-traceability.sh --populate`. 1 row per FR đ
 
 | Field               | Meaning                                                                 |
 | ------------------- | ----------------------------------------------------------------------- |
-| **FR-ID**           | Functional Requirement ID — pattern `FR-{DOMAIN}-{NNN}`                 |
+| **FR-ID**           | Functional Requirement ID — pattern `FR-{DOMAIN}-{NNN}` (`{DOMAIN}` = one uppercase token, no hyphen; compound area → qualifier vào slug: `FR-PAYMENT-001--billing`) |
 | **PRD Feature**     | Epic feature từ Phase 2 PRD (format `F-{AREA}-{NN} {title}`)            |
 | **BRD Objective**   | Business objective từ Phase 1 BRD (format `OBJ-{N} {title}`)            |
 | **Layer**           | `BE` / `FE` / `BE+FE` — lấy từ FR frontmatter                           |

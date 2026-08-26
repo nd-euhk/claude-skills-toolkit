@@ -80,7 +80,7 @@ Agent({
   prompt: "
     [Approved plan từ human review]
     Context: agent_docs/project-overview.md, agent_docs/user-context.md
-    Expected outputs: agent_docs/features/FR-{DOMAIN}-{NNN}.md
+    Expected outputs: agent_docs/features/FR-{DOMAIN}-{NNN}.md  # {DOMAIN} = one uppercase token, no hyphen (compound area → qualifier trong slug)
   "
 })
 ```

@@ -8,6 +8,9 @@ updated_by: {name}
 # ── ROUTING — Agent đọc block này ĐẦU TIÊN ──────────────
 
 # FR ID = business feature ID, KHÔNG chứa layer.
+# {DOMAIN} = MỘT token in hoa, KHÔNG chứa hyphen (vd PAYMENT, AUTH).
+# Nếu business area compound (vd "Payment & Billing") → domain chính vào {DOMAIN}, qualifier vào slug:
+#   FR-PAYMENT-001--billing  (đúng)  |  FR-PAYMENT-BILLING-001  (SAI — bị validate guard chặn)
 # Ví dụ: FR-AUTH-001--user-registration.md
 # `layer` field dưới đây xác định scope: BE | FE | BE+FE
 #

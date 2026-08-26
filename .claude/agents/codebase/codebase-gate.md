@@ -8,7 +8,7 @@ description: >-
   checking if reverse-engineered artifacts meet minimum criteria. Read-only —
   never modifies files. Returns structured PASS/FAIL with specific failures
   for retry. Phase-aware — loads correct criteria set per phase.
-version: 1.1.0
+version: 1.1.1
 model: sonnet
 maxTurn: 15
 tools: Read, Bash
@@ -114,6 +114,7 @@ Read `agent_docs/features/FR-{DOMAIN}-*.md` for each domain.
 | S2 | Each FR has evidence or UNCERTAINTY flag | grep for `file:line` OR `UNCERTAIN` OR `INFERRED` in each FR file |
 | S3 | NFRs have quantified thresholds or NOT FOUND | grep for numeric thresholds (ms, %, requests/sec) OR `NOT FOUND` in NFR sections |
 | S4 | Features grouped by domain (not per-service) | Verify file naming: `FR-{DOMAIN}-{NNN}.md` (not `FR-{SERVICE}-{NNN}.md`) |
+| S5 | FR filenames follow single-token domain convention | List `agent_docs/features/` (Bash: `ls` + grep) and verify every `FR-*.md` name matches `FR-[A-Z0-9]+-[0-9]{3,}(--[a-z0-9-]+)?.md` — `{DOMAIN}` is one token, no hyphen (e.g. `FR-PAY-001`, not `FR-PAYMENT-BILLING-001`). Compound business area → qualifier in slug: `FR-PAYMENT-001--billing`. |
 
 Report per-domain: which domains pass, which fail, which criteria failed for each.
 

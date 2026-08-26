@@ -21,6 +21,7 @@ changelog:
 <!-- 
 📌 HƯỚNG DẪN ĐIỀN: 
 - FR ID: Bắt buộc theo format FR-{DOMAIN}-{NNN} (business feature ID, KHÔNG chứa layer)
+  - {DOMAIN} = MỘT token in hoa, KHÔNG hyphen. Compound area → qualifier vào slug: FR-PAYMENT-001--billing (KHÔNG FR-PAYMENT-BILLING-001)
   - Layer (BE | FE | BE+FE) nằm ở cột `Layer` dưới đây và frontmatter của FR file
   - Cùng 1 feature có BE + FE = 1 FR duy nhất với layer=BE+FE, KHÔNG tách thành 2 FR
 - Feature: Tên tính năng ngắn gọn
