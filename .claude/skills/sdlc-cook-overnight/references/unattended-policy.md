@@ -14,8 +14,9 @@ và morning report để human review sáng.
 | 4 | Feature đang 🚧 In Progress (cook khác đang chạy) | Skip — không spawn cook trùng | Mục Skipped |
 | 5 | Night review (trước PR) | Chạy `sdlc-review-codechange --security --bugs --spec --unattended` (lean gating trio) trên worktree/subrepo sau GATE full pass; ghi verdict; KHÔNG chặn PR creation | Mục Reviewed |
 | 6 | PR creation | Auto tạo PR (host-detect: GitHub→`gh`, GitLab→`glab`, auth guard trước; fail → row 19), KHÔNG merge | Mục PR created |
-| 7 | INTERFERENCE (1 TC break test khác) | Dừng feature đó, ghi chi tiết (test broken, file, line) | Mục Failed |
-| 8 | TC BLOCKED / STALE | Feature fail, ghi spec/tc cần human | Mục Failed |
+| 7 | INTERFERENCE-LIGHT (1 chunk break test khác cùng file) | Dừng feature đó, ghi chi tiết (test broken, file, line) | Mục Failed |
+| 8 | TC BLOCKED / STALE / ERROR | Feature fail, ghi spec/tc cần human | Mục Failed |
+| 8b | Accidental-green (batch LIGHT — test đã pass sẵn, không sabotage) | KHÔNG fail — TC `SKIPPED`, flag cho human sáng review (test có thể đã được impl trước đó, hoặc spec sai) | Mục Warnings |
 | 9 | GATE light fail (sau retry ×2) | Feature failed, ghi gate failures | Mục Failed |
 | 10 | GATE full fail (sau retry ×2) | Feature partial, ghi gate failures | Mục Partial |
 | 11 | Workflow crash | Log crash, feature chưa xong. Sáng resume `resumeFromRunId` | Mục Failed/Blocked |

@@ -2,6 +2,38 @@
 
 All notable changes to the skills-toolkit plugin are documented here.
 
+## [3.8.0] - 2026-08-27
+
+### Added
+
+- **`workflow-sdlc-cook-overnight.js`:** workflow TDD **phased-batch** riêng cho overnight —
+  RED batch (viết hết test, verify RED 1 lần, accidental-green LIGHT flag không sabotage) →
+  GREEN chunk (3-5 TC/chunk + INTERFERENCE-LIGHT) → GATE light (INTERFERENCE-FULL baseline) →
+  REFACTOR full → GATE full. Tách khỏi `workflow-sdlc-cook.js` (per-TC) — giảm ~60-75%
+  wall-clock, ~70-80% token per-feature cho batch unattended. Hỗ trợ `redBatchSize`/
+  `greenChunkSize` + idempotent resume (`resumeFrom`).
+- **4 agent TDD batch:** `sdlc-tdd-be-red-overnight`, `sdlc-tdd-be-green-overnight`,
+  `sdlc-tdd-fe-red-overnight`, `sdlc-tdd-fe-green-overnight` — RED batch (viết test cho
+  batch, không mini-orchestrate/spawn), GREEN chunk (impl chunk + INTERFERENCE-LIGHT).
+  Không đụng agent per-TC của sdlc-cook.
+
+### Changed
+
+- **`sdlc-cook-overnight` 1.4.0:** MINOR — Phase 4 dispatch `workflow-sdlc-cook-overnight.js`
+  (phased-batch TDD) thay vì `workflow-sdlc-cook.js` per-TC. Cập nhật per-feature-cook.md
+  (args mới + batch semantics) + unattended-policy.md (accidental-green SKIPPED = flag,
+  không fail).
+
+### Fixed
+
+- **`workflow-sdlc-cook-overnight.js`:** guard `testCases` rỗng (tránh báo `completed` +
+  tạo PR rỗng); mark TC chunk-sau là `ERROR` khi INTERFERENCE `break` (tránh báo sai
+  `DONE`); `lightTcFilter` chỉ giữ `DONE`+`SKIPPED` (loại `BLOCKED`/`STALE` khỏi GATE);
+  union `filesChanged` (giữ test files từ RED + impl files từ GREEN); early-return thêm
+  `gateLight`/`refactorFull`/`gateFull: null` cho shape nhất quán.
+- **`morning-report.md`:** mở rộng định nghĩa `PARTIAL` (có TC BLOCKED/STALE/ERROR nhưng
+  gate vẫn pass), không chỉ "gate full fail".
+
 ## [3.7.4] - 2026-08-27
 
 ### Fixed

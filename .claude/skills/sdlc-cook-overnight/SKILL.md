@@ -8,7 +8,7 @@ description: >-
   "overnight run". Interactive Batch Plan (sequential / parallel / pick features)
   qua AskUserQuestion, rồi unattended execution — auto tạo PR, không auto-merge,
   morning report. Direct orchestration của sdlc-cook — không tạo/sửa specs.
-version: 1.3.0
+version: 1.4.0
 argument-hint: "all | FEAT-001 FEAT-002 ..."
 allowed-tools: Read, Write, Edit, Bash, Agent, Workflow, AskUserQuestion, Skill
 ---
@@ -19,7 +19,7 @@ Batch controller cook NHIỀU feature TDD trong một đêm. Khác sdlc-cook (1 
 interactive), skill này:
 
 - **Interactive ở đầu** — Batch Plan qua AskUserQuestion: sequential / parallel / pick
-- **Unattended giữa đêm** — dispatch `workflow-sdlc-cook.js` per feature, không hỏi giữa chừng
+- **Unattended giữa đêm** — dispatch `workflow-sdlc-cook-overnight.js` per feature (phased-batch TDD), không hỏi giữa chừng
 - **Kết thúc đêm** — auto tạo PR (không merge), morning report tổng hợp
 
 ## Relationship với sdlc-cook
@@ -27,8 +27,9 @@ interactive), skill này:
 Direct orchestration — skill này **KHÔNG** gọi `Skill(sdlc-cook)` mà tự:
 
 - Lặp lại per-feature setup của sdlc-cook (Bước 3→4.5: project detect → worktree → baseline)
-- Dispatch `Workflow({scriptPath: ".claude/workflows/cook/workflow-sdlc-cook.js", args})`
-  trực tiếp per feature (args shape y hệt Bước 8 của sdlc-cook)
+- Dispatch `Workflow({scriptPath: ".claude/workflows/cook/workflow-sdlc-cook-overnight.js", args})`
+  trực tiếp per feature — workflow riêng chạy **phased-batch TDD** (RED batch → GREEN chunk →
+  GATE light → REFACTOR full → GATE full), tách khỏi `workflow-sdlc-cook.js` (per-TC) của sdlc-cook
 - Link reference của sdlc-cook cho chi tiết — không duplicate logic sâu
 
 ## Hard Boundaries
@@ -129,6 +130,11 @@ Skipped (không cookable): FEAT-005 (chưa đủ specs)
 Với MỖI feature, làm đúng per-feature procedure rồi dispatch. Chi tiết:
 → `references/per-feature-cook.md`
 
+**TDD strategy khác sdlc-cook:** overnight chạy **phased-batch**, không per-TC. RED viết
+hết test + verify 1 lần → GREEN theo chunk (3-5 TC/chunk) → REFACTOR + GATE 1 lượt. Accidental-green
+detect LIGHT (flag cho human sáng, không sabotage). Tốc độ ~60-75% nhanh hơn, đổi lấy granularity
+feedback thấp hơn — phù hợp unattended (không có human can thiệp giữa đêm).
+
 ```
 Per feature:
   1. Project detect     (sdlc-cook Bước 3 — scripts/detect-project.sh)
@@ -136,7 +142,7 @@ Per feature:
   3. Harness setup + baseline gate (Bước 4.5 — detect build tool + cài deps Gradle/Maven/npm/py; baseline.py parse camelCase; gate: OK→dispatch, SOFT→+warning, HARD-FAIL→skip feature)
   4. Board update → 🚧 In Progress (sdlc-sprint-board)
   5. Read TST/IMP specs → extract TCs, sort CRITICAL→HIGH→MEDIUM→LOW (Bước 6)
-  6. Dispatch workflow-sdlc-cook.js với args {featureName, frId, service, layer, testCases, baseline, repoPath, specRoot}
+  6. Dispatch workflow-sdlc-cook-overnight.js với args {featureName, frId, service, layer, testCases, baseline, repoPath, specRoot, redBatchSize, greenChunkSize}
   7. Collect COOK_REPORT
   8. Type 1 → restore original_branch (finally — chặn task kế nếu fail)
 ```

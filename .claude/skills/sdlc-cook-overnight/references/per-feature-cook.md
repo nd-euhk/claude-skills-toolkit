@@ -137,7 +137,7 @@ Extract TCs: `{ id, name, layer, risk }`, sort CRITICAL → HIGH → MEDIUM → 
 
 ```javascript
 Workflow({
-  scriptPath: ".claude/workflows/cook/workflow-sdlc-cook.js",
+  scriptPath: ".claude/workflows/cook/workflow-sdlc-cook-overnight.js",
   args: {
     featureName: "${FEAT_ID}: ${name}",
     frId: "${FR-ID}",
@@ -151,6 +151,8 @@ Workflow({
     flow: "cook",
     repoPath: "${REPO_PATH}",       // Type 1: sub-repo; Type 2: worktree
     specRoot: "${SPEC_ROOT}",       // Type 1: parent; Type 2: nơi chứa agent_docs/
+    redBatchSize: 0,                // 0 = 1 RED agent viết TẤT CẢ test; >0 = chunk theo size
+    greenChunkSize: 4,              // số TC mỗi GREEN chunk (3-5 khuyến nghị)
   }
 })
 ```
@@ -159,10 +161,26 @@ Workflow({
 cwd của controller). Không truyền → workflow chạy trong CWD hiện tại (backward-compatible).
 Xem sdlc-cook Bước 8.
 
+**Phased-batch TDD (khác sdlc-cook per-TC):** workflow này chạy RED batch (viết hết test,
+verify RED 1 lần, accidental-green LIGHT flag không sabotage) → GREEN chunk (3-5 TC/chunk,
+INTERFERENCE-LIGHT trên file touched) → GATE light (INTERFERENCE-FULL baseline) → REFACTOR
+full → GATE full. Dùng 4 agent batch riêng: `sdlc-tdd-be-red-overnight`,
+`sdlc-tdd-be-green-overnight`, `sdlc-tdd-fe-red-overnight`, `sdlc-tdd-fe-green-overnight`
+(không đụng `sdlc-tdd-be-red`/`sdlc-tdd-be-green` per-TC của sdlc-cook). REFACTOR + GATE
+reuse agent per-TC có sẵn (đã whole-feature scope).
+
 ## 7. Collect
 
 `Workflow()` return `COOK_REPORT`: `{ status: completed|partial|failed, tcResults,
 gateLight, gateFull, summary, warnings, nextStep }`. Lưu vào records của batch.
+
+**Semantics phased-batch (khác per-TC):**
+- `tcResults[].status = SKIPPED` = accidental-green LIGHT (test đã pass sẵn, flag cho human
+  sáng review — KHÔNG sabotage). Không coi là fail.
+- `warnings[]` chứa INTERFERENCE-LIGHT entries (string per broken test) + accidental-green
+  flags. Feature `status = "failed"` khi có INTERFERENCE hoặc BLOCKED/STALE/ERROR.
+- `tcResults[].status = INTERFERENCE` đánh dấu TC gây break test khác cùng file — workflow
+  dừng GREEN ngay khi chunk gây interference.
 
 **Type 1 — restore bắt buộc (finally):** ngay sau khi lưu COOK_REPORT (completed hay fail):
 `git -C "$project_root" checkout "$ORIGINAL_BRANCH"`. Restore fail → warning HIGH, chặn
