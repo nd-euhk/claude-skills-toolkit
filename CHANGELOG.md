@@ -2,6 +2,16 @@
 
 All notable changes to the skills-toolkit plugin are documented here.
 
+## [3.7.4] - 2026-08-27
+
+### Fixed
+
+- **`workflow-sdlc-cook.js`:** PATCH — escape 2 backticks chưa escape trong `gateAgentPrompt()`
+  L298 (nested template literal) gây `ReferenceError: scripts is not defined` khi GATE-light
+  chạy với baseline file → workflow crash ở mọi feature tới gate. Đồng thời fix L269:
+  single-quoted string → template literal để `${SPECS_ROOT}`/`${CODE_DIR}` được interpolate
+  (trước đó agent đọc literal placeholder khi không có baseline).
+
 ## [3.7.3] - 2026-08-26
 
 ### Changed

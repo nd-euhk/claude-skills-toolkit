@@ -266,7 +266,7 @@ function gateAgentPrompt(mode, tcResults, techStackHint) {
 - **Pre-existing failures** (exclude from interference): ${BASELINE_PRE_EXISTING.length > 0 ? BASELINE_PRE_EXISTING.join(', ') : 'none'}
 - **Culprit TCs + files changed**:
 ${culpritInfo || '  (none)'}`
-    : '## Baseline\n❌ **CRITICAL: No baseline file — INTERFERENCE-LIGHT and INTERFERENCE-FULL are both DISABLED.** Cross-TC interference will NOT be detected. Run `${SPECS_ROOT}/.claude/scripts/baseline parse ...` before dispatching the workflow (script ở specRoot; chạy test trong ${CODE_DIR}).'
+    : `## Baseline\n❌ **CRITICAL: No baseline file — INTERFERENCE-LIGHT and INTERFERENCE-FULL are both DISABLED.** Cross-TC interference will NOT be detected. Run \`${SPECS_ROOT}/.claude/scripts/baseline parse ...\` before dispatching the workflow (script ở specRoot; chạy test trong ${CODE_DIR}).`
 
   return `You are a GATE verifier. Run ${mode} mode gate checks on the completed TDD cycle.
 
@@ -295,7 +295,7 @@ ${mode === 'light' ? `
 
 If baseline file exists (${BASELINE_PATH || 'MISSING'}), use the \`.claude/scripts/baseline compare\` harness:
 1. Re-run tests to get current state (same command as baseline capture)
-2. Run (từ ${SPECS_ROOT}, nơi có `.claude/scripts/`): \`cd ${SPECS_ROOT} && .claude/scripts/baseline compare --baseline ${BASELINE_PATH} --current <current-output> --framework <detected> --culprit "${culpritInfo || 'unknown'}"\` — current-output sinh ra khi chạy test trong ${CODE_DIR}
+2. Run (từ ${SPECS_ROOT}, nơi có \`.claude/scripts/\`): \`cd ${SPECS_ROOT} && .claude/scripts/baseline compare --baseline ${BASELINE_PATH} --current <current-output> --framework <detected> --culprit "${culpritInfo || 'unknown'}"\` — current-output sinh ra khi chạy test trong ${CODE_DIR}
 3. The script cross-references: baseline pass → current fail = interference
 4. It auto-excludes: pre-existing failures, same-status skipped tests, feature's own new tests
 
