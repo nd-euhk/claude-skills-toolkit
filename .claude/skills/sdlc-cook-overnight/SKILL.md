@@ -8,8 +8,9 @@ description: >-
   "overnight run". Interactive Batch Plan (sequential / parallel / pick features)
   qua AskUserQuestion, rồi unattended execution — auto tạo PR, không auto-merge,
   morning report. Direct orchestration của sdlc-cook — không tạo/sửa specs.
-version: 1.6.0
+version: 1.7.0
 argument-hint: "all | FEAT-001 FEAT-002 ..."
+disable-model-invocation: true
 allowed-tools: Read, Write, Edit, Bash, Agent, Workflow, AskUserQuestion, Skill
 ---
 

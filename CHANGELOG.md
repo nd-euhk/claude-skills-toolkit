@@ -2,6 +2,20 @@
 
 All notable changes to the skills-toolkit plugin are documented here.
 
+## [3.11.0] - 2026-09-03
+
+### Changed
+
+- **`sdlc-cook-overnight` 1.7.0:** MINOR — thêm `disable-model-invocation: true`: chỉ human invoke
+  qua `/sdlc-cook-overnight`, Claude không auto-trigger (batch unattended qua đêm, side-effect cao,
+  kết quả tự tạo PR).
+
+### Added
+
+- **`sdlc-routing-rules`:** thêm intent `cook-overnight` (batch/overnight cook) vào bảng Intent → Flow
+  + Resolution step 9 (model-disabled skill): agent nhận diện intent rồi **raise cho human tự trigger**
+  `/sdlc-cook-overnight`, không auto-invoke / không thực thi skill.
+
 ## [3.10.0] - 2026-09-03
 
 ### Changed
