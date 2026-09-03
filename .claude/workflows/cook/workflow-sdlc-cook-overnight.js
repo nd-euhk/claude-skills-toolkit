@@ -28,15 +28,15 @@ const {
   redBatchSize = 0,    // 0 = một RED agent viết TẤT CẢ test; >0 = chunk theo size
   greenChunkSize = 4,  // số TC mỗi GREEN chunk (3-5 khuyến nghị)
   // ── Idempotent resume ──
-  resumeFrom = null,  // { completedTcIds: ['1','2'], gateLightPass: true, refactorDone: true, gateFullPass: false }
+  resumeFrom = null,  // { completedTcIds: ['1','2'], completedTcFiles: {'1': ['a.java','b.java']}, gateLightPass: true, refactorDone: true, gateFullPass: false }
 } = _args
 
 // Caller chịu trách nhiệm chọn đúng agent type — workflow không suy diễn từ layer.
 // Overnight dùng agent BATCH (khác sdlc-cook dùng per-TC mini-orchestrator).
 const RED_BATCH = agents.redBatch || (layer === 'frontend' ? 'sdlc-tdd-fe-red-overnight' : 'sdlc-tdd-be-red-overnight')
 const GREEN_CHUNK = agents.greenChunk || (layer === 'frontend' ? 'sdlc-tdd-fe-green-overnight' : 'sdlc-tdd-be-green-overnight')
-const REFACTOR = agents.refactor || (layer === 'frontend' ? 'sdlc-tdd-fe-refactor' : 'sdlc-tdd-be-refactor')
-const GATE = agents.gate || (layer === 'frontend' ? 'sdlc-tdd-fe-gate' : 'sdlc-tdd-be-gate')
+const REFACTOR = agents.refactor || (layer === 'frontend' ? 'sdlc-tdd-fe-refactor-overnight' : 'sdlc-tdd-be-refactor-overnight')
+const GATE = agents.gate || (layer === 'frontend' ? 'sdlc-tdd-fe-gate-overnight' : 'sdlc-tdd-be-gate-overnight')
 
 // ── Baseline info (pre-captured by orchestrator) ──
 const BASELINE_PATH = baseline?.path || null
@@ -224,6 +224,9 @@ ${tcFiles.map(f => `  - ${f}: TCs [${(BASELINE_BY_FILE[f] || []).join(', ')}]`).
    - **Go:** \`go test ./...\`
    - **Rust:** \`cargo test\`
    Every test you wrote MUST fail (exit code != 0). A test that FAILS = DONE (RED confirmed).
+   - **Multi-batch note** (redBatchSize > 1): tests written by PRIOR RED batches are still RED (not yet
+     implemented) — their failures are expected and do NOT count toward your batch. Only your batch's
+     tests determine RED confirmation for this batch.
 
 3. **Detect accidental-green (LIGHT — no sabotage).** For any new test that PASSES unexpectedly:
    - Sanity-check: is the test trivially true (e.g. \`assertTrue(true)\`)? If yes → rewrite once, re-run, re-check.
@@ -514,12 +517,12 @@ ${failures.map((f, i) => `**Failure ${i + 1}**: ${f}`).join('\n\n')}
 **Feature**: ${featureName} (${frId})
 **Service**: ${service}
 
-Fix all issues while keeping all tests passing. Make minimal changes.`
+This is a TARGETED FIX — fix ONLY the failures listed above. Do NOT run the full 6-category refactor sweep. Fix all issues while keeping all tests passing. Make minimal changes.`
 
           return agent(combinedPrompt, {
             label: `fix-gate-${mode}-${file.split('/').pop() || 'unknown'}`,
             phase: phaseDisplay,
-            agentType: GREEN_CHUNK,
+            agentType: REFACTOR,
           })
         })
       )
@@ -552,6 +555,7 @@ log(`🔀 Strategy: PHASED-BATCH — RED batch (redBatchSize=${redBatchSize || '
 
 // ── Idempotent resume: skip phases already completed in prior run ──
 const completedTcIds = new Set(resumeFrom?.completedTcIds || [])
+const completedTcFiles = resumeFrom?.completedTcFiles || {}  // { tcId: [files] } — từ COOK_REPORT trước (preserves filesChanged trên resume)
 const skipGateLight = resumeFrom?.gateLightPass === true
 const skipRefactor = resumeFrom?.refactorDone === true
 const skipGateFull = resumeFrom?.gateFullPass === true
@@ -565,7 +569,9 @@ if (completedTcIds.size > 0) {
   log(`⏭️ Resuming: ${completedTcIds.size} TCs already done → ${[...completedTcIds].join(', ')}`)
   for (const tc of testCases) {
     if (completedTcIds.has(tc.id)) {
-      tcResults.push({ tcId: tc.id, tcName: tc.name, status: 'DONE', filesChanged: [], testFile: '' })
+      const files = completedTcFiles[tc.id] || []
+      // testFile không thể recover chính xác từ filesChanged (filesChanged gộp test+impl) → để rỗng (trung thực hơn là đoán).
+      tcResults.push({ tcId: tc.id, tcName: tc.name, status: 'DONE', filesChanged: files, testFile: '' })
     }
   }
 }
@@ -647,7 +653,7 @@ for (const [ci, gchunk] of greenChunks.entries()) {
         r.status = g.status === 'DONE' ? 'DONE' : (g.status || 'ERROR')
         r.filesChanged = [...new Set([...(r.filesChanged || []), ...(g.filesChanged || [])])]
         if (g.errorDetail) r.errorDetail = g.errorDetail
-        if (g.status === 'ERROR' || g.status === 'STUCK') {
+        if (g.status === 'ERROR') {
           allTestsPass = false
           warnings.push(`${r.tcId} GREEN ${g.status || 'ERROR'}: ${g.errorDetail || 'stuck'}`)
         }
@@ -657,10 +663,10 @@ for (const [ci, gchunk] of greenChunks.entries()) {
     // Interference from this chunk
     if (result.interference && result.interference.length > 0) {
       interferenceCount += result.interference.length
-      for (const gch of gchunk) {
-        const r = tcResults.find(x => x.tcId === gch.id)
-        if (r) r.status = 'INTERFERENCE'
-      }
+      // Do NOT clobber per-TC status to INTERFERENCE — TCs that passed stay DONE.
+      // Interference is a chunk-level signal: the chunk's own TCs DID pass, but they broke
+      // OTHER tests. Detail lives in warnings[], and the feature-level status is set to
+      // 'failed' by the interferenceCount > 0 guard below.
       result.interference.forEach(i => {
         log(`  ⚠️ INTERFERENCE-LIGHT: ${i}`)
         warnings.push(`INTERFERENCE-LIGHT (chunk ${gchunk.map(tc => tc.id).join(',')}): ${i}`)
@@ -714,6 +720,17 @@ if (!allTestsPass && doneCount === 0) {
     summary: `All ${testCases.length} TCs failed. ${interferenceCount} INTERFERENCE, ${failedCount} BLOCKED/STALE/ERROR. Cannot proceed to GATE.`,
     warnings,
     nextStep: 'Review TC failures. Fix ambiguous specs, interference, or blocked TCs. Retry cook.',
+  }
+}
+
+if (doneCount === 0 && skippedCount > 0 && failedCount === 0) {
+  log('⚠️ All TCs accidental-green (SKIPPED) — no implementation produced. Feature cannot be "completed".')
+  return {
+    flow, featureName, frId, service,
+    status: 'failed', tcResults, gateLight: null, refactorFull: null, gateFull: null,
+    summary: `All ${testCases.length} TCs accidental-green — tests already pass without implementation. Needs spec review (tests may be wrong or feature already implemented).`,
+    warnings,
+    nextStep: 'Review TST spec for this feature. Accidental-green across all TCs suggests wrong/misplaced tests or pre-existing implementation. Fix spec then re-run cook.',
   }
 }
 

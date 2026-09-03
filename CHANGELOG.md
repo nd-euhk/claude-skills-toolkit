@@ -2,6 +2,36 @@
 
 All notable changes to the skills-toolkit plugin are documented here.
 
+## [3.9.0] - 2026-09-03
+
+### Added
+
+- **4 agent TDD gate/refactor overnight:** `sdlc-tdd-be-gate-overnight`, `sdlc-tdd-fe-gate-overnight`,
+  `sdlc-tdd-be-refactor-overnight`, `sdlc-tdd-fe-refactor-overnight` — trả structured JSON
+  (`GATE_RESULT`/`REFACTOR_RESULT`) thay vì markdown như agent per-TC. Fix G2: workflow
+  `schema` enforcement giờ khớp contract của agent (trước đó shared GATE/REFACTOR trả markdown
+  xung đột với schema JSON).
+
+### Changed
+
+- **`sdlc-cook-overnight` 1.5.0:** MINOR — workflow dùng agent GATE/REFACTOR overnight (structured
+  JSON) thay vì reuse agent per-TC; gate-fix retry route về REFACTOR (không phải GREEN); cập nhật
+  per-feature-cook.md (agent list + interference/resume semantics) + unattended-policy.md
+  (all-accidental-green).
+
+### Fixed
+
+- **`workflow-sdlc-cook-overnight.js`:**
+  - **G1:** gate-fix retry dùng sai agent `GREEN_CHUNK` → chuyển về `REFACTOR` (persona sửa code
+    quality khớp gate failures) + prompt "targeted fix, không full refactor".
+  - **G3:** bỏ clobber `tcResults[].status = INTERFERENCE` — TC trong chunk vẫn giữ `DONE`
+    (interference là test KHÁC bị break); detail nằm ở `warnings[]`, feature status `failed` qua
+    guard `interferenceCount > 0`.
+  - **G4:** thêm guard all-accidental-green (`doneCount===0 && skippedCount>0 && failedCount===0`)
+    → trả `failed` thay vì báo `completed` với zero code.
+  - **G5:** resume hỗ trợ `completedTcFiles` (map `{ tcId: [files] }`) bảo toàn `filesChanged`.
+  - Cleanup: bỏ dead `STUCK` check; thêm note multi-batch (`redBatchSize > 1`) vào RED prompt.
+
 ## [3.8.0] - 2026-08-27
 
 ### Added

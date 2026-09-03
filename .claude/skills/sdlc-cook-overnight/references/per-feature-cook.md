@@ -164,10 +164,12 @@ Xem sdlc-cook Bước 8.
 **Phased-batch TDD (khác sdlc-cook per-TC):** workflow này chạy RED batch (viết hết test,
 verify RED 1 lần, accidental-green LIGHT flag không sabotage) → GREEN chunk (3-5 TC/chunk,
 INTERFERENCE-LIGHT trên file touched) → GATE light (INTERFERENCE-FULL baseline) → REFACTOR
-full → GATE full. Dùng 4 agent batch riêng: `sdlc-tdd-be-red-overnight`,
-`sdlc-tdd-be-green-overnight`, `sdlc-tdd-fe-red-overnight`, `sdlc-tdd-fe-green-overnight`
-(không đụng `sdlc-tdd-be-red`/`sdlc-tdd-be-green` per-TC của sdlc-cook). REFACTOR + GATE
-reuse agent per-TC có sẵn (đã whole-feature scope).
+full → GATE full. Dùng 8 agent overnight riêng: `sdlc-tdd-be-red-overnight`,
+`sdlc-tdd-be-green-overnight`, `sdlc-tdd-fe-red-overnight`, `sdlc-tdd-fe-green-overnight`,
+`sdlc-tdd-be-gate-overnight`, `sdlc-tdd-fe-gate-overnight`, `sdlc-tdd-be-refactor-overnight`,
+`sdlc-tdd-fe-refactor-overnight` (không đụng agent per-TC của sdlc-cook). GATE/REFACTOR
+overnight trả structured JSON (`GATE_RESULT`/`REFACTOR_RESULT`) thay vì markdown như agent
+per-TC — để workflow đọc được `status`/`passed`/`findingsFixed` qua schema enforcement.
 
 ## 7. Collect
 
@@ -176,11 +178,13 @@ gateLight, gateFull, summary, warnings, nextStep }`. Lưu vào records của bat
 
 **Semantics phased-batch (khác per-TC):**
 - `tcResults[].status = SKIPPED` = accidental-green LIGHT (test đã pass sẵn, flag cho human
-  sáng review — KHÔNG sabotage). Không coi là fail.
+  sáng review — KHÔNG sabotage). Không coi là fail — TRỪ KHI mọi TC đều SKIPPED (không có
+  implementation nào được sinh ra → feature `status = "failed"`, không báo `completed`).
 - `warnings[]` chứa INTERFERENCE-LIGHT entries (string per broken test) + accidental-green
   flags. Feature `status = "failed"` khi có INTERFERENCE hoặc BLOCKED/STALE/ERROR.
-- `tcResults[].status = INTERFERENCE` đánh dấu TC gây break test khác cùng file — workflow
-  dừng GREEN ngay khi chunk gây interference.
+- INTERFERENCE-LIGHT **không** đổi `tcResults[].status` — TC trong chunk vẫn giữ `DONE`
+  (test của chúng pass; interference là test KHÁC bị break). Chi tiết interference nằm ở
+  `warnings[]`, feature-level status = `failed` qua guard `interferenceCount > 0`.
 
 **Type 1 — restore bắt buộc (finally):** ngay sau khi lưu COOK_REPORT (completed hay fail):
 `git -C "$project_root" checkout "$ORIGINAL_BRANCH"`. Restore fail → warning HIGH, chặn
@@ -190,5 +194,8 @@ morning report nếu feature fail — để sáng checkout lại debug.
 ## Resume (sáng hôm sau)
 
 Nếu Workflow crash đêm qua → resume bằng `resumeFromRunId` (tool-level, ưu tiên) hoặc
-`resumeFrom` arg (`completedTcIds`, `gateLightPass`, `refactorDone`, `gateFullPass`)
-lấy từ COOK_REPORT/log trước. Xem `sdlc-cook/references/error-recovery.md#workflow-crash`.
+`resumeFrom` arg (`completedTcIds`, `completedTcFiles`, `gateLightPass`, `refactorDone`,
+`gateFullPass`) lấy từ COOK_REPORT/log trước. `completedTcFiles` (map `{ tcId: [files] }`)
+bảo toàn `filesChanged` cho các TC đã xong — nếu thiếu, TC resumed vẫn `DONE` nhưng
+`filesChanged` rỗng (ảnh hưởng GATE INTERFERENCE-FULL). Xem
+`sdlc-cook/references/error-recovery.md#workflow-crash`.

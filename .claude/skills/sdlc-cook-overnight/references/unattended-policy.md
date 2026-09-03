@@ -16,7 +16,7 @@ và morning report để human review sáng.
 | 6 | PR creation | Auto tạo PR (host-detect: GitHub→`gh`, GitLab→`glab`, auth guard trước; fail → row 19), KHÔNG merge | Mục PR created |
 | 7 | INTERFERENCE-LIGHT (1 chunk break test khác cùng file) | Dừng feature đó, ghi chi tiết (test broken, file, line) | Mục Failed |
 | 8 | TC BLOCKED / STALE / ERROR | Feature fail, ghi spec/tc cần human | Mục Failed |
-| 8b | Accidental-green (batch LIGHT — test đã pass sẵn, không sabotage) | KHÔNG fail — TC `SKIPPED`, flag cho human sáng review (test có thể đã được impl trước đó, hoặc spec sai) | Mục Warnings |
+| 8b | Accidental-green (batch LIGHT — test đã pass sẵn, không sabotage) | KHÔNG fail từng TC — TC `SKIPPED`, flag cho human sáng review (test có thể đã được impl trước đó, hoặc spec sai). NHƯNG nếu TẤT CẢ TC của feature accidental-green (không có implementation nào) → feature fail | Mục Warnings (hoặc Failed nếu toàn bộ accidental-green) |
 | 9 | GATE light fail (sau retry ×2) | Feature failed, ghi gate failures | Mục Failed |
 | 10 | GATE full fail (sau retry ×2) | Feature partial, ghi gate failures | Mục Partial |
 | 11 | Workflow crash | Log crash, feature chưa xong. Sáng resume `resumeFromRunId` | Mục Failed/Blocked |
