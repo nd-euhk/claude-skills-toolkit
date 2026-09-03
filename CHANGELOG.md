@@ -2,6 +2,16 @@
 
 All notable changes to the skills-toolkit plugin are documented here.
 
+## [3.9.1] - 2026-09-03
+
+### Changed
+
+- **`sdlc-cook-overnight` 1.5.1:** PATCH — trim bảng Unattended Policy trong SKILL.md (13 dòng
+  trùng lặp với `references/unattended-policy.md`) → 4 rule bất biến + pointer; làm rõ ngữ cảnh
+  pointer tới reference. Thêm board-state tường minh cho row 19 (`unattended-policy.md`): PR
+  auth-fail → giữ 🚧 In Progress, chờ human tạo PR tay rồi mới 👀 In Review (lỗ hổng doc do
+  skill-tester eval phát hiện). Không đổi behavior (Hard Boundaries, không auto-merge, type-aware giữ nguyên).
+
 ## [3.9.0] - 2026-09-03
 
 ### Added

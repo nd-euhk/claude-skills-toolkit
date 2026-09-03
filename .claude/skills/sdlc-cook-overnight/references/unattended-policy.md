@@ -27,7 +27,7 @@ và morning report để human review sáng.
 | 16 | Type 1: restore branch gốc fail | Warning HIGH — chặn task kế (sub-repo đang ở branch task) | Mục Warnings |
 | 17 | Type 1: sub-repo không có remote | Không auto-PR, log cảnh báo — sáng human tự push/PR | Mục Warnings |
 | 18 | Baseline HARD-FAIL (harness không chạy được — không có baseline file) | Skip feature; ghi lệnh test + exit code + thiếu gì (deps/build/output-dir); KHÔNG dispatch workflow | Mục Skipped |
-| 19 | PR host/auth fail (`gh`/`glab` không authed, repo host lạ) | Không tạo PR, KHÔNG treo/hỏi đêm; log "PR-ready nhưng chưa tạo được (lý do)" | Mục Warnings |
+| 19 | PR host/auth fail (`gh`/`glab` không authed, repo host lạ) | Không tạo PR, KHÔNG treo/hỏi đêm; log "PR-ready nhưng chưa tạo được (lý do)". **Board giữ 🚧 In Progress** (chưa có PR nên chưa chuyển 👀 In Review) — sáng human tạo PR tay rồi mới chuyển 👀 In Review | Mục Warnings |
 
 ## Night Review (sdlc-review-codechange)
 

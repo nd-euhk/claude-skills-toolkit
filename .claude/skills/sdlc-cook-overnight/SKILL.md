@@ -8,7 +8,7 @@ description: >-
   "overnight run". Interactive Batch Plan (sequential / parallel / pick features)
   qua AskUserQuestion, rồi unattended execution — auto tạo PR, không auto-merge,
   morning report. Direct orchestration của sdlc-cook — không tạo/sửa specs.
-version: 1.5.0
+version: 1.5.1
 argument-hint: "all | FEAT-001 FEAT-002 ..."
 allowed-tools: Read, Write, Edit, Bash, Agent, Workflow, AskUserQuestion, Skill
 ---
@@ -216,23 +216,17 @@ cho human sáng hôm sau. Template + aggregation: → `references/morning-report
 
 ## Unattended Policy
 
-Đêm chạy, controller tự quyết tại các điểm vốn cần human. Tóm tắt — đầy đủ + edge cases:
-→ `references/unattended-policy.md`
+Đêm chạy, controller tự quyết tại mọi điểm vốn cần human trong sdlc-cook. Bốn rule bất
+biến (vi phạm = blocker):
 
-| Điểm HITL | Auto-decision đêm |
-|-----------|-------------------|
-| Feature không 🟢 Ready for Cook | Skip + ghi log |
-| Dependency chưa ✅ Done | Skip + ghi log |
-| Night review (trước PR) | Chạy `sdlc-review-codechange --security --bugs --spec --unattended` (lean gating trio); ghi verdict; không chặn PR |
-| INTERFERENCE | Dừng feature đó, log chi tiết, tiếp tục feature khác |
-| TC BLOCKED / STALE | Feature fail, log, tiếp tục |
-| GATE light/full fail | Feature partial/failed, log, tiếp tục |
-| PR merge | **KHÔNG bao giờ auto** |
-| Workflow crash | Log; sáng resume bằng `resumeFromRunId` / `resumeFrom` |
-| Type 1 restore fail | Warning HIGH — chặn task kế (sub-repo đang ở branch task) |
-| Type 1 sub-repo không có remote | Không auto-PR, log cảnh báo (sáng human tự push/PR) |
-| Baseline HARD-FAIL (harness không chạy được) | Skip feature; ghi lệnh test + exit code + thiếu gì; KHÔNG dispatch |
-| PR host/auth fail (gh/glab) | Không tạo, không hỏi; log "PR-ready" + warning |
+1. **Never auto-merge** — bất kể GATE pass đến đâu, luôn tạo PR chờ human review sáng.
+2. **Continue-on-fail** — failure dừng feature đó, KHÔNG dừng batch.
+3. **Spec không rõ = fail, không đoán** — TC STALE/BLOCKED dừng feature, không tự suy diễn.
+4. **No silent skip** — mọi skip/fail phải có lý do tường minh trong morning report.
+
+Bảng auto-decision đầy đủ (19 điểm HITL → auto-decision + mục morning report tương ứng)
+và edge cases (parallel same-service, worktree fail, mixed-type batch):
+→ `references/unattended-policy.md`
 
 ## Key Notes
 
