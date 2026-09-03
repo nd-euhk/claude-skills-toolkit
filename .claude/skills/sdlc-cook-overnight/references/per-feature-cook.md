@@ -171,10 +171,30 @@ full → GATE full. Dùng 8 agent overnight riêng: `sdlc-tdd-be-red-overnight`,
 overnight trả structured JSON (`GATE_RESULT`/`REFACTOR_RESULT`) thay vì markdown như agent
 per-TC — để workflow đọc được `status`/`passed`/`findingsFixed` qua schema enforcement.
 
-## 7. Collect
+## 7. Collect + Persist Checkpoint
 
 `Workflow()` return `COOK_REPORT`: `{ status: completed|partial|failed, tcResults,
-gateLight, gateFull, summary, warnings, nextStep }`. Lưu vào records của batch.
+gateLight, gateFull, summary, warnings, nextStep }`.
+
+**Persist ngay khi nhận** — TRƯỚC mọi bước khác, gọi harness ghi checkpoint xuống disk.
+Checkpoint là nguồn sự thật của Phase 6 (dựng morning report từ disk, không từ memory) và
+của Resume (sáng đọc lại được sau crash):
+
+```bash
+# out-dir absolute (controller không cd) — ${WORKSPACE_ROOT} như §1
+python3 .claude/skills/sdlc-cook-overnight/scripts/persist-cook-report.py \
+  --out-dir "${WORKSPACE_ROOT}/.work/reports/per-feature" \
+  --layer {backend|frontend} <<'JSON'
+{COOK_REPORT — nguyên văn từ Workflow() return}
+JSON
+# stdout = path đã ghi; exit 0 = ok; exit 2 = payload/layer invalid; exit 1 = lỗi IO
+```
+
+- **Verify checkpoint tồn tại** sau khi gọi: `.work/reports/per-feature/{FR-ID}-{BE|FE}.json`.
+- **Script fail (exit ≠ 0 / file thiếu)** → controller tự `Write` file checkpoint đó với cùng
+  nội dung COOK_REPORT (fallback — không để feature mất checkpoint vì harness lỗi).
+- **Checkpoint = COOK_REPORT thuần** (do workflow sinh, ghi nguyên văn). Controller không thêm
+  field vào file này; branch/commit/verdict/PR link là controller state, điền vào Phase 6.
 
 **Semantics phased-batch (khác per-TC):**
 - `tcResults[].status = SKIPPED` = accidental-green LIGHT (test đã pass sẵn, flag cho human
@@ -188,14 +208,15 @@ gateLight, gateFull, summary, warnings, nextStep }`. Lưu vào records của bat
 
 **Type 1 — restore bắt buộc (finally):** ngay sau khi lưu COOK_REPORT (completed hay fail):
 `git -C "$project_root" checkout "$ORIGINAL_BRANCH"`. Restore fail → warning HIGH, chặn
-task kế (sub-repo đang ở branch task sẽ làm hỏng task sau). Ghi branch + commit hash vào
-morning report nếu feature fail — để sáng checkout lại debug.
+task kế (sub-repo đang ở branch task sẽ làm hỏng task sau). Nếu feature fail → controller giữ
+branch + commit hash (điền vào morning report Phase 6) để sáng checkout lại debug.
 
 ## Resume (sáng hôm sau)
 
 Nếu Workflow crash đêm qua → resume bằng `resumeFromRunId` (tool-level, ưu tiên) hoặc
 `resumeFrom` arg (`completedTcIds`, `completedTcFiles`, `gateLightPass`, `refactorDone`,
-`gateFullPass`) lấy từ COOK_REPORT/log trước. `completedTcFiles` (map `{ tcId: [files] }`)
-bảo toàn `filesChanged` cho các TC đã xong — nếu thiếu, TC resumed vẫn `DONE` nhưng
-`filesChanged` rỗng (ảnh hưởng GATE INTERFERENCE-FULL). Xem
+`gateFullPass`) — lấy từ **checkpoint file** `.work/reports/per-feature/{FR-ID}-{BE|FE}.json`
+của feature đó (COOK_REPORT đã persist ở §7 — không phải memory/session log). `completedTcFiles`
+(map `{ tcId: [files] }`) bảo toàn `filesChanged` cho các TC đã xong — nếu thiếu, TC resumed
+vẫn `DONE` nhưng `filesChanged` rỗng (ảnh hưởng GATE INTERFERENCE-FULL). Xem
 `sdlc-cook/references/error-recovery.md#workflow-crash`.

@@ -6,10 +6,19 @@ File: `.work/reports/overnight-{YYYYMMDD}.md`.
 
 ## Aggregation Rules
 
-Gom từng `COOK_REPORT` (và auto-decision log) thành một bảng. Phân loại feature theo
-status: DONE (completed + PR created) / PARTIAL (gate full fail, hoặc có TC
-BLOCKED/STALE/ERROR nhưng gate vẫn pass) / FAILED (gate light fail, toàn bộ TC fail,
-hoặc INTERFERENCE) / SKIPPED.
+Controller dựng report từ 2 nguồn (Phase 6 của SKILL.md):
+
+1. **Checkpoint files** — `.work/reports/per-feature/*.json`, mỗi file là COOK_REPORT của 1
+   feature (workflow persist ngay khi xong, qua `scripts/persist-cook-report.py` — atomic + validate).
+   Đọc từ **disk**, không từ memory → controller crash/restart giữa đêm vẫn dựng lại được report
+   cho mọi feature đã cook xong.
+2. **Controller state** — skip list (feature không dispatch: không ready / baseline HARD-FAIL /
+   dependency chưa Done), night-review verdict + link `.work/review/REVIEW-CODE-*.md`, PR link/number,
+   branch + commit hash của feature fail (Type 1).
+
+Phân loại feature theo status: DONE (completed + PR created) / PARTIAL (gate full fail, hoặc có
+TC BLOCKED/STALE/ERROR nhưng gate vẫn pass) / FAILED (gate light fail, toàn bộ TC fail, hoặc
+INTERFERENCE) / SKIPPED.
 
 ## Template
 

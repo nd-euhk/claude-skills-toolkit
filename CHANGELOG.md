@@ -2,6 +2,18 @@
 
 All notable changes to the skills-toolkit plugin are documented here.
 
+## [3.10.0] - 2026-09-03
+
+### Changed
+
+- **`sdlc-cook-overnight` 1.6.0:** MINOR — persist COOK_REPORT thành checkpoint per-FR ngay khi
+  workflow xong qua harness mới `scripts/persist-cook-report.py` (đọc COOK_REPORT từ stdin, validate
+  schema COOK_REPORT, atomic write `.work/reports/per-feature/{FR-ID}-{BE|FE}.json`). Morning report
+  (Phase 6) dựng từ checkpoint files trên disk + controller state (skip list / night-review verdict /
+  PR link) thay vì memory records — controller crash/restart giữa đêm không mất kết quả feature đã
+  cook xong, Resume đọc lại được từ checkpoint. `.gitignore` thêm `.work/reports/`. Không đổi
+  behavior cook TDD (RED/GREEN/GATE/REFACTOR giữ nguyên).
+
 ## [3.9.1] - 2026-09-03
 
 ### Changed

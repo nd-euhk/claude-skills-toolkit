@@ -8,7 +8,7 @@ description: >-
   "overnight run". Interactive Batch Plan (sequential / parallel / pick features)
   qua AskUserQuestion, rồi unattended execution — auto tạo PR, không auto-merge,
   morning report. Direct orchestration của sdlc-cook — không tạo/sửa specs.
-version: 1.5.1
+version: 1.6.0
 argument-hint: "all | FEAT-001 FEAT-002 ..."
 allowed-tools: Read, Write, Edit, Bash, Agent, Workflow, AskUserQuestion, Skill
 ---
@@ -143,7 +143,7 @@ Per feature:
   4. Board update → 🚧 In Progress (sdlc-sprint-board)
   5. Read TST/IMP specs → extract TCs, sort CRITICAL→HIGH→MEDIUM→LOW (Bước 6)
   6. Dispatch workflow-sdlc-cook-overnight.js với args {featureName, frId, service, layer, testCases, baseline, repoPath, specRoot, redBatchSize, greenChunkSize}
-  7. Collect COOK_REPORT
+  7. Collect COOK_REPORT → persist checkpoint ngay (gọi `scripts/persist-cook-report.py`, chi tiết §7 per-feature-cook)
   8. Type 1 → restore original_branch (finally — chặn task kế nếu fail)
 ```
 
@@ -152,14 +152,14 @@ Per feature:
 ```
 for each feat in lane:
   report = cookOne(feat)      # fire 1 Workflow, await hoàn thành
-  records.push({...feat, ...report})
+  persistCheckpoint(report)   # harness ghi .work/reports/per-feature/ (§7 per-feature-cook)
 ```
 
 **Parallel** — fire tất cả Workflow cùng một lượt, rồi chờ từng task:
 
 ```
 tasks = [cookOne(feat) for feat in lanes]   # nhiều Workflow() call trong cùng turn
-for task in tasks: await task               # collect COOK_REPORT từng cái
+for task in tasks: await task               # collect + persist checkpoint từng cái (§7 per-feature-cook)
 ```
 
 > ⚠️ **Type 1 — không bao giờ song song** (in-place checkout ảnh hưởng cả working project).
@@ -176,8 +176,8 @@ Feature `COOK_REPORT.status = "completed"`:
   advisory (arch/conventions/impact/ops/tests) không chạy ban đêm, chờ human review sáng.
   `targetBranch` = PR target (type-aware: Type 2 → `origin/main` của workspace; Type 1 → branch
   gốc của sub-repo); `specDir` = `<workspace>/agent_docs/features/<FEAT_ID>/`. Review scope =
-  diff feature...target (chỉ code thay đổi) + Spec Compliance (code có đáp ứng tài liệu). Ghi
-  `verdict` vào morning report mục Reviewed. KHÔNG chặn PR creation.
+  diff feature...target (chỉ code thay đổi) + Spec Compliance (code có đáp ứng tài liệu). Giữ
+  `verdict` (controller state) — Phase 6 điền mục Reviewed. KHÔNG chặn PR creation.
   Chi tiết verdict handling → `references/unattended-policy.md` mục Night Review
 - **Auto tạo PR** (type-aware target branch, host-detect + auth guard):
   - Host = `git -C <repo> remote get-url origin` → parse: github.com / GitHub Enterprise → `gh`;
@@ -195,13 +195,16 @@ Feature `COOK_REPORT.status = "completed"`:
 Feature `partial` / `failed`:
 - Type 2: giữ worktree để debug. Type 1: restore branch gốc (không giữ checkout in-place
   qua đêm — sẽ ảnh hưởng project), ghi branch + commit hash để sáng checkout lại
-- Ghi lý do + files changed vào morning report
+- Giữ lý do + files changed (controller state) — Phase 6 điền mục Failed/Skipped
 - Board → ⛔ Blocked (theo status transition map trong `sdlc-cook/references/tdd-orchestration.md#status-transition-map`)
 
 ### Phase 6: Morning Report
 
-Tạo `.work/reports/overnight-YYYYMMDD.md` — tổng hợp toàn batch, là deliverable chính
-cho human sáng hôm sau. Template + aggregation: → `references/morning-report.md`
+Dựng `.work/reports/overnight-YYYYMMDD.md` — deliverable chính cho human sáng hôm sau.
+Nguồn = **checkpoint files** `.work/reports/per-feature/*.json` (mỗi feature đã persist ở
+Phase 4/7 — KHÔNG từ memory) + controller state: skip list (trước dispatch), night-review
+verdict + `.work/review/*.md` path, PR link/number. Template + aggregation:
+→ `references/morning-report.md`
 
 ```
 # Overnight Cook Report — YYYY-MM-DD
@@ -241,6 +244,7 @@ và edge cases (parallel same-service, worktree fail, mixed-type batch):
 ## Full Reference
 
 - `references/batch-planning.md` — lane building algorithm, parallel safety, plan summary format
-- `references/per-feature-cook.md` — per-feature procedure, baseline capture, TC extraction, Workflow args
+- `references/per-feature-cook.md` — per-feature procedure, baseline capture, TC extraction, Workflow args, checkpoint persist
 - `references/unattended-policy.md` — auto-decision table chi tiết + edge cases
 - `references/morning-report.md` — template + aggregation rules
+- `scripts/persist-cook-report.py` — harness ghi COOK_REPORT thành checkpoint per-FR (atomic + validate)

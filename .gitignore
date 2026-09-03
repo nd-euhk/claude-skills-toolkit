@@ -4,6 +4,9 @@
 # Claude Code worktrees (embedded git repos)
 .claude/worktrees/
 
+# Overnight cook runtime reports (per-feature checkpoints + morning report)
+.work/reports/
+
 # Telemetry logs
 .logs/
 
