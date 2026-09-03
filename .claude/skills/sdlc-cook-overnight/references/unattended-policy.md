@@ -10,7 +10,9 @@ và morning report để human review sáng.
 |---|------------------------------|-------------------|----------------|
 | 1 | Feature không 🟢 Ready for Cook | Skip feature, ghi lý do (status hiện tại) | Mục Skipped |
 | 2 | Feature không tồn tại trên board | Skip, ghi lỗi FEAT id không hợp lệ | Mục Skipped |
-| 3 | Dependency (`depends_on`) chưa ✅ Done | Skip feature, ghi dependency + status | Mục Skipped |
+| 3a | Dependency (`depends_on`) in-batch + cùng `project_root` (chain edge), upstream chưa cook | **HOLD** — xếp sau upstream trong lane, dispatch sau khi upstream Phase 5 completed | Plan summary (chain) |
+| 3b | Dependency (`depends_on`) khác root / không in-batch / upstream không Ready | Skip feature, ghi dependency + status | Mục Skipped |
+| 3c | Upstream chain partial/failed (**chain halt**) | Skip các FR còn lại trong chain — reason "upstream {id} {status}"; Type 1 restore branch gốc tại điểm dừng | Mục Skipped |
 | 4 | Feature đang 🚧 In Progress (cook khác đang chạy) | Skip — không spawn cook trùng | Mục Skipped |
 | 5 | Night review (trước PR) | Chạy `sdlc-review-codechange --security --bugs --spec --unattended` (lean gating trio) trên worktree/subrepo sau GATE full pass; ghi verdict; KHÔNG chặn PR creation | Mục Reviewed |
 | 6 | PR creation | Auto tạo PR (host-detect: GitHub→`gh`, GitLab→`glab`, auth guard trước; fail → row 19), KHÔNG merge | Mục PR created |
@@ -37,7 +39,8 @@ mà đêm không thể hỏi:
 
 ```javascript
 // Type 2: worktree path; Type 1: sub-repo path
-// targetBranch = PR target: Type 2 → "origin/main" (workspace); Type 1 → branch gốc sub-repo.
+// targetBranch = PR target = baseRef của feature: default Type 2 → "origin/main" (workspace);
+// Type 1 → branch gốc sub-repo; chained → branch upstream FR (review scope = delta FR_k).
 // specDir = <workspace>/agent_docs/features/<FEAT_ID>/ (SRS + IMP + TST).
 // --base → review scope = diff feature...target — chỉ code thay đổi, deterministic đêm.
 // --specs → thêm Spec Compliance: code có đáp ứng tài liệu (GAP/PARTIAL/DIVERGENT).
@@ -64,6 +67,8 @@ liên kết nó trong morning report để human đọc chi tiết.
 ## Nguyên Tắc
 
 1. **Continue-on-fail** — mọi failure dừng feature đó, KHÔNG dừng batch. Feature kế vẫn chạy.
+   (Ngoại lệ có chủ đích: chain halt — upstream partial/failed → downstream trong chain SKIP theo
+   row 3c; các lane/feature độc lập khác vẫn chạy.)
 2. **Log everything** — mỗi auto-decision ghi: feature, điểm HITL, quyết định, lý do.
 3. **No silent skip** — feature bị skip phải có lý do tường minh trong report.
 4. **Never auto-merge** — bất kể GATE pass đến đâu.
@@ -98,3 +103,15 @@ Ghi lý do (branch tồn tại / path tồn tại / disk full) theo
 
 Batch có cả Type 1 và Type 2 → chạy Sequential toàn bộ (Type 1 ép tuần tự). Không tách
 lane "Type 2 song song + Type 1 tuần tự" trong cùng một đêm — phức tạp + dễ nhầm restore.
+
+### Chain (Form-2) — stacked FR cùng git root
+
+- **Type 1 restore**: restore `original_branch` TRỪ KHI feature `completed` VÀ còn FR kế branch từ nó
+  (middle success). FR cuối chain → restore; FR middle fail/partial → restore (chain halt — row 3c);
+  FR middle success → KHÔNG restore (FR kế checkout in-place từ branch này; baseRef = branch đó).
+- **Stacked-PR merge sáng**: human merge BOTTOM-UP theo thứ tự chain (FR_1 → FR_2 → ...). Không merge
+  FR_k trước FR_(k-1). Nếu FR_1 PR bị "request changes", branch FR_1 đổi → FR_2 diff cần rebase tay —
+  chỉ cảnh báo trong report, đêm KHÔNG tự rebase/merge.
+- **Continue-on-fail trong chain**: PR/auth/review outcome của upstream KHÔNG chặn dispatch FR kế
+  (upstream vẫn `completed` — auth-fail PR thì ghi cả 2 cần tạo PR tay). Chỉ upstream partial/failed
+  mới halt chain (row 3c).

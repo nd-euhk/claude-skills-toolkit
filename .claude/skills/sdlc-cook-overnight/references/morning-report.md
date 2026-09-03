@@ -13,8 +13,9 @@ Controller dựng report từ 2 nguồn (Phase 6 của SKILL.md):
    Đọc từ **disk**, không từ memory → controller crash/restart giữa đêm vẫn dựng lại được report
    cho mọi feature đã cook xong.
 2. **Controller state** — skip list (feature không dispatch: không ready / baseline HARD-FAIL /
-   dependency chưa Done), night-review verdict + link `.work/review/REVIEW-CODE-*.md`, PR link/number,
-   branch + commit hash của feature fail (Type 1).
+   dependency chưa Done / upstream chain failed), **baseRef per feature** (default integration;
+   chained = branch upstream) + chain relationship (thứ tự FR_1 → FR_2 → ...), night-review verdict
+   + link `.work/review/REVIEW-CODE-*.md`, PR link/number, branch + commit hash của feature fail (Type 1).
 
 Phân loại feature theo status: DONE (completed + PR created) / PARTIAL (gate full fail, hoặc có
 TC BLOCKED/STALE/ERROR nhưng gate vẫn pass) / FAILED (gate light fail, toàn bộ TC fail, hoặc
@@ -43,10 +44,10 @@ features_cooked: {X}
 
 ## Chi Tiết Per Feature
 
-| FEAT | FR | Service | Status | PR link | GATE light | GATE full | TCs (done/total) |
-|------|-----|---------|--------|---------|------------|-----------|------------------|
-| FEAT-002 | FR-AUTH-005 | auth-service | ✅ DONE | [PR #12](...) | PASS | PASS | 3/3 |
-| FEAT-003 | FR-AUTH-006 | auth-service | ❌ FAILED | — | FAIL | — | 1/2 |
+| FEAT | FR | Service | Base | Status | PR link | GATE light | GATE full | TCs (done/total) |
+|------|-----|---------|------|--------|---------|------------|-----------|------------------|
+| FEAT-002 | FR-AUTH-005 | auth-service | origin/main | ✅ DONE | [PR #12](...) | PASS | PASS | 3/3 |
+| FEAT-003 | FR-AUTH-006 | auth-service | origin/main | ❌ FAILED | — | FAIL | — | 1/2 |
 
 ## Failed / Partial — Chi Tiết + Lý Do
 
@@ -64,7 +65,20 @@ features_cooked: {X}
 | FEAT | Lý do |
 |------|-------|
 | FEAT-005 | Chưa đủ specs (không 🟢 Ready for Cook) |
-| FEAT-006 | Dependency FEAT-003 chưa ✅ Done |
+| FEAT-006 | Dependency FEAT-003 chưa ✅ Done (khác root / không in-batch) |
+| FEAT-007 | Upstream chain FEAT-003 failed (chain halt — FR-... {status}) |
+
+## Chain Merge Order (nếu có chained FR)
+
+Stacked PRs phải merge **BOTTOM-UP** theo thứ tự chain — không merge FR_k trước FR_(k-1) (diff FR_k
+chứa code upstream; merge FR_k sớm sẽ kéo theo cả diff upstream chưa review).
+
+- FR-AUTH-005 → FR-AUTH-006 → FR-AUTH-007
+  - [PR #12](...) — FR-AUTH-005, base `origin/main` → merge TRƯỚC
+  - [PR #13](...) — FR-AUTH-006, base `feature/...FR-AUTH-005...` → merge SAU PR #12
+  - [PR #14](...) — FR-AUTH-007, base `feature/...FR-AUTH-006...` → merge SAU PR #13
+- Nếu PR upstream bị "request changes" → branch upstream đổi → FR kế cần **rebase tay** (checkout
+  branch FR kế, rebase lên branch upstream mới, force-push). Skill không tự làm — cảnh báo ở đây.
 
 ## Warnings
 
@@ -85,6 +99,10 @@ Sau khi human merge PRs (cleanup theo type — controller KHÔNG `cd`, mọi l�
 - **Type 2 (workspace-member):** xóa worktree + branch:
   `git -C "$project_root" worktree remove "$WORKTREE_PATH" --force` + `git -C "$project_root" branch -D "$BRANCH"`
 - **Type 1 (submodule/gitignored):** KHÔNG có worktree — sub-repo đã `checkout "$ORIGINAL_BRANCH"`
-  ở sdlc-cook Bước 10 (finally). Chỉ xóa branch: `git -C "$project_root" branch -D "$BRANCH"`
+  ngay trong đêm (per-feature-cook §7 — cuối chain / chain halt; không chờ cleanup sáng). Sáng chỉ xóa
+  branch: `git -C "$project_root" branch -D "$BRANCH"`
+- **Chained branch/worktree:** cleanup **BOTTOM-UP** theo thứ tự chain — xóa branch/worktree FR kế
+  trước, rồi upstream. KHÔNG xóa branch upstream khi downstream chưa merged (downstream diff chứa
+  upstream code; branch upstream là base cho tới khi downstream merged xong)
 - Board + backlog: spawn `sdlc-sprint-board` (→ ✅ Done) + `sdlc-sprint-backlog`
 - Chi tiết: `sdlc-cook/references/merge-manager.md#cleanup-procedure`

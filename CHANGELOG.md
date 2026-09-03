@@ -2,6 +2,20 @@
 
 All notable changes to the skills-toolkit plugin are documented here.
 
+## [3.12.0] - 2026-09-03
+
+### Added
+
+- **`sdlc-cook-overnight` 1.8.0:** MINOR — Form-2 chain: cook chuỗi FR phụ thuộc nhau **cùng git
+  root** trong một đêm stacked. Dùng cạnh `Depends On` (`depends_on`) hiện có ở backlog làm chain
+  edge: FR_k (depends FR_(k-1), cùng batch, cùng root) **HOLD** thay vì SKIP → sau khi FR_(k-1) đạt
+  Phase 5 terminal `completed`, FR_k checkout từ **branch FR_(k-1)** (baseRef chained; code FR_(k-1)
+  đã hiện diện) → PR FR_k **stacked** (base = branch upstream). Chain bắt buộc Sequential (ẩn
+  Parallel khi có chain edge); Type 1 restore branch gốc dời về cuối chain / chain halt. PR không
+  auto-merge — morning report hiện **Chain merge order** (merge BOTTOM-UP, không merge FR_k trước
+  FR_(k-1)); upstream partial/failed → chain halt, downstream SKIP. Dependency khác root / không
+  in-batch / không Ready vẫn SKIP như cũ. Không đổi data model, workflow JS, hay sdlc-cook.
+
 ## [3.11.0] - 2026-09-03
 
 ### Changed

@@ -33,28 +33,47 @@ Lấy `project_root`, `project_type`, `workspace_root`. Chi tiết:
 
 ## 2. Tách Branch (type-aware)
 
+**`BASE_REF`** = ref mà FR checkout từ (điểm xuất phát branch) — controller tính TRƯỚC khi gọi
+procedure này, cùng lúc capture `project_root`/`project_type` ở §1:
+- **Mặc định (không chain)** = integration base theo type: Type 2 `origin/main`; Type 1 `HEAD`.
+- **Chained FR_k (k≥2)** = branch thật của FR_(k-1) (`feature/...`, local, cùng git root). Controller
+  giữ ref này sau khi FR_(k-1) đạt Phase 5 terminal `completed`. Vì FR_(k-1) đã push + branch ổn định
+  (không force-push lại), dùng trực tiếp làm base ⇒ code FR_(k-1) nằm sẵn trong FR_k.
+- **Gate dispatch chain**: chained FR_k CHỈ được dispatch sau khi FR_(k-1) Phase 5 terminal
+  `status = completed`. Upstream partial/failed → chain halt — FR_k + các FR sau không chạy.
+  PR/auth/review outcome của upstream KHÔNG chặn (continue-on-fail).
+- **Worktree/branch upstream được GIỮ qua đêm** (không xóa giữa đêm) — branch upstream là baseRef của
+  FR kế; cleanup chỉ khi morning merge xong (xem SKILL Key Notes).
+
 ### Type 2 — workspace-member: worktree
 
 ```bash
 BRANCH="feature/${FEAT_ID}-${SERVICE}"            # feature/FEAT-001-auth-service
 WORKTREE_PATH="${WORKSPACE_ROOT}/.claude/worktrees/feature-${FEAT_ID}-${SERVICE}"
-git -C "$project_root" worktree add -b "$BRANCH" "$WORKTREE_PATH" "origin/main"
+git -C "$project_root" worktree add -b "$BRANCH" "$WORKTREE_PATH" "$BASE_REF"
 REPO_PATH="$WORKTREE_PATH"                        # nơi chạy code/test
 SPEC_ROOT="$WORKSPACE_ROOT"                       # nơi chứa agent_docs/ (hoặc "$WORKTREE_PATH" nếu có copy specs)
 ```
+
+`BASE_REF` default = `origin/main`; chained = `<branch FR_(k-1)>` — branch upstream local, cùng repo
+(worktree chia sẻ chung refs, `worktree add` nhận branch local như bình thường).
 
 ### Type 1 — submodule / gitignored-subproject: in-place checkout + restore
 
 ```bash
 BRANCH="feature/${FEAT_ID}-${SERVICE}"
 ORIGINAL_BRANCH=$(git -C "$project_root" branch --show-current)   # capture TRƯỚC — sub-repo đã sẵn trên branch gốc
-git -C "$project_root" checkout -b "$BRANCH" HEAD
+git -C "$project_root" checkout -b "$BRANCH" "$BASE_REF"
 REPO_PATH="$project_root"                          # sub-repo
 SPEC_ROOT="$workspace_root"                        # specs ở parent workspace
 ```
 
-**Quy tắc cứng Type 1:** capture `original_branch` trước; tuần tự; restore LUÔN chạy
-sau feature (Bước 7); PR về remote của sub-repo; specs ở parent.
+`BASE_REF` default = `HEAD` (branch từ điểm hiện tại = branch gốc đã checkout); chained = `<branch
+FR_(k-1)>` (in-place checkout từ branch upstream ngay trong sub-repo).
+
+**Quy tắc cứng Type 1:** capture `original_branch` trước; tuần tự; restore `original_branch` theo
+quy tắc per-chain ở Bước 7 (cuối chain, hoặc feature fail làm chain halt — KHÔNG restore giữa chain
+khi success); PR về remote của sub-repo; specs ở parent.
 Chi tiết: `sdlc-cook/references/project-detection.md#branch-strategy-theo-project-type`
 
 ## 3. Harness Setup + Baseline Gate (bắt buộc)
@@ -206,7 +225,10 @@ JSON
   (test của chúng pass; interference là test KHÁC bị break). Chi tiết interference nằm ở
   `warnings[]`, feature-level status = `failed` qua guard `interferenceCount > 0`.
 
-**Type 1 — restore bắt buộc (finally):** ngay sau khi lưu COOK_REPORT (completed hay fail):
+**Type 1 — restore theo chain (finally):** restore `original_branch` TRỪ KHI feature `completed` VÀ
+còn FR kế trong chain sẽ branch từ nó (middle success). Cụ thể: FR cuối chain (kể cả chain 1 FR) →
+restore; FR middle FAIL/partial → restore (chain halt — không FR nào branch từ nó); FR middle success
+→ KHÔNG restore (FR kế checkout in-place từ branch này, `BASE_REF` = branch FR vừa xong). Restore:
 `git -C "$project_root" checkout "$ORIGINAL_BRANCH"`. Restore fail → warning HIGH, chặn
 task kế (sub-repo đang ở branch task sẽ làm hỏng task sau). Nếu feature fail → controller giữ
 branch + commit hash (điền vào morning report Phase 6) để sáng checkout lại debug.
