@@ -2,6 +2,23 @@
 
 All notable changes to the skills-toolkit plugin are documented here.
 
+## [3.18.1] - 2026-09-04
+
+### Fixed
+
+- **`sdlc-cook-overnight` 1.14.1:** PATCH — fix doc–code drift trong per-chunk loop v1.14.0:
+  - `references/per-feature-cook.md` §7: bỏ wording sai "status=`failed` khi có BLOCKED/STALE/ERROR".
+    `failed` (workflow dừng sớm) chỉ khi không có TC DONE nào (toàn fail hoặc toàn SKIPPED) hoặc
+    INTERFERENCE; trường hợp hỗn hợp ≥1 DONE + ≥1 BLOCKED/STALE/ERROR → vẫn chạy REFACTOR full +
+    GATE full rồi trả `partial`/`completed`.
+  - `workflow-sdlc-cook-overnight.js` `gateAgentPrompt`: bỏ nhánh `mode==='light'` chết (header
+    "LIGHT MODE — 4 Critical Checks + INTERFERENCE-FULL" + nội dung L1/L2-L4 duplicate) — hàm chỉ
+    được gọi với `mode='full'`; per-chunk GATE light dùng `gateChunkLightPrompt` riêng. Header giờ
+    static FULL MODE.
+  - `references/morning-report.md`: "gate light fail" không còn = FAILED — GATE light per-chunk
+    non-blocking (fail chỉ feed warning), không quyết định status feature; FAILED chỉ khi no-DONE /
+    all-SKIPPED / INTERFERENCE.
+
 ## [3.18.0] - 2026-09-04
 
 ### Changed

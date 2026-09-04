@@ -362,48 +362,8 @@ ${baselineSection}
 ## Tech Stack
 ${techStackHint || 'Detect from project conventions and framework'}
 
-## ${mode === 'light' ? 'LIGHT MODE — 4 Critical Checks + INTERFERENCE-FULL' : 'FULL MODE — All 10 Gates + INTERFERENCE-FULL delta-gate'}
+## FULL MODE — All 10 Gates + INTERFERENCE-FULL delta-gate
 
-${mode === 'light' ? `
-### L1: Delta Gate — Regression Check vs Baseline (INTERFERENCE-FULL)
-
-The suite may have **pre-existing failures** (tolerated red TCs already failing before this cook). They keep the exit code nonzero, so **exit code is NOT a clean signal** — the L1 verdict comes from a **status-delta comparison against the baseline**, not from "all green".
-
-1. Re-run the full test suite (same command + output dir as baseline capture) to produce current results.
-2. Run the machine-readable delta compare:
-   - junit-xml: \`cd ${SPECS_ROOT} && .claude/scripts/baseline compare --baseline ${BASELINE_PATH} --framework junit-xml --test-output-dir <current-output-dir> --json\`
-   - json frameworks: \`cd ${SPECS_ROOT} && .claude/scripts/baseline compare --baseline ${BASELINE_PATH} --framework <jest-json|vitest-json|pytest-json> --current <current-output.json> --json\`
-3. The compare returns 3 buckets for every currently-FAILING test:
-   - \`interference\` — baseline PASS → current FAIL (regression introduced by this feature)
-   - \`preExistingStillFailing\` — baseline FAIL → current FAIL (tolerated red, NOT a regression)
-   - \`notInBaselineNowFailing\` — no baseline entry + current FAIL (new test failing, or partial/incomplete capture)
-4. Return the 3 arrays **verbatim** in your GATE_RESULT as \`interference\`, \`preExistingStillFailing\`, \`notInBaselineNowFailing\` (each element = one object from the \`--json\` output, untouched). Do NOT collapse them into \`summary\` only — the workflow forwards them into the morning report so the human can distinguish "still red after cook" (needs a separate ticket) from "accidentally fixed by cook" (no ticket).
-5. **Retry-before-fail (flaky guard)** — for every test currently in \`interference\` or \`notInBaselineNowFailing\`, re-run JUST that single test once (targeted, not the whole suite — e.g. Gradle \`--tests "TestClass.testMethod"\`, Maven \`-Dtest="TestClass#testMethod"\`, Jest/Vitest \`-t "<name>"\`, pytest \`<file>::<test>\`). If it PASSES on re-run, it was transient/flaky — MOVE it out of its bucket into a separate \`flaky\` array (do NOT fail L1 for it). If it still FAILS, keep it in its bucket.
-
-**L1 verdict (delta-gate, after the flaky guard):**
-- \`interference\` EMPTY **and** \`notInBaselineNowFailing\` EMPTY → L1 PASS ✅
-- \`interference\` non-empty → L1 FAIL ❌ (feature broke a previously-passing test — and it failed again on re-run)
-- \`notInBaselineNowFailing\` non-empty → L1 FAIL ❌ (a test with no baseline entry is now failing and failed again on re-run — feature's own new test never went green, or capture was incomplete)
-- \`preExistingStillFailing\` non-empty → **tolerated, does NOT fail L1** (carried forward to the report; human reviews in the morning)
-- \`flaky\` non-empty → **tolerated, does NOT fail L1** (failed once, passed on targeted re-run — transient; report to human for stabilization)
-
-Do NOT report L1 PASS from exit code 0 — with pre-existing failures the exit code is always nonzero. The compare \`--json\` output is the objective verdict.
-
-### L2: Hard Boundaries
-- No cross-service database access
-- No direct table access to other service schemas
-- All inter-service communication via APIs or message broker
-
-### L3: Query Safety
-- No raw SQL string concatenation
-- Parameterized queries or ORM methods used throughout
-- No dynamic table/column names from user input
-
-### L4: External Call Resilience
-- All external HTTP calls have timeout configured
-- Circuit breaker or retry with backoff on external dependencies
-- Graceful degradation when external service is unavailable
-` : `
 ### L1: Delta Gate — Regression Check vs Baseline (INTERFERENCE-FULL)
 
 **⚠️ This is the PRIMARY INTERFERENCE-FULL delta-gate.** L1 runs the full regression check vs baseline — the per-chunk GATE light only ran L2-L4 structural checks and did NOT do the baseline compare (compare current failures vs the baseline pre-existing list; a newly-failing test = regression). Exit code is NOT the signal when pre-existing failures exist. Re-run \`baseline compare --json\`, apply the same retry-before-fail (re-run each failing test once; pass → move to \`flaky\`), and return the same 3 buckets plus \`flaky\` (\`interference\`, \`preExistingStillFailing\`, \`notInBaselineNowFailing\`, \`flaky\`) verbatim in your GATE_RESULT.
@@ -444,7 +404,6 @@ Do NOT report L1 PASS from exit code 0 — with pre-existing failures the exit c
 - No dead code, commented-out blocks, or debug artifacts
 - No framework-specific anti-patterns (Detected framework: ${techStackHint || 'auto-detect'})
 - Controller/handler-layer discipline: business logic lives in the service layer, NOT the controller — no controller/route handler injects a Repository/Feign/cache client, holds private helpers that make external calls and swallow exceptions, or runs inline business orchestration (resolve/degrade/fallback). Controller stays thin: parse/validate → call ONE service → map errors to the envelope. Grep the changed controller files and cite file:line in failures.
-`}
 
 ## Required Reading (đường dẫn relative tới ${SPECS_ROOT}/agent_docs)
 - **Hard boundaries**: ${SPECS_ROOT}/agent_docs/hard-boundaries.md

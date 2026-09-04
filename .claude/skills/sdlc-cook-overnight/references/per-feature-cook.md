@@ -228,7 +228,11 @@ JSON
   sáng review — KHÔNG sabotage). Không coi là fail — TRỪ KHI mọi TC đều SKIPPED (không có
   implementation nào được sinh ra → feature `status = "failed"`, không báo `completed`).
 - `warnings[]` chứa INTERFERENCE-LIGHT entries (string per broken test) + accidental-green
-  flags. Feature `status = "failed"` khi có INTERFERENCE hoặc BLOCKED/STALE/ERROR.
+  flags. Feature `status = "failed"` (workflow dừng sớm, không chạy REFACTOR/GATE full) CHỈ khi
+  KHÔNG có TC DONE nào — toàn fail hoặc toàn SKIPPED — hoặc khi có INTERFERENCE
+  (`interferenceCount > 0`). Trường hợp hỗn hợp (≥1 DONE + ≥1 BLOCKED/STALE/ERROR, không
+  INTERFERENCE) → workflow VẪN chạy tiếp REFACTOR full + GATE full rồi trả `partial` (nếu
+  gateFull fail hoặc còn TC fail) hoặc `completed` (nếu gateFull PASS) — không phải `failed`.
 - INTERFERENCE-LIGHT **không** đổi `tcResults[].status` — TC trong chunk vẫn giữ `DONE`
   (test của chúng pass; interference là test KHÁC bị break). Chi tiết interference nằm ở
   `warnings[]`, feature-level status = `failed` qua guard `interferenceCount > 0`.

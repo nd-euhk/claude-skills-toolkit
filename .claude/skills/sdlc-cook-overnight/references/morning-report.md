@@ -17,9 +17,10 @@ Controller dựng report từ 2 nguồn (Phase 6 của SKILL.md):
    chained = branch upstream) + chain relationship (thứ tự FR_1 → FR_2 → ...), night-review verdict
    + link `.work/review/REVIEW-CODE-*.md`, PR link/number, branch + commit hash của feature fail (Type 1).
 
-Phân loại feature theo status: DONE (completed + PR created) / PARTIAL (gate full fail, hoặc có
-TC BLOCKED/STALE/ERROR nhưng gate vẫn pass) / FAILED (gate light fail, toàn bộ TC fail, hoặc
-INTERFERENCE) / SKIPPED.
+Phân loại feature theo status: DONE (completed + PR created) / PARTIAL (gate full fail, hoặc còn
+TC BLOCKED/STALE/ERROR dù gate full pass) / FAILED (không có TC DONE nào — toàn bộ fail hoặc toàn
+bộ SKIPPED — hoặc INTERFERENCE) / SKIPPED. GATE light per-chunk non-blocking: fail của nó KHÔNG
+quyết định status feature (chỉ thành warning).
 
 ## Template
 
