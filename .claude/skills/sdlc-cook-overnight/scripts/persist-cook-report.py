@@ -64,6 +64,9 @@ def validate(payload):
     # Optional fields — validate type nếu hiện diện
     if "warnings" in payload and not isinstance(payload["warnings"], list):
         die(2, "[persist-cook-report] warnings phải là array (hoặc bỏ field)")
+    for key in ("interference", "preExistingStillFailing", "notInBaselineNowFailing", "flaky"):
+        if key in payload and not isinstance(payload[key], list):
+            die(2, f"[persist-cook-report] {key} phải là array (hoặc bỏ field)")
     for key in ("summary", "nextStep"):
         if key in payload and not isinstance(payload[key], str):
             die(2, f"[persist-cook-report] {key} phải là string (hoặc bỏ field)")

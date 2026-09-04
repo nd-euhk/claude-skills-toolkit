@@ -76,6 +76,19 @@ const BATCH_RESULT = {
   required: ['tcResults'],
 }
 
+// Delta-gate bucket item — verbatim element from `baseline compare --json`.
+const DELTA_BUCKET_ITEM = {
+  type: 'object',
+  properties: {
+    test: { type: 'string' },
+    file: { type: 'string' },
+    baseline_status: { type: 'string' },
+    current_status: { type: 'string' },
+    error: { type: 'string' },
+  },
+  required: ['test'],
+}
+
 const GATE_RESULT = {
   type: 'object',
   properties: {
@@ -85,6 +98,14 @@ const GATE_RESULT = {
     total: { type: 'number' },
     failures: { type: 'array', items: { type: 'string' } },
     summary: { type: 'string' },
+    // Delta-gate 3 buckets (from `baseline compare --json`), forwarded verbatim.
+    // Only populated in modes that run the INTERFERENCE-FULL delta compare (L1).
+    interference: { type: 'array', items: DELTA_BUCKET_ITEM },
+    preExistingStillFailing: { type: 'array', items: DELTA_BUCKET_ITEM },
+    notInBaselineNowFailing: { type: 'array', items: DELTA_BUCKET_ITEM },
+    // Flaky guard: tests that failed on the full-suite run but passed on a targeted
+    // re-run (retry-before-fail) — transient, NOT a regression. Tolerated by L1.
+    flaky: { type: 'array', items: DELTA_BUCKET_ITEM },
   },
   required: ['mode', 'status', 'passed', 'total'],
 }
@@ -117,6 +138,11 @@ const COOK_REPORT = {
     summary: { type: 'string' },
     warnings: { type: 'array', items: { type: 'string' } },
     preExistingFailures: { type: 'array', items: { type: 'string' } },
+    // Delta-gate buckets forwarded from GATE light (INTERFERENCE-FULL).
+    interference: { type: 'array', items: DELTA_BUCKET_ITEM },
+    preExistingStillFailing: { type: 'array', items: DELTA_BUCKET_ITEM },
+    notInBaselineNowFailing: { type: 'array', items: DELTA_BUCKET_ITEM },
+    flaky: { type: 'array', items: DELTA_BUCKET_ITEM },
     nextStep: { type: 'string' },
   },
   required: ['flow', 'featureName', 'frId', 'status'],
@@ -248,19 +274,22 @@ Return a BATCH_RESULT with:
 `
 }
 
-function greenChunkAgentPrompt(tcs, redResults) {
+function greenChunkAgentPrompt(tcs, redResults, futureChunkTcs = []) {
   const allResults = redResults.map(r => `- ${r.tcId}: ${r.status} — ${r.tcName}`).join('\n')
   const preExistingList = BASELINE_PRE_EXISTING.length > 0
     ? BASELINE_PRE_EXISTING.map(f => `  - ${f}`).join('\n')
     : '  (none)'
   const tcFiles = Object.keys(BASELINE_BY_FILE)
+  const futureChunkList = futureChunkTcs.length > 0
+    ? futureChunkTcs.map(tc => `  - ${tc.tcId}: ${tc.tcName}`).join('\n')
+    : '  (none — this is the last chunk)'
 
   return `You are the GREEN-chunk phase. Implement minimal code to pass a CHUNK of test cases (already RED-verified), then check for INTERFERENCE-LIGHT.
 
 ${featureContext()}
 
 ## Your Chunk (${tcs.length} test cases — implement ALL of them)
-${tcListMarkdown(tcs)}
+${tcs.map(tc => `- ${tc.tcId}: ${tc.tcName}`).join('\n')}
 
 ## All RED Results (for context)
 ${allResults}
@@ -268,6 +297,11 @@ ${allResults}
 ## Baseline Snapshot (for INTERFERENCE-LIGHT)
 - **Pre-existing failures** (NOT interference — exclude): ${preExistingList}
 - **Baseline by File**: ${tcFiles.map(f => `  - ${f}: TCs [${(BASELINE_BY_FILE[f] || []).join(', ')}]`).join('\n') || '  (no file groupings)'}
+
+## Other Chunks — Still RED (NOT your concern)
+These TCs belong to LATER GREEN chunks that run AFTER yours. They are still RED (not yet
+implemented). When INTERFERENCE-LIGHT sees one of these FAIL, it is NOT interference — exclude:
+${futureChunkList}
 
 ## Required Reading (đường dẫn relative tới ${SPECS_ROOT}/agent_docs)
 - **IMP spec**: ${SPECS_ROOT}/agent_docs/${layer === 'frontend' ? 'frontend' : 'backend'}/${service}/implementation/${frId}-impl.md
@@ -290,7 +324,7 @@ ${allResults}
 3. **INTERFERENCE-LIGHT** — after the chunk passes, run ALL tests in every file touched by this chunk:
    - Identify the test file(s) your TCs belong to (use baseline byFile map + your own filesChanged).
    - Run those files: \`./gradlew :{service}:test --tests "{TestClass}"\` / \`./mvnw test -Dtest="{TestClass}"\` / \`npx vitest run <file>\`.
-   - If any test OTHER than (a) a TC in this chunk, (b) a pre-existing failure, (c) an accidental-green SKIPPED TC now FAILS → that is INTERFERENCE. Record which test broke + what file/line + likely culprit.
+   - If any test OTHER than (a) a TC in this chunk, (b) a pre-existing failure, (c) an accidental-green SKIPPED TC, (d) a TC of a LATER chunk (listed above — still RED, not yet GREEN) now FAILS → that is INTERFERENCE. Record which test broke + what file/line + likely culprit.
    - Pre-existing failures are NOT interference — they were already broken before this cook.
 
 ## Return Structured Output
@@ -349,12 +383,15 @@ The suite may have **pre-existing failures** (tolerated red TCs already failing 
    - \`interference\` — baseline PASS → current FAIL (regression introduced by this feature)
    - \`preExistingStillFailing\` — baseline FAIL → current FAIL (tolerated red, NOT a regression)
    - \`notInBaselineNowFailing\` — no baseline entry + current FAIL (new test failing, or partial/incomplete capture)
+4. Return the 3 arrays **verbatim** in your GATE_RESULT as \`interference\`, \`preExistingStillFailing\`, \`notInBaselineNowFailing\` (each element = one object from the \`--json\` output, untouched). Do NOT collapse them into \`summary\` only — the workflow forwards them into the morning report so the human can distinguish "still red after cook" (needs a separate ticket) from "accidentally fixed by cook" (no ticket).
+5. **Retry-before-fail (flaky guard)** — for every test currently in \`interference\` or \`notInBaselineNowFailing\`, re-run JUST that single test once (targeted, not the whole suite — e.g. Gradle \`--tests "TestClass.testMethod"\`, Maven \`-Dtest="TestClass#testMethod"\`, Jest/Vitest \`-t "<name>"\`, pytest \`<file>::<test>\`). If it PASSES on re-run, it was transient/flaky — MOVE it out of its bucket into a separate \`flaky\` array (do NOT fail L1 for it). If it still FAILS, keep it in its bucket.
 
-**L1 verdict (delta-gate):**
+**L1 verdict (delta-gate, after the flaky guard):**
 - \`interference\` EMPTY **and** \`notInBaselineNowFailing\` EMPTY → L1 PASS ✅
-- \`interference\` non-empty → L1 FAIL ❌ (feature broke a previously-passing test)
-- \`notInBaselineNowFailing\` non-empty → L1 FAIL ❌ (a test with no baseline entry is now failing — feature's own new test never went green, or capture was incomplete)
+- \`interference\` non-empty → L1 FAIL ❌ (feature broke a previously-passing test — and it failed again on re-run)
+- \`notInBaselineNowFailing\` non-empty → L1 FAIL ❌ (a test with no baseline entry is now failing and failed again on re-run — feature's own new test never went green, or capture was incomplete)
 - \`preExistingStillFailing\` non-empty → **tolerated, does NOT fail L1** (carried forward to the report; human reviews in the morning)
+- \`flaky\` non-empty → **tolerated, does NOT fail L1** (failed once, passed on targeted re-run — transient; report to human for stabilization)
 
 Do NOT report L1 PASS from exit code 0 — with pre-existing failures the exit code is always nonzero. The compare \`--json\` output is the objective verdict.
 
@@ -376,7 +413,7 @@ Do NOT report L1 PASS from exit code 0 — with pre-existing failures the exit c
 ### L1-L4: Critical Checks (from light mode)
 Re-verify all 4 light gates still pass after refactoring.
 
-**⚠️ INTERFERENCE-FULL is SKIPPED in full mode.** L1 in full mode re-verifies the delta gate — no NEW test failures appeared since GATE-light (compare current failures vs the baseline pre-existing list; a newly-failing test = regression). Exit code is NOT the signal when pre-existing failures exist.
+**⚠️ INTERFERENCE-FULL is SKIPPED in full mode.** L1 in full mode re-verifies the delta gate — no NEW test failures appeared since GATE-light (compare current failures vs the baseline pre-existing list; a newly-failing test = regression). Exit code is NOT the signal when pre-existing failures exist. Re-run \`baseline compare --json\`, apply the same retry-before-fail (re-run each failing test once; pass → move to \`flaky\`), and return the same 3 buckets plus \`flaky\` (\`interference\`, \`preExistingStillFailing\`, \`notInBaselineNowFailing\`, \`flaky\`) verbatim in your GATE_RESULT.
 
 ### F5: Security
 - All user inputs validated at boundary (type, range, format)
@@ -422,7 +459,7 @@ Re-verify all 4 light gates still pass after refactoring.
 - **Tech design**: ${SPECS_ROOT}/agent_docs/tech-design/${service}-service.md
 
 ## Return Structured Output
-Return a GATE_RESULT with: mode, status (PASS/FAIL), passed, total, failures array, summary.`
+Return a GATE_RESULT with: mode, status (PASS/FAIL), passed, total, failures array, summary — plus the 4 delta-gate buckets \`interference\`, \`preExistingStillFailing\`, \`notInBaselineNowFailing\`, \`flaky\` (verbatim objects from \`baseline compare --json\`; \`flaky\` = tests that failed the full-suite run but passed the targeted re-run).`
 }
 
 function refactorAgentPrompt(mode, tcResults, gateLightPassed) {
@@ -657,7 +694,7 @@ const toImplement = tcResults.filter(r => r.status === 'DONE' && !completedTcIds
 const greenChunks = chunk(toImplement, Math.max(1, greenChunkSize))
 
 for (const [ci, gchunk] of greenChunks.entries()) {
-  const result = await agent(greenChunkAgentPrompt(gchunk, tcResults), {
+  const result = await agent(greenChunkAgentPrompt(gchunk, tcResults, greenChunks.slice(ci + 1).flat()), {
     label: `GREEN-chunk ${gchunk.map(tc => tc.id).join(',')}`,
     phase: 'GREEN Chunks',
     agentType: GREEN_CHUNK,
@@ -861,6 +898,8 @@ const overallStatus = (gateFullResult.status === 'PASS' && failedCount === 0 && 
   ? 'completed'
   : (gateLightResult.status === 'PASS' ? 'partial' : 'failed')
 
+const deltaBuckets = deltaBucketsFrom(gateLightResult, gateFullResult)
+
 const report = {
   flow,
   featureName,
@@ -874,6 +913,10 @@ const report = {
   summary: buildSummary(),
   warnings,
   preExistingFailures: BASELINE_PRE_EXISTING,
+  interference: deltaBuckets.interference,
+  preExistingStillFailing: deltaBuckets.preExistingStillFailing,
+  notInBaselineNowFailing: deltaBuckets.notInBaselineNowFailing,
+  flaky: deltaBuckets.flaky,
   nextStep: buildNextStep(overallStatus),
 }
 
@@ -886,7 +929,12 @@ log(`🚦 GATE light: ${gateLightResult.status} (${gateLightResult.passed}/${gat
 log(`🔧 REFACTOR: ${refactorResult.findingsFixed} fixed, ${refactorResult.findingsFlagged} flagged`)
 log(`🚦 GATE full: ${gateFullResult.status} (${gateFullResult.passed}/${gateFullResult.total})`)
 log(`📦 ${allFiles.length} files changed`)
-if (BASELINE_PRE_EXISTING.length > 0) log(`🔴 ${BASELINE_PRE_EXISTING.length} pre-existing failures carried forward (tolerated red — human reviews in morning)`)
+if (BASELINE_PRE_EXISTING.length > 0) {
+  const stillFailing = deltaBuckets.preExistingStillFailing.length
+  const accidentallyFixed = BASELINE_PRE_EXISTING.length - stillFailing
+  log(`🔴 ${BASELINE_PRE_EXISTING.length} pre-existing failures: ${stillFailing} still red (separate ticket), ${accidentallyFixed} accidentally fixed by cook`)
+}
+if (deltaBuckets.flaky.length > 0) log(`🟡 ${deltaBuckets.flaky.length} flaky test(s) — failed suite run, passed targeted re-run (report for stabilization)`)
 if (warnings.length > 0) {
   log(`\n⚠️ Warnings:`)
   warnings.forEach(w => log(`  - ${w}`))
@@ -898,6 +946,23 @@ return report
 // ═══════════════════════════════════════════
 // REPORT HELPERS
 // ═══════════════════════════════════════════
+
+// Pick the delta-gate buckets from the first gate result that ran the baseline
+// compare (GATE light's INTERFERENCE-FULL is the designated full compare; GATE full
+// re-verifies and is the fallback). Returns empty arrays when no compare ran.
+function deltaBucketsFrom(...gateResults) {
+  for (const r of gateResults) {
+    if (r && [r.interference, r.preExistingStillFailing, r.notInBaselineNowFailing, r.flaky].some(Array.isArray)) {
+      return {
+        interference: r.interference || [],
+        preExistingStillFailing: r.preExistingStillFailing || [],
+        notInBaselineNowFailing: r.notInBaselineNowFailing || [],
+        flaky: r.flaky || [],
+      }
+    }
+  }
+  return { interference: [], preExistingStillFailing: [], notInBaselineNowFailing: [], flaky: [] }
+}
 
 function buildSummary() {
   const parts = []

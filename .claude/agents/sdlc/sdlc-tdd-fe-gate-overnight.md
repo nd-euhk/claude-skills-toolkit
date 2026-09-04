@@ -4,10 +4,11 @@ description: >-
   Verify frontend gate criteria in the phased-batch overnight TDD cycle. Two modes:
   light (4 critical checks + INTERFERENCE-FULL after GREEN chunks) and full (10 gates
   after REFACTOR). Read-only — returns a structured GATE_RESULT ({mode, status,
-  passed, total, failures, summary}) directly to the workflow, NOT markdown. The
-  workflow task prompt carries the full gate checklist inline — run those checks and
-  report PASS/FAIL counts. Use when the overnight workflow needs a frontend gate
-  verdict as structured JSON.
+  passed, total, failures, summary, interference, preExistingStillFailing,
+  notInBaselineNowFailing, flaky}) directly to the workflow, NOT markdown. The workflow task
+  prompt carries the full gate checklist inline — run those checks and report
+  PASS/FAIL counts. Use when the overnight workflow needs a frontend gate verdict as
+  structured JSON.
 model: sonnet
 maxTurn: 20
 tools: Read, Bash, Glob
@@ -28,7 +29,11 @@ the StructuredOutput tool matching this schema:
   "passed": 4,
   "total": 4,
   "failures": ["L3 XSS: dangerouslySetInnerHTML without DOMPurify in Profile.tsx:30"],
-  "summary": "PASS — 4/4 gates"
+  "summary": "PASS — 4/4 gates",
+  "interference": [],
+  "preExistingStillFailing": [{"test": "should_render_legacy", "file": "Legacy.test.tsx", "baseline_status": "fail", "current_status": "fail", "error": "..."}],
+  "notInBaselineNowFailing": [],
+  "flaky": [{"test": "should_render_race", "file": "NewFeature.test.tsx", "baseline_status": "missing", "current_status": "fail", "error": "..."}]
 }
 ```
 
@@ -48,8 +53,16 @@ EXACTLY those checks — do not invent additional gates. The prompt lists:
    not subjective.
 4. INTERFERENCE-FULL (LIGHT mode): use the baseline compare harness as instructed in the task
    prompt if a baseline file is provided. If no baseline, skip interference detection and note
-   it in `summary`.
-5. Do NOT fix anything — only report. Run all gates even if an early one fails, to give the
+   it in `summary`. When you run `baseline compare --json`, return its 3 arrays (`interference`,
+   `preExistingStillFailing`, `notInBaselineNowFailing`) **verbatim** in your GATE_RESULT — do
+   not collapse them into `summary`; the workflow forwards them into the morning report to
+   distinguish "still red after cook" from "accidentally fixed".
+5. **Retry-before-fail (flaky guard):** for every test in `interference` or
+   `notInBaselineNowFailing`, re-run just that single test once (targeted command — Vitest/Jest
+   `-t "<name>"`, Playwright `--grep "<name>"`). If it PASSES on re-run, MOVE that object from
+   its bucket into a `flaky` array (transient, NOT a regression — do not fail L1 for it). If it
+   still FAILS, keep it in its bucket. `flaky` objects keep their suite-run fields verbatim.
+6. Do NOT fix anything — only report. Run all gates even if an early one fails, to give the
    full picture.
 
 ## Rules
@@ -57,6 +70,11 @@ EXACTLY those checks — do not invent additional gates. The prompt lists:
 - `status` is PASS only if EVERY gate passes. Any single gate fail → FAIL.
 - `passed` = count of gates that passed; `total` = number of gates in your mode (4 light, 10 full).
 - `failures` = one string per failed gate, with concrete file:line evidence.
+- `interference` / `preExistingStillFailing` / `notInBaselineNowFailing` = the 3 arrays from
+  `baseline compare --json`, returned verbatim (each element = one object). Empty arrays when
+  there is no baseline or no compare ran.
+- `flaky` = tests that failed the full-suite run but PASSED a targeted re-run (retry-before-fail).
+  Tolerated — do NOT fail L1 for them. Each element keeps its compare object verbatim.
 - If a tool is unavailable (e.g. Playwright, axe-core), note it and skip that gate (do NOT count
   it as failed — say so in `summary`).
 - Return structured output — do NOT write any files, do NOT return markdown.

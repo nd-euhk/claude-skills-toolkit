@@ -86,13 +86,29 @@ chứa code upstream; merge FR_k sớm sẽ kéo theo cả diff upstream chưa r
 
 ## Pre-existing Red TCs (Tolerated — KHÔNG do cook này)
 
-Mỗi feature checkpoint (`.work/reports/per-feature/*.json`) mang field `preExistingFailures[]` —
-carry-forward từ baseline: các TC **đã đỏ TRƯỚC khi cook chạy**. Delta-gate loại chúng khỏi
-interference (không phải regression), và cook **không đụng** chúng.
+Mỗi feature checkpoint (`.work/reports/per-feature/*.json`) mang **5 field** để phân loại chính
+xác trạng thái sau cook (không chỉ "full baseline list"):
 
-- {FEAT-xxx} — {N} pre-existing: `{test}` trong `{file}` (nếu > 0)
-- Vẫn đỏ sau cook → mở ticket riêng (outside scope feature này), **KHÔNG chặn merge PR**.
+- `preExistingFailures[]` — **full baseline list**: các TC đã đỏ TRƯỚC khi cook chạy (carry-forward).
+- `preExistingStillFailing[]` — **vẫn đỏ sau cook**: subset chính xác từ `baseline compare --json`
+  (GATE light INTERFERENCE-FULL). Mỗi phần tử là object `{test, file, baseline_status, current_status, error}`.
+- `interference[]` — regression (baseline pass → giờ fail) do cook gây ra.
+- `notInBaselineNowFailing[]` — test không có trong baseline mà giờ fail.
+- `flaky[]` — test fail lần chạy suite nhưng PASS khi re-run riêng (retry-before-fail): không phải
+  regression, không fail L1.
+
+**Phân loại:**
+
+- **Vẫn đỏ sau cook** (`preExistingStillFailing`) → mở ticket riêng (outside scope feature này),
+  **KHÔNG chặn merge PR**.
+- **Vô tình được fix** = `preExistingFailures` − `preExistingStillFailing` → không cần ticket;
+  ghi nhận trong report là bonus (cook đã fix incidental bug) — human xác nhận test thực sự xanh
+  vì đúng lý do, không phải tạm pass.
+- **Flaky** (`flaky`) → không chặn merge, nhưng cần human ổn định hóa test sau này (ticket tech-debt).
 - Human sáng nay quyết định: xử lý riêng hay để nguyên — không tự sửa trong cook này.
+
+Ví dụ dòng per feature:
+- {FEAT-xxx} — {N} pre-existing: {M} vẫn đỏ (`{test}` trong `{file}`), {K} vô tình được fix.
 
 ## Việc Cần Human Sáng Nay
 

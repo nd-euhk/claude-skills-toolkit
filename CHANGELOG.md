@@ -2,6 +2,44 @@
 
 All notable changes to the skills-toolkit plugin are documented here.
 
+## [3.16.1] - 2026-09-04
+
+### Fixed
+
+- **`sdlc-cook-overnight` 1.12.1:** PATCH — flaky-test false-positive ở `notInBaselineNowFailing`
+  (hoàn thiện D-04). Test không có trong baseline mà giờ fail có 2 nguồn: TC flaky (DONE) hoặc TC
+  ERROR thực sự. Nay gate agent chạy **retry-before-fail** — re-run từng test trong `interference`
+  hoặc `notInBaselineNowFailing` một lần; pass → chuyển sang bucket `flaky[]` (transient, không phải
+  regression, không fail L1); vẫn fail → giữ nguyên bucket. `GATE_RESULT` + `COOK_REPORT` mang thêm
+  `flaky[]`, `persist-cook-report.py` validate field mới, `morning-report.md` phân loại flaky (không
+  chặn merge, ticket tech-debt ổn định hóa). `gateAgentPrompt` L1 + full-mode, `sdlc-tdd-be/fe-gate-
+  overnight.md` đồng bộ.
+
+## [3.16.0] - 2026-09-04
+
+### Changed
+
+- **`sdlc-cook-overnight` 1.12.0:** MINOR — GATE_RESULT trả 3 bucket delta-gate structured
+  (hoàn thiện D-03). Trước đó gate agent chạy `baseline compare --json` (3-field) nhưng chỉ trả
+  `summary` string, workflow carry-forward `preExistingFailures` = **full baseline list** — morning
+  report không phân biệt được "vẫn đỏ sau cook" vs "vô tình được fix". Nay `GATE_RESULT` + `COOK_REPORT`
+  mang thêm `interference[]` / `preExistingStillFailing[]` / `notInBaselineNowFailing[]` (object
+  verbatim từ compare `--json`), workflow forward vào report, morning-report phân loại chính xác
+  (vẫn đỏ → ticket riêng; vô tình fix → bonus, human xác nhận). `gateAgentPrompt` L1 + full-mode,
+  `sdlc-tdd-be/fe-gate-overnight.md`, `references/morning-report.md` đồng bộ.
+
+## [3.15.1] - 2026-09-04
+
+### Fixed
+
+- **`sdlc-cook-overnight` 1.11.1:** PATCH — GREEN chunk INTERFERENCE-LIGHT false-positive trên TC của
+  chunk LATER. `greenChunkSize` cắt theo số TC (không theo file) nên 2 chunk có thể share 1 test file;
+  chunk chạy `--tests "{TestClass}"` (cả class) thấy TC chunk sau vẫn ĐỎ (chưa implement) → flag sai là
+  INTERFERENCE → abort pipeline trước GATE light. Fix: `greenChunkAgentPrompt` nhận `futureChunkTcs`
+  (chunk sau, vẫn RED) + thêm exemption (d) "TC của chunk LATER → không phải interference". Đồng thời
+  sửa list "Your Chunk" dùng `tcId`/`tcName` (trước ghi `undefined` vì dùng nhầm `id`/`name` của
+  `tcListMarkdown` vốn cho input testCases).
+
 ## [3.15.0] - 2026-09-04
 
 ### Changed
