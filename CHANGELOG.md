@@ -2,6 +2,79 @@
 
 All notable changes to the skills-toolkit plugin are documented here.
 
+## [3.15.0] - 2026-09-04
+
+### Changed
+
+- **`sdlc-cook-overnight` 1.11.0:** MINOR — REFACTOR-overnight (BE+FE) delta-aware (hoàn thiện
+  delta-gate 3.13.0). Trước đó `testSuiteStillPassing` = "suite exit 0" ⇒ với pre-existing red luôn
+  báo `false` SAI ⇒ workflow push warning giả "REFACTOR full may have caused test failures". Nay
+  `testSuiteStillPassing` = "NO NEW failures vs pre-existing set" (judge bằng PARSE OUTPUT, không exit
+  code); `workflow-sdlc-cook-overnight.js` `refactorAgentPrompt` inject `preExistingFailures` vào
+  prompt + đổi wording "Introduce NO NEW failures" (intro / Two Tasks / Rules / Critical Rule);
+  `sdlc-tdd-be/fe-refactor-overnight.md` đồng bộ.
+
+## [3.14.0] - 2026-09-04
+
+### Added
+
+- **git skill (PR/MR creation — canonical owner):** PR/MR creation tập trung về operation `pr`
+  (`references/workflow-pr.md` viết lại làm SSOT) + ownership note. **GitLab MR tier mới:** không
+  `glab` nhưng git-credential store có PAT → tạo MR qua GitLab REST API (`references/gitlab-rest-mr.md`);
+  token CHỈ đọc in-shell → env (không vào command args/log/report/file), guard `GET /api/v4/user`
+  (200 = PAT, 401 = plain password → log tay), URL-encode toàn bộ namespace path (khỏi lookup project
+  id). **Fix target-branch trap:** KHÔNG hardcode `origin/main` — ladder derive: caller `--to` →
+  same-source open MR → remote HEAD default → ancestor guard (default không phải ancestor của HEAD →
+  release-branch workflow) + MR-convention / branch-gần-nhất; không xác định → log candidates, KHÔNG
+  target mù. Repo release-branch (main stale, MR đi `releases/*`) nay derive integration branch thật
+  (vd `releases/7.2.0`). DO NOT list bỏ `git diff main...HEAD`.
+- **`sdlc-cook-overnight` 1.10.0:** MINOR — Phase 5 + `references/unattended-policy.md` (row 6, 19,
+  Night Review comment) delegate PR/MR creation qua skill `git` operation `pr` (KHÔNG tự chạy
+  `gh`/`glab`/REST inline). `targetBranch`/baseRef KHÔNG auto `origin/main`: chained → branch upstream
+  FR; Type 1 → branch gốc sub-repo; Type 2 plain → derive qua skill git `pr` preflight; không derive
+  được → log candidates, review chạy + PR theo unattended row 19.
+- **`sdlc-cook` 2.4.2:** PATCH — `references/merge-manager.md` + `references/project-detection.md` +
+  SKILL.md (Bước 3-4 tách branch, Bước 10): delegate PR/MR creation qua skill `git` `pr` (bỏ inline
+  host-detect + `gh`/`glab` create); PR_BASE theo project type KHÔNG auto `origin/main` (submodule/
+  gitignored → default branch sub-repo = `$ORIGINAL_BRANCH`; workspace-member → derive qua skill git,
+  interactive không chắc → hỏi human); Type-2 worktree fork từ target branch của feature (release-branch
+  → derive trước, không fork mù `main`); review `--base` = PR_BASE đã derive. Self-host GitLab /
+  GitLab-REST route tự động qua skill git.
+
+## [3.13.0] - 2026-09-04
+
+### Added
+
+- **Controller-thin layer discipline (cook/quick/overnight + review):** `.claude/rules/
+  sdlc-implementation-rules.md` thêm §6 Layer Discipline — controller là web boundary MỎNG
+  (parse/validate → gọi ĐÚNG 1 service method → map error); business rule/orchestration/external
+  call (Feign/provider)/cache policy ở service layer; "test xanh ≠ đúng tầng" là structural
+  invariant, kèm heuristic tự-check logic sai tầng. BE TDD GATE F10 thêm controller/handler-layer
+  check — interactive (`sdlc-tdd-be-gate.md`), overnight (`workflow-sdlc-cook-overnight.js`
+  gateAgentPrompt, authoritative vì be-gate-overnight chạy EXACTLY inline checklist),
+  `workflow-sdlc-cook.js`: grep controller inject Repository/Feign/cache client, private helper
+  external-call + swallow exception, inline orchestration (resolve/degrade/fallback) → cite
+  file:line. BE GREEN Step 2 service-first theo TC type (`sdlc-tdd-be-green.md` +
+  `sdlc-tdd-be-green-overnight.md`): TC business-rule/orchestration/external-call → Service (kể cả
+  chưa có service-level test); TC HTTP/validation/contract → Controller mỏng.
+- **`sdlc-review-codechange` 1.3.0:** MINOR — Spec Compliance thêm placement conformance: khi
+  IMP/tech-design execution flow gán business rule cho service layer, code phải implement ở service,
+  không inline controller — controller tự thực thi business logic = DIVERGENT (placement). Chỉ flag
+  khi có spec evidence, không impose layering preference spec không nêu. Chạy trong default
+  unattended night trio (spec có trong trio).
+- **`sdlc-cook` 2.4.1:** PATCH — đồng bộ F10 row trong `tdd-orchestration.md` với gate thực tế:
+  thêm controller/handler-layer discipline.
+- **`sdlc-cook-overnight` 1.9.0:** MINOR — delta-gate: thay "exit code 0" làm tín hiệu clean khi có
+  pre-existing red TCs. `.claude/scripts/baseline.py` thêm `--exit-code` + incomplete flag;
+  `compare --json` 3-field (interference / preExistingStillFailing / notInBaselineNowFailing);
+  compare junit-xml qua `--test-output-dir`; `.claude/scripts/baseline.js` wrapper node mới (song
+  song, ưu tiên node). RED/GREEN overnight confirm bằng parse-output (không phụ thuộc exit code khi
+  có pre-existing fail); GATE L1 PASS iff interference[] rỗng AND notInBaselineNowFailing[] rỗng;
+  note FULL-mode; COOK_REPORT/buildSummary thêm preExistingFailures. Morning report thêm section
+  "Pre-existing Red TCs (Tolerated)"; per-feature-cook chặn HARD-FAIL khi incomplete. 4 mục deferred
+  (REFACTOR testSuiteStillPassing, standalone cook per-TC, structured GATE_RESULT, flaky detection)
+  ghi ở `.work/todos/09-sdlc-cook-delta-gate-deferred.md`.
+
 ## [3.12.0] - 2026-09-03
 
 ### Added

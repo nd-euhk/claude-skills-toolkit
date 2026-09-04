@@ -8,7 +8,7 @@ description: >-
   "overnight run". Interactive Batch Plan (sequential / parallel / pick features)
   qua AskUserQuestion, rồi unattended execution — auto tạo PR, không auto-merge,
   morning report. Direct orchestration của sdlc-cook — không tạo/sửa specs.
-version: 1.8.0
+version: 1.11.0
 argument-hint: "all | FEAT-001 FEAT-002 ..."
 disable-model-invocation: false
 allowed-tools: Read, Write, Edit, Bash, Agent, Workflow, AskUserQuestion, Skill
@@ -43,8 +43,9 @@ Direct orchestration — skill này **KHÔNG** gọi `Skill(sdlc-cook)` mà tự
 - **Branch isolation bắt buộc, type-aware** — Type 2: mỗi feature 1 worktree, branch
   `feature/{FEAT_ID}-{service}`; Type 1: checkout in-place trong sub-repo, tuần tự,
   restore bắt buộc trước task kế. **baseRef** (ref feature checkout từ + PR vào): default =
-  integration theo type (Type 2 `origin/main`; Type 1 branch gốc sub-repo); feature trong
-  chain → baseRef = branch của upstream FR
+  integration theo type (Type 1 branch gốc sub-repo; Type 2 KHÔNG auto `origin/main` nếu repo
+  release-branch — derive integration base qua skill git, Phase 3); feature trong chain →
+  baseRef = branch của upstream FR
 - **Chain (Form-2) chỉ trong cùng git root** — FR_k phụ thuộc FR_(k-1) chain được khi cùng
   `project_root` + cùng batch. FR_k branch từ branch FR_(k-1) ⇒ code FR_(k-1) hiện diện khi
   cook FR_k; PR stacked vào branch upstream. Upstream partial/failed → chain halt, phần còn
@@ -131,9 +132,14 @@ Sắp feature thành lane theo chiến lược. Thuật toán + parallel safety:
 | Pick | Chỉ các feature được chọn, thứ tự topo như Sequential (1 lane, tuần tự) |
 
 **baseRef per feature** (định nghĩa lần đầu: ref feature checkout từ + PR vào) — tính ở Phase 3,
-dùng xuyên suốt Phase 4-5:
+dùng xuyên suốt Phase 4-5. baseRef = fork base = PR target — resolve release-branch-aware TRƯỚC
+khi fork (fork sai base → MR diff kéo rác, không cứu được bằng PR target):
 
-- **Mặc định** = integration base theo type: Type 2 → `origin/main`; Type 1 → branch gốc sub-repo (`ORIGINAL_BRANCH`).
+- **Mặc định** = integration base theo type: Type 1 → branch gốc sub-repo (`ORIGINAL_BRANCH`);
+  Type 2 → KHÔNG auto `origin/main` — repo bình thường lấy workspace default; repo release-branch
+  (main stale, open feature MR target khác default — MR-convention) → derive integration base qua
+  skill git (`git/references/workflow-pr.md` Step 3). Không confirm được → fork default, PR-time
+  guard không target mù (row 19).
 - **Chained** (feature có upstream in-batch, cùng `project_root`) = **branch thật của upstream FR**
   (vd `feature/FR-AUTH-005-auth-service`) — feature kế checkout từ branch đó, PR stacked vào đó.
 - Dependency in-batch nhưng khác `project_root` / upstream không Ready → **không chain được** → giữ SKIP rule cũ.
@@ -216,22 +222,32 @@ Feature `COOK_REPORT.status = "completed"`:
   `Skill("sdlc-review-codechange", "--security --bugs --spec --unattended --base <targetBranch> --specs <specDir> <targetPath>")`
   trên code vừa cook — **lean gating trio** (code đúng + an toàn + đáp ứng tài liệu); 5 dimension
   advisory (arch/conventions/impact/ops/tests) không chạy ban đêm, chờ human review sáng.
-  `targetBranch` = `baseRef` của feature (PR target: default type-aware — Type 2 `origin/main`,
-  Type 1 branch gốc sub-repo; chained → branch upstream FR, review diff = delta FR_k);
+  `targetBranch` = `baseRef` của feature (resolve ở Phase 3 — release-branch-aware, KHÔNG auto
+  `origin/main`), dùng chung cho fork base + review `--base` + PR target. Chained → branch upstream
+  FR; Type 1 → branch gốc sub-repo. Type 2 plain → Phase 3 đã derive integration base (MR-convention:
+  open feature MR target khác default → `releases/...`; không → workspace default). PR-time: nếu fork
+  từ default nhưng main không phải ancestor của HEAD (fork từ line khác / release-branch) → target
+  theo MR-convention (`git/references/workflow-pr.md` Step 3); không derive được → log candidates,
+  review chạy với default + flag "target có thể sai", PR theo unattended-policy row 19;
   `specDir` = `<workspace>/agent_docs/features/<FEAT_ID>/`. Review scope =
   diff feature...target (chỉ code thay đổi) + Spec Compliance (code có đáp ứng tài liệu). Giữ
   `verdict` (controller state) — Phase 6 điền mục Reviewed. KHÔNG chặn PR creation.
   Chi tiết verdict handling → `references/unattended-policy.md` mục Night Review
-- **Auto tạo PR** (type-aware target branch, host-detect + auth guard):
-  - Host = `git -C <repo> remote get-url origin` → parse: github.com / GitHub Enterprise → `gh`;
-    gitlab.com / GitLab self-host → `glab`.
-  - **Auth guard trước khi tạo:** `gh auth status` / `glab auth status` — fail → KHÔNG tạo,
-    KHÔNG hỏi đêm, log "PR-ready nhưng chưa tạo được (lý do)" vào warning (sáng tạo tay).
-    Không để `gh`/`glab` treo interactive.
-  - Type 2: `gh pr create` / `glab mr create` từ worktree branch `feature/{FEAT_ID}-{service}` → `baseRef` của feature (default `origin/main` của workspace; chained → branch upstream FR)
-  - Type 1: push branch của sub-repo → PR về `baseRef` của feature (default branch gốc sub-repo; chained → branch upstream FR — PR stacked, remote của sub-repo). Không có remote → KHÔNG auto-PR, log cảnh báo.
-  - **Chained FR_k:** PR base = branch upstream ⇒ PR **stacked**, diff = chỉ delta FR_k. Human merge sáng theo thứ tự chain (FR_1 trước, rồi FR_2...) — xem morning-report mục Chain merge order.
-  - PR body format: `sdlc-cook/references/merge-manager.md`
+- **Auto tạo PR** — **DELEGATE qua skill `git` operation `pr`** (KHÔNG tự chạy `gh`/`glab`/REST
+  inline ở skill này):
+  `Skill("git", "pr {BRANCH} --to {baseRef} --repo {repo} --title ... --body ...")` — `baseRef`
+  xác định ở trên. Skill git lo host-detect (GitHub→`gh`, GitLab→`glab`, GitLab không `glab` →
+  REST qua git-credential PAT), auth guard, target derivation, fallback log tay.
+  - Auth guard / host fail (kể cả GitLab-REST 401 — password thường không phải PAT) → KHÔNG tạo,
+    KHÔNG hỏi đêm, log "PR-ready nhưng chưa tạo được (lý do)" vào warning (sáng tạo tay); board
+    giữ 🚧 In Progress (policy row 19). Không để CLI treo interactive.
+  - Type 2: worktree branch `feature/{FEAT_ID}-{service}` đã push → delegate `pr ... --to
+    {baseRef}`. Chained → `--to` = branch upstream FR (PR stacked, diff = delta FR_k).
+  - Type 1: push branch sub-repo trước, rồi delegate `pr --repo {subrepo} --to {branch gốc
+    sub-repo}`. Không có remote → KHÔNG auto-PR, log cảnh báo.
+  - **Chained FR_k:** human merge sáng BOTTOM-UP (FR_1 trước, rồi FR_2...) — xem morning-report
+    mục Chain merge order.
+  - PR body format (truyền qua `--body`): `sdlc-cook/references/merge-manager.md`
 - **KHÔNG merge** — để sáng human review
 - Board → 👀 In Review (sdlc-sprint-board)
 
@@ -279,8 +295,9 @@ và edge cases (parallel same-service, worktree fail, mixed-type batch):
 
 - Mỗi feature = 1 branch = 1 Workflow = 1 PR (Type 1: branch in-place trong sub-repo; Type 2: worktree)
 - **baseRef** (per FR): ref mà FR checkout từ + PR vào. Mặc định = integration base theo type
-  (Type 2 `origin/main`; Type 1 branch gốc sub-repo). **Chained FR_k** = branch thật của FR_(k-1)
-  (cùng git root) ⇒ code FR_(k-1) đã nằm trong FR_k khi cook; PR FR_k **stacked** vào branch upstream.
+  (Type 1 branch gốc sub-repo; Type 2 KHÔNG auto `origin/main` — release-branch derive qua skill git,
+  Phase 3). **Chained FR_k** = branch thật của FR_(k-1) (cùng git root) ⇒ code FR_(k-1) đã nằm trong
+  FR_k khi cook; PR FR_k **stacked** vào branch upstream.
 - **PR chained merge sáng BOTTOM-UP theo thứ tự chain** (FR_1 trước FR_2 ...) — không auto-merge,
   không merge FR_k trước FR_(k-1). Nếu human "request changes" FR_1 → branch FR_1 đổi → FR_2 cần
   rebase tay (chỉ cảnh báo, skill không tự rebase).

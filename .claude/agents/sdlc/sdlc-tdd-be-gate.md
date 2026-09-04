@@ -323,6 +323,23 @@ grep -r "\.unwrap()" --include="*.rs" | grep -v "_test.rs\|#\[cfg(test)\]"
 - [ ] `Result` types properly propagated
 - [ ] Connection pools for database clients
 
+**Controller / handler-layer discipline (ALL frameworks — business logic in Service, controller thin):**
+
+Every layer has a "controller" analog (Spring `@RestController`, Node route handler, Python view, Go handler, Rust handler). Grep the changed controller/handler files and flag:
+
+```bash
+# Find controller/handler files among the changed files (adapt path to project layout)
+grep -rlnE "(@RestController|@Controller)" projects/{service}/src/main/java/ 2>/dev/null   # Spring Boot
+# Then inspect matched files for: injected Repository/Feign client/@HttpExchange/RedisTemplate/RedisUtils,
+# private helpers making external calls + swallowing exceptions, inline business branches (resolve/degrade/fallback)
+```
+- [ ] No controller injects Repository / Feign client / cache client to do data or external work — business logic must live in `@Service`
+- [ ] No controller has private helper methods that perform external calls and swallow exceptions
+- [ ] No controller contains inline business-rule branches / orchestration (branch selection, resolve, degrade, fallback) — delegated to a service
+- [ ] Controller methods are thin: parse/validate at boundary → call exactly ONE service → map service error to the response envelope
+
+A test passing is NOT evidence the layer is correct — this is a structural check, verify by grep + reading the matched controller methods, and cite file:line in failures.
+
 ---
 
 ## Return Structured Result

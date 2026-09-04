@@ -124,13 +124,15 @@ Branch name chuẩn hóa theo flow type:
 
 ### Type 2 — workspace-member: worktree isolation
 
+Fork từ **target branch của feature** — KHÔNG auto `origin/main` mù khi repo release-branch (main
+stale / MR đi vào `releases/*`): derive target qua skill git (`git/references/workflow-pr.md` Step 3)
+rồi fork từ đó. Plain repo bình thường → fork `origin/main` (theo dõi remote, không phải local state).
+
 ```bash
 BRANCH="feature/${FEAT_ID}-${SERVICE}"
 WORKTREE_PATH="${WORKSPACE_ROOT}/.claude/worktrees/feature-${FEAT_ID}-${SERVICE}"
 git -C "$project_root" worktree add -b "$BRANCH" "$WORKTREE_PATH" "origin/main"
 ```
-
-- Branch từ `origin/main` (theo dõi remote, không phải local state).
 - Controller KHÔNG `cd` — mọi lệnh dùng absolute path. Workflow args:
   `repoPath = "$WORKTREE_PATH"` (nơi chạy code/test),
   `specRoot = "$WORKSPACE_ROOT"` (nơi chứa `agent_docs/`).
@@ -153,8 +155,9 @@ git -C "$project_root" checkout -b "$BRANCH" HEAD
    song trên cùng sub-repo.
 3. **Restore LUÔN chạy (finally semantics)** — sau feature xong (PR tạo xong hoặc fail):
    `git -C "$project_root" checkout "$ORIGINAL_BRANCH"`. Restore fail → chặn task kế tiếp.
-4. **PR về remote của chính sub-repo** — sub-repo có remote riêng (origin của sub-repo,
-   không phải của parent). Push + `gh pr create` chạy với `--repo`/CWD của sub-repo.
+4. **PR về remote của chính sub-repo** — sub-repo có remote riêng (origin của sub-repo, không phải
+   của parent). Push trong sub-repo; PR/MR creation **delegate qua skill `git` operation `pr`** với
+   `--repo "$project_root"` — KHÔNG tự chạy `gh`/`glab`/REST inline ở sdlc-cook.
 5. **Specs nằm ở parent** — Type 1 `agent_docs/` ở workspace của PARENT, không nằm trong
    sub-repo. Workflow args: `repoPath = "$project_root"`, `specRoot = "$workspace_root"`.
 
@@ -168,7 +171,8 @@ git -C "$project_root" checkout -b "$BRANCH" HEAD
 
 **Quy tắc branch point:**
 - Type 1 → branch từ `HEAD` (theo dõi state hiện tại của sub-repo)
-- Type 2 → branch từ `origin/main` (theo dõi remote, không phải local state)
+- Type 2 → branch từ target branch của feature (plain repo: `origin/main` theo dõi remote;
+  release-branch: derive qua skill git — không fork mù `origin/main`)
 
 ## Detection Caching
 
@@ -205,5 +209,5 @@ git_root = "."  (workspace root)
 classify → workspace-member
 ```
 
-→ Worktree tạo từ workspace root, branch origin/main.
-  PR target = main của workspace.
+→ Worktree tạo từ workspace root, fork từ target branch của feature (plain: `origin/main`;
+  release-branch: derive qua skill git). PR target = target đó — KHÔNG auto `main` khi main stale.

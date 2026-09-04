@@ -116,6 +116,7 @@ const COOK_REPORT = {
     gateFull: { type: 'object' },
     summary: { type: 'string' },
     warnings: { type: 'array', items: { type: 'string' } },
+    preExistingFailures: { type: 'array', items: { type: 'string' } },
     nextStep: { type: 'string' },
   },
   required: ['flow', 'featureName', 'frId', 'status'],
@@ -223,7 +224,11 @@ ${tcFiles.map(f => `  - ${f}: TCs [${(BASELINE_BY_FILE[f] || []).join(', ')}]`).
    - **Python:** \`pytest\`
    - **Go:** \`go test ./...\`
    - **Rust:** \`cargo test\`
-   Every test you wrote MUST fail (exit code != 0). A test that FAILS = DONE (RED confirmed).
+   Confirm RED by PARSING the run output — do NOT rely on \`exit code != 0\` (the suite has
+   pre-existing failures, so a nonzero exit may come from them, not from your tests). Verify
+   EACH test you wrote appears in the FAILED list of the output. A test that FAILS = DONE
+   (RED confirmed). A test you wrote that is ABSENT from the failed list (i.e. passed) is
+   accidental-green — handle in step 3.
    - **Multi-batch note** (redBatchSize > 1): tests written by PRIOR RED batches are still RED (not yet
      implemented) — their failures are expected and do NOT count toward your batch. Only your batch's
      tests determine RED confirmation for this batch.
@@ -278,6 +283,9 @@ ${allResults}
    - Implement bottom-up, test incrementally (max 5 iterations per failing TC).
 
 2. **Verify the chunk passes** — run the tests for your chunk. All ${tcs.length} TCs must pass.
+   Confirm by parsing the run output, NOT by exit code — pre-existing failures (below) keep the
+   exit code nonzero regardless of your chunk. A TC is DONE only when its test shows PASSED in the
+   output; a TC still failing after 5 iterations → ERROR.
 
 3. **INTERFERENCE-LIGHT** — after the chunk passes, run ALL tests in every file touched by this chunk:
    - Identify the test file(s) your TCs belong to (use baseline byFile map + your own filesChanged).
@@ -329,23 +337,26 @@ ${techStackHint || 'Detect from project conventions and framework'}
 ## ${mode === 'light' ? 'LIGHT MODE — 4 Critical Checks + INTERFERENCE-FULL' : 'FULL MODE — All 10 Gates (INTERFERENCE-FULL skipped)'}
 
 ${mode === 'light' ? `
-### L1: Test Suite + INTERFERENCE-FULL (baseline comparison)
-- Run the full test suite — all tests must pass (exit code 0)
-- All test files from the test spec exist and pass
-- No skipped/disabled tests that should run
+### L1: Delta Gate — Regression Check vs Baseline (INTERFERENCE-FULL)
 
-**INTERFERENCE-FULL: Cross-file Baseline Comparison**
+The suite may have **pre-existing failures** (tolerated red TCs already failing before this cook). They keep the exit code nonzero, so **exit code is NOT a clean signal** — the L1 verdict comes from a **status-delta comparison against the baseline**, not from "all green".
 
-If baseline file exists (${BASELINE_PATH || 'MISSING'}), use the \`.claude/scripts/baseline compare\` harness:
-1. Re-run tests to get current state (same command as baseline capture)
-2. Run (từ ${SPECS_ROOT}, nơi có \`.claude/scripts/\`): \`cd ${SPECS_ROOT} && .claude/scripts/baseline compare --baseline ${BASELINE_PATH} --current <current-output> --framework <detected> --culprit "${culpritInfo || 'unknown'}"\`
-3. The script cross-references: baseline pass → current fail = interference
-4. It auto-excludes: pre-existing failures, same-status skipped tests, feature's own new tests
+1. Re-run the full test suite (same command + output dir as baseline capture) to produce current results.
+2. Run the machine-readable delta compare:
+   - junit-xml: \`cd ${SPECS_ROOT} && .claude/scripts/baseline compare --baseline ${BASELINE_PATH} --framework junit-xml --test-output-dir <current-output-dir> --json\`
+   - json frameworks: \`cd ${SPECS_ROOT} && .claude/scripts/baseline compare --baseline ${BASELINE_PATH} --framework <jest-json|vitest-json|pytest-json> --current <current-output.json> --json\`
+3. The compare returns 3 buckets for every currently-FAILING test:
+   - \`interference\` — baseline PASS → current FAIL (regression introduced by this feature)
+   - \`preExistingStillFailing\` — baseline FAIL → current FAIL (tolerated red, NOT a regression)
+   - \`notInBaselineNowFailing\` — no baseline entry + current FAIL (new test failing, or partial/incomplete capture)
 
-**Interference impact on L1 result:**
-- Tests pass + no interference → L1 PASS ✅
-- Tests pass + interference detected → L1 FAIL ❌
-- Tests fail → L1 FAIL ❌
+**L1 verdict (delta-gate):**
+- \`interference\` EMPTY **and** \`notInBaselineNowFailing\` EMPTY → L1 PASS ✅
+- \`interference\` non-empty → L1 FAIL ❌ (feature broke a previously-passing test)
+- \`notInBaselineNowFailing\` non-empty → L1 FAIL ❌ (a test with no baseline entry is now failing — feature's own new test never went green, or capture was incomplete)
+- \`preExistingStillFailing\` non-empty → **tolerated, does NOT fail L1** (carried forward to the report; human reviews in the morning)
+
+Do NOT report L1 PASS from exit code 0 — with pre-existing failures the exit code is always nonzero. The compare \`--json\` output is the objective verdict.
 
 ### L2: Hard Boundaries
 - No cross-service database access
@@ -365,7 +376,7 @@ If baseline file exists (${BASELINE_PATH || 'MISSING'}), use the \`.claude/scrip
 ### L1-L4: Critical Checks (from light mode)
 Re-verify all 4 light gates still pass after refactoring.
 
-**⚠️ INTERFERENCE-FULL is SKIPPED in full mode.** L1 in full mode only verifies all tests pass (exit code 0).
+**⚠️ INTERFERENCE-FULL is SKIPPED in full mode.** L1 in full mode re-verifies the delta gate — no NEW test failures appeared since GATE-light (compare current failures vs the baseline pre-existing list; a newly-failing test = regression). Exit code is NOT the signal when pre-existing failures exist.
 
 ### F5: Security
 - All user inputs validated at boundary (type, range, format)
@@ -402,6 +413,7 @@ Re-verify all 4 light gates still pass after refactoring.
 - Test readability — test name clearly states business intent
 - No dead code, commented-out blocks, or debug artifacts
 - No framework-specific anti-patterns (Detected framework: ${techStackHint || 'auto-detect'})
+- Controller/handler-layer discipline: business logic lives in the service layer, NOT the controller — no controller/route handler injects a Repository/Feign/cache client, holds private helpers that make external calls and swallow exceptions, or runs inline business orchestration (resolve/degrade/fallback). Controller stays thin: parse/validate → call ONE service → map errors to the envelope. Grep the changed controller files and cite file:line in failures.
 `}
 
 ## Required Reading (đường dẫn relative tới ${SPECS_ROOT}/agent_docs)
@@ -419,7 +431,11 @@ function refactorAgentPrompt(mode, tcResults, gateLightPassed) {
     ? 'GATE light: PASS (4/4) — proceed with full refactoring'
     : 'GATE light: FAIL — refactor only to fix gate failures'
 
-  return `You are a REFACTOR agent. Improve code quality while keeping ALL tests green.
+  const preExistingList = BASELINE_PRE_EXISTING.length > 0
+    ? BASELINE_PRE_EXISTING.map(f => `  - ${f}`).join('\n')
+    : '  (none)'
+
+  return `You are a REFACTOR agent. Improve code quality while introducing NO NEW test failures.
 
 ${featureContext()}
 
@@ -428,6 +444,10 @@ ${tcResults.map(r => `- ${r.tcId}: ${r.status} — ${r.tcName}`).join('\n')}
 
 ## All Changed Files
 ${allFiles.map(f => `- ${f}`).join('\n')}
+
+## Pre-existing Failures (tolerated red — NOT your concern)
+These were already red before this cook. Keep them failing (do NOT fix, do NOT count as breakage). They keep the exit code nonzero — judge breakage by PARSE OUTPUT, not exit code.
+${preExistingList}
 
 ## Gate Status
 ${gateStatus}
@@ -453,7 +473,7 @@ IMPORTANT: Do NOT restructure architecture, change APIs, or modify test logic.
 `}
 
 ## Critical Rule
-**Keep ALL tests green through every change.** If any refactoring breaks a test:
+**Introduce NO NEW failures.** A test that was green (or is a feature TC) and now FAILS = breakage → revert that change. Pre-existing failures (above) are tolerated and are NOT breakage. Judge by PARSE OUTPUT — exit code is always nonzero with pre-existing failures.
 1. Immediately revert that specific change
 2. Log the reverted change
 3. Continue with remaining refactoring
@@ -853,6 +873,7 @@ const report = {
   gateFull: gateFullResult,
   summary: buildSummary(),
   warnings,
+  preExistingFailures: BASELINE_PRE_EXISTING,
   nextStep: buildNextStep(overallStatus),
 }
 
@@ -865,6 +886,7 @@ log(`🚦 GATE light: ${gateLightResult.status} (${gateLightResult.passed}/${gat
 log(`🔧 REFACTOR: ${refactorResult.findingsFixed} fixed, ${refactorResult.findingsFlagged} flagged`)
 log(`🚦 GATE full: ${gateFullResult.status} (${gateFullResult.passed}/${gateFullResult.total})`)
 log(`📦 ${allFiles.length} files changed`)
+if (BASELINE_PRE_EXISTING.length > 0) log(`🔴 ${BASELINE_PRE_EXISTING.length} pre-existing failures carried forward (tolerated red — human reviews in morning)`)
 if (warnings.length > 0) {
   log(`\n⚠️ Warnings:`)
   warnings.forEach(w => log(`  - ${w}`))
@@ -885,6 +907,7 @@ function buildSummary() {
   if (failedCount > 0) parts.push(`${failedCount} FAILED`)
   parts.push(`GATE light: ${gateLightResult.status === 'PASS' ? 'ALL PASS' : `${gateLightResult.passed}/${gateLightResult.total}`}`)
   parts.push(`GATE full: ${gateFullResult.status === 'PASS' ? 'ALL PASS' : `${gateFullResult.passed}/${gateFullResult.total}`}`)
+  if (BASELINE_PRE_EXISTING.length > 0) parts.push(`${BASELINE_PRE_EXISTING.length} pre-existing failures carried forward (tolerated red)`)
   return parts.join(' | ')
 }
 

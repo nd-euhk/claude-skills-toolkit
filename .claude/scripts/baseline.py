@@ -340,6 +340,7 @@ def build_baseline(
     app: str = "",
     framework: str = "",
     test_command: str = "",
+    exit_code: Optional[int] = None,
 ) -> dict:
     """Assign TC IDs (1→N), build index, classify pre-existing failures."""
     # Sort by file then method for deterministic ordering
@@ -355,6 +356,11 @@ def build_baseline(
         "failed": sum(1 for t in tests_sorted if t["status"] == "fail"),
         "skipped": sum(1 for t in tests_sorted if t["status"] == "skip"),
     }
+
+    # Incomplete baseline: the test command failed (exit != 0) but produced NO parseable
+    # tests — near-certain compile/collection/harness failure, not ordinary test failures.
+    # An incomplete baseline is unsound for delta/interference comparison downstream.
+    incomplete = bool(exit_code is not None and exit_code != 0 and len(tests_sorted) == 0)
 
     tc_index = {}
     for tc in tests_sorted:
@@ -381,6 +387,8 @@ def build_baseline(
         "captured_at": now_iso,
         "framework": framework,
         "test_command": test_command,
+        "exitCode": exit_code,
+        "incomplete": incomplete,
         "summary": summary,
         "tests": tests_sorted,
         "tcIndex": tc_index,
@@ -527,6 +535,9 @@ def main():
                      help="Command used to run tests (for record-keeping)")
     cap.add_argument("--output", default="",
                      help="Output path (default: .work/baselines/YYYYMMDD-FR-{ID}-{LAYER}.json)")
+    cap.add_argument("--exit-code", type=int, default=None,
+                     help="Exit code of the test command (0=all pass; !=0 has failures/errors). "
+                          "Used to flag an incomplete baseline (compile/collection failure).")
     cap.add_argument("--dry-run", action="store_true",
                      help="Print JSON to stdout instead of writing file")
 
@@ -544,6 +555,9 @@ def main():
     prs.add_argument("--app", default="")
     prs.add_argument("--test-command", default="")
     prs.add_argument("--output", default="")
+    prs.add_argument("--exit-code", type=int, default=None,
+                     help="Exit code of the test command (0=all pass; !=0 has failures/errors). "
+                          "Used to flag an incomplete baseline (compile/collection failure).")
     prs.add_argument("--dry-run", action="store_true")
 
     # ── list-tcs ─────────────────────────────────────────────────
@@ -561,10 +575,13 @@ def main():
     cmp = sub.add_parser("compare", help="Baseline vs current → interference report")
     cmp.add_argument("--baseline", required=True,
                      help="Path to baseline JSON file")
-    cmp.add_argument("--current", required=True,
-                     help="Path to current test results (raw framework output)")
+    cmp.add_argument("--current", default="",
+                     help="Path to current test results (raw framework output). "
+                          "Omit when --test-output-dir is given (junit-xml).")
     cmp.add_argument("--framework", required=True, choices=list(PARSERS),
                      help="Framework for parsing current results")
+    cmp.add_argument("--test-output-dir", default="",
+                     help="JUnit XML directory for current results (when framework=junit-xml)")
     cmp.add_argument("--culprit", default="",
                      help="Culprit info string (e.g. 'TC-3 modified UserService.java')")
     cmp.add_argument("--json", action="store_true",
@@ -596,6 +613,7 @@ def main():
             app=args.app,
             framework=args.framework,
             test_command=args.test_command,
+            exit_code=args.exit_code,
         )
 
         # Determine output path
@@ -647,21 +665,39 @@ def main():
 
         # Parse current results
         if args.framework == "junit-xml":
-            print("ERROR: compare mode with junit-xml requires --test-output-dir not yet wired; "
-                  "pre-parse to JSON first.", file=sys.stderr)
-            sys.exit(1)
+            if not args.test_output_dir:
+                print("ERROR: --test-output-dir required for junit-xml compare", file=sys.stderr)
+                sys.exit(1)
+            current_tests = PARSERS["junit-xml"](args.test_output_dir)
         else:
+            if not args.current:
+                print(f"ERROR: --current required for {args.framework}", file=sys.stderr)
+                sys.exit(1)
             current_tests = PARSERS[args.framework](args.current)
 
         if args.json:
-            # Machine-readable interference report
+            # Machine-readable delta report: classify every currently-failing test.
+            #   interference              = baseline pass → current fail (regression by feature)
+            #   preExistingStillFailing   = baseline fail → current fail (tolerated red, not regression)
+            #   notInBaselineNowFailing   = no baseline entry + current fail (new test fail / partial capture)
             baseline_map = {(t.get("file", ""), t.get("method", "")): t
                             for t in baseline["tests"]}
             interference = []
+            pre_existing_still_failing = []
+            not_in_baseline_now_failing = []
             for ct in current_tests:
                 key = (ct.get("file", ""), ct.get("method", ""))
                 bl_tc = baseline_map.get(key)
-                if bl_tc and bl_tc["status"] == "pass" and ct["status"] == "fail":
+                if bl_tc is None:
+                    if ct["status"] == "fail":
+                        not_in_baseline_now_failing.append({
+                            "test": ct["method"],
+                            "file": ct.get("file", ""),
+                            "baseline_status": "missing",
+                            "current_status": "fail",
+                            "error": ct.get("error", ""),
+                        })
+                elif bl_tc["status"] == "pass" and ct["status"] == "fail":
                     interference.append({
                         "test": ct["method"],
                         "file": ct.get("file", ""),
@@ -669,7 +705,19 @@ def main():
                         "current_status": "fail",
                         "error": ct.get("error", ""),
                     })
-            print(json.dumps(interference, indent=2))
+                elif bl_tc["status"] == "fail" and ct["status"] == "fail":
+                    pre_existing_still_failing.append({
+                        "test": ct["method"],
+                        "file": ct.get("file", ""),
+                        "baseline_status": "fail",
+                        "current_status": "fail",
+                        "error": ct.get("error", ""),
+                    })
+            print(json.dumps({
+                "interference": interference,
+                "preExistingStillFailing": pre_existing_still_failing,
+                "notInBaselineNowFailing": not_in_baseline_now_failing,
+            }, indent=2))
         else:
             count = print_interference_report(baseline, current_tests, args.culprit)
             sys.exit(0 if count == 0 else 1)

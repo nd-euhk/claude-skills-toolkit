@@ -63,7 +63,14 @@ Also read these reference files for implementation details:
 
 ### Step 2: Implement by Layer
 
-The layer structure depends on the tech stack. The impl spec defines what layers are needed. Common patterns:
+**Decide which layer OWNS each TC in the chunk before writing code.** Read the tests + the impl spec, then place logic by what each test asserts:
+
+- TC asserts a **business rule / orchestration / computation / degrade / external-call outcome** → implement in the **Service** (service/use-case layer). Business behavior lives in services, NOT controllers. A business-behavior TC must NOT be satisfied by logic inlined in a controller just to make an integration/e2e test pass — the service is the home of the rule.
+- TC asserts **HTTP mapping / request parsing / validation / status code / error envelope** → implement in **Controller + DTO** layer only: parse/validate at the boundary → call exactly ONE service → map service error to the envelope.
+- TC asserts **persistence / query behavior** → Repository layer.
+- **Controller rule (any TC): thin.** No business-rule branches, no direct Feign/provider/Repository/Redis calls, no private helper that makes an external call and swallows the exception. Controller parses, calls one service, maps errors.
+
+Only write the layers each TC needs (per the ownership decision above). The impl spec defines what layers are needed. Common patterns:
 
 **For Spring Boot (Java):**
 - Domain Model → Repository → DTOs + Mapper → REST Client (if cross-service) → Service → Controller → Migration → Configuration
@@ -83,7 +90,7 @@ The layer structure depends on the tech stack. The impl spec defines what layers
 
 ### Step 3: Verify the Chunk Passes
 
-Run the tests for your chunk's TCs. All must pass (exit code 0).
+Run the tests for your chunk's TCs. Confirm each passes by parsing the run output, NOT by exit code — the suite has pre-existing failures (given in your prompt), so `exit code != 0` is meaningless (it may be nonzero from them, not your chunk). A TC is DONE only when its test shows PASSED in the output.
 
 - **Gradle:** `./gradlew :{service}:test --tests "{TestClass}"`
 - **Maven:** `./mvnw test -Dtest="{TestClass}"`
@@ -105,7 +112,7 @@ After the chunk passes, run ALL tests in every test file touched by this chunk (
 - **Maven:** `./mvnw test -Dtest="{TestClass}"`
 - **Node.js:** `npx jest {testFile}` / `npx vitest run {testFile}`
 
-**Expected:** All tests in those files pass (exit code = 0).
+**Expected:** All tests in those files pass — confirmed by parsing the output (exit code is meaningless here: pre-existing failures keep it nonzero regardless of your chunk).
 
 **If any test OTHER than (a) a TC in your chunk, (b) a pre-existing failure, (c) an accidental-green SKIPPED TC now FAILS → that is INTERFERENCE.**
 

@@ -86,7 +86,14 @@ If `accidental-green: false` and RED is DONE:
 
 ### Step 2: Implement by Layer (strict order, only layers needed for this TC)
 
-The layer structure depends on the tech stack. The impl spec defines what layers are needed. Common patterns:
+**Decide which layer OWNS this TC before writing code.** Read the test + the impl spec, then place logic by what the test asserts:
+
+- TC asserts a **business rule / orchestration / computation / degrade / external-call outcome** → implement in the **Service** (service/use-case layer). Business behavior lives in services, NOT controllers. A business-behavior TC must NOT be satisfied by logic inlined in a controller just to make an integration/e2e test pass — the service is the home of the rule.
+- TC asserts **HTTP mapping / request parsing / validation / status code / error envelope** → implement in **Controller + DTO** layer only: parse/validate at the boundary → call exactly ONE service → map service error to the envelope.
+- TC asserts **persistence / query behavior** → Repository layer.
+- **Controller rule (any TC): thin.** No business-rule branches, no direct Feign/provider/Repository/Redis calls, no private helper that makes an external call and swallows the exception. Controller parses, calls one service, maps errors.
+
+Only write the layers this TC needs (per the ownership decision above). The impl spec defines what layers are needed. Common patterns:
 
 **For Spring Boot (Java):**
 - Domain Model → Repository → DTOs + Mapper → REST Client (if cross-service) → Service → Controller → Migration → Configuration

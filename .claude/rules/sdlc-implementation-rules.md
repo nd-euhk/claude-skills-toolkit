@@ -120,6 +120,36 @@ Java, load knowledge skill tương ứng với stack.
 
 ---
 
+## 6 — Layer Discipline (Controller-Thin)
+
+<EXTREMELY-IMPORTANT>
+@RestController / route handler / controller là web boundary MỎNG: parse + validate request
+tại biên → gọi ĐÚNG 1 service method → map service error → response envelope. Mọi business
+rule, orchestration, external call (Feign/provider), caching policy → nằm ở service/use-case
+layer. Business logic đặt trong controller là defect kiến trúc, dù test có xanh.
+</EXTREMELY-IMPORTANT>
+
+Áp dụng cụ thể trong SDLC:
+
+- **Controller = HTTP-mapping**: parse/validate DTO tại boundary, gọi service, map exception
+  → HTTP status + error body. KHÔNG chứa business rule, KHÔNG rẽ nhánh orchestration
+  (chọn pilot-vs-routing, resolve, degrade, fallback), KHÔNG gọi Feign/provider/repository/
+  Redis trực tiếp, KHÔNG có private helper thực hiện external call + nuốt exception.
+- **Service/use-case = chủ duy nhất của business logic**: rule, orchestration, transaction,
+  external call (client có timeout/circuit-breaker), degrade, cache policy.
+- **Quyết định tầng theo TC, không theo đường ngắn**: TC assert business behavior (rule,
+  orchestration, compute, degrade, outcome của external call) → implementation PHẢI ở
+  service, kể cả khi chưa có service-level test riêng — không nhét logic vào controller để
+  integration/e2e test pass cho nhanh. Layer discipline là structural invariant: khi xung
+  đột với "minimal wiring" của §1 (test chỉ đòi controller → code thẳng vào controller),
+  rule này thắng. Controller chỉ được viết/đụng khi TC là HTTP/validation/contract.
+- **Heuristic tự-check (trước khi xem TC GREEN xong)**: controller method có (a) private
+  helper gọi Feign/repository/RedisUtils, (b) if/then nghiệp vụ hoặc orchestration inline,
+  (c) > ~10 dòng logic, (d) try/catch nuốt lỗi external call → logic đặt sai tầng → dời
+  xuống service. Test xanh không phải bằng chứng đúng tầng — GATE-full grep controller-thin.
+
+---
+
 ## Execution Notes
 
 - Implementation rules load khi flow = `cook` hoặc khi TDD agents được spawn
@@ -140,3 +170,4 @@ Java, load knowledge skill tương ứng với stack.
 | "Pattern này best practice" | Codebase có pattern này chưa? Chưa → không giới thiệu. |
 | "Chắc chỉ có một chỗ gọi thôi" | Đã grep chưa? Chưa → grep trước khi sửa signature. |
 | "Code này viết tệ, sửa luôn" | Có trong scope bug/feature này không? Không → ghi note, không sửa. |
+| "Nhét logic vào controller cho integration/e2e pass nhanh" | §6 Layer Discipline: business logic ở service, controller mỏng — GATE-full grep controller-thin. |

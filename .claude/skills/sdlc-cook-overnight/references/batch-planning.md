@@ -18,9 +18,9 @@ Feature list từ Preflight, mỗi entry:
    (`🟢 Ready for Cook`) VÀ cùng `projectRoot` với A. Cạnh hợp lệ = **chain edge (Form-2)** — FR_k
    cần code FR_(k-1) hiện diện khi cook.
 2. Topo sort: mọi cạnh thỏa (feature xếp SAU feature nó depends). Cùng priority → giữ thứ tự board.
-3. Với mỗi feature tính **`baseRef`** (ref checkout + PR vào):
-   - Không phải đích của chain edge → integration base theo type (Type 2 `origin/main`; Type 1 branch
-     gốc sub-repo) — giữ nguyên.
+3. Với mỗi feature tính **`baseRef`** (ref checkout + PR vào) — resolve release-branch-aware (SKILL Phase 3):
+   - Không phải đích của chain edge → integration base theo type (Type 1 branch gốc sub-repo; Type 2
+     KHÔNG auto `origin/main` — release-branch derive qua skill git, xem SKILL Phase 3) — giữ nguyên.
    - Đích của chain edge (FR_k, k≥2) → **branch upstream FR_(k-1)** (controller tạo khi dispatch
      upstream xong Phase 5). Ghi nhận FR_k chained → Phase 4 chờ upstream completed rồi mới dispatch.
 4. Kết quả: 1 lane duy nhất, thứ tự topo. **Chain bắt buộc tuần tự trong lane này** — không tách

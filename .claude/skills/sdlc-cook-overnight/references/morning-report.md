@@ -84,6 +84,16 @@ chứa code upstream; merge FR_k sớm sẽ kéo theo cả diff upstream chưa r
 
 - {warning nếu có: pre-existing failures > 10%, parallel same-service risk, refactor break}
 
+## Pre-existing Red TCs (Tolerated — KHÔNG do cook này)
+
+Mỗi feature checkpoint (`.work/reports/per-feature/*.json`) mang field `preExistingFailures[]` —
+carry-forward từ baseline: các TC **đã đỏ TRƯỚC khi cook chạy**. Delta-gate loại chúng khỏi
+interference (không phải regression), và cook **không đụng** chúng.
+
+- {FEAT-xxx} — {N} pre-existing: `{test}` trong `{file}` (nếu > 0)
+- Vẫn đỏ sau cook → mở ticket riêng (outside scope feature này), **KHÔNG chặn merge PR**.
+- Human sáng nay quyết định: xử lý riêng hay để nguyên — không tự sửa trong cook này.
+
 ## Việc Cần Human Sáng Nay
 
 1. **Review + merge PRs** — {link từng PR}

@@ -63,7 +63,7 @@ pnpm vitest run   # or npm/yarn equivalent
 npx playwright test
 ```
 
-**Expected: every test you wrote FAILS (exit code != 0).** A test that fails = RED confirmed → status DONE.
+**Expected: every test you wrote FAILS.** Confirm RED by parsing the run output, NOT by exit code — the suite has pre-existing failures (given in your prompt), so `exit code != 0` is meaningless (it may be nonzero from them, not your tests). Verify EACH test you wrote appears in the FAILED list. A test that fails = RED confirmed → status DONE.
 
 ### Step 4: Detect Accidental Green (LIGHT — no sabotage)
 

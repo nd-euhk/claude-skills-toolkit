@@ -18,7 +18,7 @@ description: >-
   gaps (unimplemented), partial, and divergent implementations. For remote MR/PR
   review, use sdlc-review-mr instead.
 argument-hint: "[--full] [--arch] [--security] [--bugs] [--conventions] [--impact] [--ops] [--tests] [--spec] [--adversarial] [--unattended] [--focus \"<description>\"] [--base <branch>] [--specs \"<path>\"] [--full-tree] <path>"
-version: 1.2.0
+version: 1.3.0
 allowed-tools:
   - Read
   - Write
@@ -164,7 +164,7 @@ sdlc-scout để scout ưu tiên file/pattern liên quan.
 | `impact` | "cross-feature dependencies, interface implementations, shared code consumers, regression risks, API contract changes, data model changes, breaking change surface area" |
 | `ops` | "database migrations, performance bottlenecks, N+1 queries, deployment configuration, rollback paths, monitoring, logging, alerting thresholds, connection pooling, timeouts" |
 | `tests` | "test quality, test-to-implementation mapping, assertion strength, coverage gaps, mocking patterns, test fixtures, test cheating detection, flaky tests, test isolation" |
-| `spec` | "business rule implementation, requirements traceability, error code mapping, Gherkin scenario coverage, spec-to-code alignment, execution flow completeness, SRS/IMP conformance" |
+| `spec` | "business rule implementation, requirements traceability, error code mapping, Gherkin scenario coverage, spec-to-code alignment, execution flow completeness, SRS/IMP conformance, IMP execution-flow placement conformance (business rule/orchestration in service layer, controller/handler thin)" |
 
 **Luật join:** 1 dimension → dùng thẳng; N dimensions → join bằng `"; "`; `--full` →
 join tất cả 7.
@@ -338,7 +338,7 @@ prompt phải truyền `--unattended`.
 | **Feature Impact** | BLOCKER | Cross-feature impact, interface/impl consistency, shared code consumers, regression risk |
 | **Operational** | BLOCKER | DB migration safety, performance impact, deploy risk, rollback complexity |
 | **Test Quality** | URGENT | Cheating patterns, test-to-impl mapping, assertion quality, coverage gaps |
-| **Spec Compliance** | GAP | SRS/IMP/TST requirements → code. Traceability matrix: GAP (unimplemented), PARTIAL, DIVERGENT, IMPLEMENTED |
+| **Spec Compliance** | GAP | SRS/IMP/TST requirements → code. Traceability matrix: GAP (unimplemented), PARTIAL, DIVERGENT, IMPLEMENTED. Placement conformance: business logic/orchestration per IMP execution flow ở service layer — controller/handler phải thin (DIVERGENT nếu controller tự giữ business logic mà spec gán cho service) |
 
 Overall verdict: `APPROVED` | `NEEDS_ATTENTION` | `URGENT`. Nếu bất kỳ dimension nào cho
 URGENT/CRITICAL/BLOCKER → overall verdict là URGENT.

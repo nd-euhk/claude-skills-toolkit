@@ -32,9 +32,15 @@ Execute git workflows via `git-manager` subagent to isolate verbose output.
 ## Arguments
 - `cm`: Stage files & create commits
 - `cp`: Stage files, create commits and push
-- `pr`: Create Pull Request [to-branch] [from-branch]
-  - `to-branch`: Target branch (default: main)
-  - `from-branch`: Source branch (default: current branch)
+- `pr`: Create Pull/Merge Request [from-branch] [--to <target>] [--title <text>] [--body <text>] [--repo <dir>]
+  - Target: truyền `--to` nếu caller biết (chain → branch upstream; sub-repo → default branch
+    sub-repo). KHÔNG truyền → derive theo `references/workflow-pr.md` Step 3 — KHÔNG hardcode
+    `main` (guard non-ancestor: nếu default không phải ancestor của HEAD → MR-convention /
+    release-branch, không target mù).
+  - Host auto-detect: GitHub/GHE → `gh`; GitLab → `glab` nếu có, KHÔNG có → GitLab-REST qua
+    git-credential PAT (`references/gitlab-rest-mr.md`); host lạ → log URL tay.
+  - Caller cung cấp `--title`/`--body` thì dùng; không → generate theo workflow-pr.
+  - from-branch: source (default: current branch)
 - `merge`: Merge [to-branch] [from-branch]
   - `to-branch`: Target branch (default: main)
   - `from-branch`: Source branch (default: current branch)
@@ -52,6 +58,11 @@ Execute git workflows via `git-manager` subagent to isolate verbose output.
 | Branches | `references/branch-management.md` |
 | GitHub CLI | `references/gh-cli-guide.md` |
 | GitLab CLI | `references/glab-cli-guide.md` |
+| GitLab REST MR (no glab) | `references/gitlab-rest-mr.md` |
+
+**PR/MR creation thuộc sở hữu skill `git`** — SDLC skills (sdlc-cook, sdlc-cook-overnight, ...)
+delegate qua operation `pr` thay vì tự chạy `gh`/`glab`/curl inline. `pr` lo host-detect, auth
+guard, tier (gh / glab / GitLab-REST / log tay), và target-branch derivation.
 
 ## Core Workflow
 

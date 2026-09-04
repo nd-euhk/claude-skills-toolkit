@@ -82,6 +82,8 @@ pnpm vitest run __tests__/{TestFile}   # or npm/yarn equivalent
 npx playwright test e2e/{feature}.spec.ts
 ```
 
+Confirm each TC passes by parsing the run output, NOT by exit code — the suite has pre-existing failures (given in your prompt), so `exit code != 0` is meaningless (it may be nonzero from them, not your chunk). A TC is DONE only when its test shows PASSED in the output.
+
 - Do NOT write all layers before testing — test incrementally
 - If tests fail → analyze → fix → re-run (max 5 iterations per TC)
 - If still failing after 5 iterations → return ERROR for that TC
@@ -95,7 +97,7 @@ After the chunk passes, run ALL tests in every test file touched by this chunk (
 pnpm vitest run __tests__/{TestFile}
 ```
 
-**Expected:** All tests in those files pass (exit code = 0).
+**Expected:** All tests in those files pass — confirmed by parsing the output (exit code is meaningless here: pre-existing failures keep it nonzero regardless of your chunk).
 
 **If any test OTHER than (a) a TC in your chunk, (b) a pre-existing failure, (c) an accidental-green SKIPPED TC now FAILS → that is INTERFERENCE.**
 

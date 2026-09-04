@@ -365,6 +365,7 @@ Re-verify all 4 light gates still pass after refactoring.
 - Test readability — test name clearly states business intent (not implementation detail)
 - No dead code, commented-out blocks, or debug artifacts in committed files
 - No framework-specific anti-patterns (Detected framework: ${techStackHint || 'auto-detect'})
+- Controller/handler-layer discipline: business logic lives in the service layer, NOT the controller — no controller/route handler injects a Repository/Feign/cache client, holds private helpers that make external calls and swallow exceptions, or runs inline business orchestration (resolve/degrade/fallback). Controller stays thin: parse/validate → call ONE service → map errors to the envelope. Grep the changed controller files and cite file:line in failures.
 `}
 
 ## Required Reading (đường dẫn relative tới ${SPECS_ROOT}/agent_docs)

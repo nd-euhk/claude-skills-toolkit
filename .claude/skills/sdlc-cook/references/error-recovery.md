@@ -115,7 +115,7 @@ xác định change gây fail, revert thủ công.
 
 ## Merge Conflict
 
-> **PR-specific procedures** (gh pr create, push, cleanup sau conflict): → `references/merge-manager.md#conflict-handling`
+> **PR-specific procedures** (PR/MR creation qua skill `git` `pr`, push, cleanup sau conflict): → `references/merge-manager.md#conflict-handling`
 
 ### Conflict khi tạo PR
 

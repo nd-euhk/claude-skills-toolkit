@@ -33,9 +33,13 @@ Lấy `project_root`, `project_type`, `workspace_root`. Chi tiết:
 
 ## 2. Tách Branch (type-aware)
 
-**`BASE_REF`** = ref mà FR checkout từ (điểm xuất phát branch) — controller tính TRƯỚC khi gọi
-procedure này, cùng lúc capture `project_root`/`project_type` ở §1:
-- **Mặc định (không chain)** = integration base theo type: Type 2 `origin/main`; Type 1 `HEAD`.
+**`BASE_REF`** = ref mà FR checkout từ (điểm xuất phát branch) + PR target — controller tính TRƯỚC
+khi gọi procedure này, cùng lúc capture `project_root`/`project_type` ở §1. Resolve release-branch-
+aware TRƯỚC khi fork (SKILL Phase 3): fork sai base → MR diff kéo rác.
+- **Mặc định (không chain)** = integration base theo type: Type 1 `HEAD` (branch gốc đang checkout);
+  Type 2 KHÔNG auto `origin/main` — repo release-branch (main stale, open feature MR target khác
+  default) → derive integration base qua skill git (`workflow-pr.md` Step 3 MR-convention); không
+  confirm được → fork default, PR-time guard không target mù (unattended row 19).
 - **Chained FR_k (k≥2)** = branch thật của FR_(k-1) (`feature/...`, local, cùng git root). Controller
   giữ ref này sau khi FR_(k-1) đạt Phase 5 terminal `completed`. Vì FR_(k-1) đã push + branch ổn định
   (không force-push lại), dùng trực tiếp làm base ⇒ code FR_(k-1) nằm sẵn trong FR_k.
@@ -55,8 +59,9 @@ REPO_PATH="$WORKTREE_PATH"                        # nơi chạy code/test
 SPEC_ROOT="$WORKSPACE_ROOT"                       # nơi chứa agent_docs/ (hoặc "$WORKTREE_PATH" nếu có copy specs)
 ```
 
-`BASE_REF` default = `origin/main`; chained = `<branch FR_(k-1)>` — branch upstream local, cùng repo
-(worktree chia sẻ chung refs, `worktree add` nhận branch local như bình thường).
+`BASE_REF` default = integration base (plain: `origin/main`; release-branch: derive qua skill git,
+KHÔNG auto `main`); chained = `<branch FR_(k-1)>` — branch upstream local, cùng repo (worktree chia
+sẻ chung refs, `worktree add` nhận branch local như bình thường).
 
 ### Type 1 — submodule / gitignored-subproject: in-place checkout + restore
 
@@ -89,7 +94,7 @@ Detect build tool trong `REPO_PATH` (đúng CWD của mọi lệnh test/build):
 | `package.json` | npm / yarn / pnpm | `npm test` / `yarn test` / `pnpm test` | — (jest/vitest → baseline `jest-json` / `vitest-json`) |
 | `requirements.txt` / `pyproject.toml` | Python | `pytest` | — (baseline `pytest-json`) |
 
-Cài deps theo loại (Type 2 — worktree mới branch từ `origin/main`, deps gitignored nên
+Cài deps theo loại (Type 2 — worktree mới (fresh checkout từ `$BASE_REF`), deps gitignored nên
 không có; Type 1 — in-place trên project đang chạy, deps đã sẵn → no-op):
 
 - **Gradle / Maven**: deps tự resolve qua cache `~/.gradle` / `~/.m2` khi build lần đầu
@@ -105,12 +110,13 @@ path — controller không phụ thuộc CWD). Dùng test command + output dir t
 cùng emit JUnit XML → `--framework junit-xml`; npm/py dùng `jest-json`/`vitest-json`/`pytest-json`):
 
 ```bash
-(cd "$REPO_PATH" && {TEST_COMMAND})               # test command từ 3a
+(cd "$REPO_PATH" && {TEST_COMMAND}); TEST_EXIT=$?  # test command từ 3a; hứng exit code
 "${SPEC_ROOT}/.claude/scripts/baseline" parse \
   --framework {junit-xml|jest-json|pytest-json} \
   --test-output-dir "$REPO_PATH/{OUTPUT_DIR}" \   # output dir từ 3a
   --fr-id {FR-ID} --layer {be|fe} --service {service} \
-  --test-command "{TEST_COMMAND}"
+  --test-command "{TEST_COMMAND}" \
+  --exit-code "$TEST_EXIT"
 ```
 
 Output lưu `.work/baselines/{YYYYMMDD}-{FR-ID}-{BE|FE}.json`. **Output camelCase**
@@ -126,11 +132,13 @@ Sau 3b, kiểm tra baseline file CÓ tồn tại không + tỷ lệ pre-existing
 | **OK** | File tồn tại, ≤10% pre-existing fail | Dispatch workflow (bình thường) | — |
 | **SOFT** | File tồn tại, >10% pre-existing fail | Dispatch + warning (RED/GATE exclude pre-existing) | Mục Warnings |
 | **HARD-FAIL** | File KHÔNG tồn tại — test không chạy được (lệnh sai, thiếu deps, build lỗi, output-dir sai) | **SKIP feature** — KHÔNG dispatch workflow | Mục Skipped — "harness không chạy được": ghi lệnh test + exit code + thiếu gì |
+| **HARD-FAIL** (incomplete) | File tồn tại nhưng `incomplete: true` — `exitCode != 0` VÀ `0 tests` parse được (compile/collection fail, không phải test fail) | **SKIP feature** — baseline không sound cho delta-gate (so delta trên nền capture thiếu = false interference) | Mục Skipped — "baseline incomplete (compile/collection fail)": ghi lệnh test + exit code |
 
-**Tại sao HARD-FAIL = skip, không chạy:** dispatch mà không có baseline → workflow chạy
-mù (INTERFERENCE bị disable, có warning) và mọi RED đánh nhau với test harness hỏng →
-feature fail chắc chắn, tốn nguyên đêm. Skip + ghi rõ để sáng human fix (cài deps / đúng
-lệnh test) rồi đêm sau chạy lại.
+**Tại sao HARD-FAIL = skip, không chạy:** dispatch mà không có baseline (hoặc baseline
+`incomplete` — compile/collection fail) → workflow chạy mù (INTERFERENCE bị disable hoặc
+sai trên nền capture thiếu) và mọi RED đánh nhau với test harness hỏng → feature fail
+chắc chắn, tốn nguyên đêm. Skip + ghi rõ để sáng human fix (cài deps / đúng lệnh test)
+rồi đêm sau chạy lại.
 
 ## 4. Board Update → In Progress
 

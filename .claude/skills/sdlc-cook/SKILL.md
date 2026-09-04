@@ -11,7 +11,7 @@ description: >-
   không API/schema/security dùng /sdlc-quick. Để chạy nhiều feature song song
   (chỉ Type 2), gọi /sdlc-cook riêng cho từng feature — Claude Code agents view
   sẽ hiển thị parallel execution. Type 1 bắt buộc tuần tự.
-version: 2.4.0
+version: 2.4.2
 argument-hint: "FEAT-{NNN}"
 allowed-tools: Read, Write, Edit, Bash, Skill, Agent, Workflow, AskUserQuestion
 ---
@@ -131,6 +131,12 @@ fix/{BUG_ID}-{service}        ← fixbug flow (defect fix)
 ```
 
 #### Type 2 — workspace-member: worktree
+
+Fork từ **target branch của feature** (integration line) để MR diff sạch. Chain (stacked) → branch
+upstream FR. Plain → workspace default. KHÔNG mặc định `origin/main` mù khi repo release-branch
+(main stale / MR repo đi vào `releases/*`) — derive target qua skill git
+(`git/references/workflow-pr.md` Step 3) rồi fork từ đó; fork sai base = feature mang nền sai,
+MR kéo rác. Không rõ → hỏi human (interactive), không fork mù.
 
 ```bash
 BRANCH="feature/${FEAT_ID}-${SERVICE}"            # vd: feature/FEAT-001-auth-service
@@ -313,10 +319,11 @@ Khi workflow hoàn thành (status = "completed"):
 1. **Pre-merge check**: verify tests pass, GATE verified, không có uncommitted changes
 2. **sdlc-review-codechange gợi ý** (optional, non-blocking): AskUserQuestion hỏi human có muốn
    review source code trước khi tạo PR không — gọi với `--base <PR target>`
-   (Type 2: `origin/main`; Type 1: `$ORIGINAL_BRANCH`) để review scope = diff feature...target,
+   (Type 2: PR_BASE — derive qua skill git, KHÔNG auto `main`; Type 1: `$ORIGINAL_BRANCH`) để review
+   scope = diff feature...target,
    và `--specs <workspace>/agent_docs/features/<FEAT_ID>/` để check code có đáp ứng tài liệu không
-3. **Tạo PR** từ branch → target branch:
-   - Type 2: worktree branch `feature/{FEAT_ID}-{SERVICE}` → `origin/main` của workspace
+3. **Tạo PR** — delegate qua skill `git` operation `pr` (`Skill("git", "pr <branch> --to <target> --repo <dir> ...")`):
+   - Type 2: worktree branch `feature/{FEAT_ID}-{SERVICE}` → target (PR_BASE) — KHÔNG auto `origin/main`
    - Type 1: branch của sub-repo → branch gốc của chính sub-repo (remote của sub-repo)
 4. **Type 1 — restore bắt buộc (finally):** sau khi PR tạo xong (hoặc feature fail):
    `git -C "$project_root" checkout "$ORIGINAL_BRANCH"`. Restore fail → chặn task kế.

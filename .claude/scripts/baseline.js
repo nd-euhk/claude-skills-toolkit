@@ -285,6 +285,12 @@ function buildBaseline(tests, opts) {
         skipped: tests.filter(t => t.status === 'skip').length,
     };
 
+    // Incomplete baseline: the test command failed (exit != 0) but produced NO parseable
+    // tests — near-certain compile/collection/harness failure, not ordinary test failures.
+    // An incomplete baseline is unsound for delta/interference comparison downstream.
+    const hasExitCode = opts.exitCode !== undefined && opts.exitCode !== null;
+    const incomplete = hasExitCode && opts.exitCode !== 0 && tests.length === 0;
+
     const tcIndex = {};
     for (const t of tests) {
         tcIndex[String(t.id)] = `${t.method} (${t.status})`;
@@ -313,6 +319,8 @@ function buildBaseline(tests, opts) {
         captured_at: isoNow(),
         framework: opts.framework,
         test_command: opts.testCommand || '',
+        exitCode: hasExitCode ? opts.exitCode : null,
+        incomplete: incomplete,
         summary,
         tests,
         tcIndex: tcIndex,
@@ -463,16 +471,33 @@ function printInterferenceReport(baseline, currentTests, culprit) {
 }
 
 function printJsonInterference(baseline, currentTests) {
+    // Machine-readable delta report: classify every currently-failing test into 3 buckets.
+    //   interference              = baseline pass → current fail (regression by feature)
+    //   preExistingStillFailing   = baseline fail → current fail (tolerated red, not regression)
+    //   notInBaselineNowFailing   = no baseline entry + current fail (new test fail / partial capture)
     const baselineMap = new Map();
     for (const t of baseline.tests) {
         baselineMap.set(`${t.file || ''}::${t.method}`, t);
     }
 
     const interference = [];
+    const preExistingStillFailing = [];
+    const notInBaselineNowFailing = [];
+
     for (const ct of currentTests) {
         const key = `${ct.file || ''}::${ct.method}`;
         const blTc = baselineMap.get(key);
-        if (blTc && blTc.status === 'pass' && ct.status === 'fail') {
+        if (blTc === undefined) {
+            if (ct.status === 'fail') {
+                notInBaselineNowFailing.push({
+                    test: ct.method,
+                    file: ct.file || '',
+                    baseline_status: 'missing',
+                    current_status: 'fail',
+                    error: ct.error || '',
+                });
+            }
+        } else if (blTc.status === 'pass' && ct.status === 'fail') {
             interference.push({
                 test: ct.method,
                 file: ct.file || '',
@@ -480,9 +505,22 @@ function printJsonInterference(baseline, currentTests) {
                 current_status: 'fail',
                 error: ct.error || '',
             });
+        } else if (blTc.status === 'fail' && ct.status === 'fail') {
+            preExistingStillFailing.push({
+                test: ct.method,
+                file: ct.file || '',
+                baseline_status: 'fail',
+                current_status: 'fail',
+                error: ct.error || '',
+            });
         }
     }
-    console.log(JSON.stringify(interference, null, 2));
+
+    console.log(JSON.stringify({
+        interference,
+        preExistingStillFailing,
+        notInBaselineNowFailing,
+    }, null, 2));
 }
 
 // ── CLI ─────────────────────────────────────────────────────────────────
@@ -508,6 +546,7 @@ function parseArgs() {
             case '--service':      opts.service = args[++i]; break;
             case '--app':          opts.app = args[++i]; break;
             case '--test-command': opts.testCommand = args[++i]; break;
+            case '--exit-code':    opts.exitCode = parseInt(args[++i], 10); break;
             case '--output':       opts.output = args[++i]; break;
             case '--baseline':     opts.baseline = args[++i]; break;
             case '--current':      opts.current = args[++i]; break;
@@ -530,7 +569,7 @@ Usage:
   node baseline.js capture --framework <f> --input <file> --fr-id <id> --layer <be|fe> [...]
   node baseline.js parse   --framework <f> --input <file> --fr-id <id> --layer <be|fe> [...]
   node baseline.js list-tcs --baseline <file> [--file <filter>] [--status <s>] [--json]
-  node baseline.js compare --baseline <file> --current <file> --framework <f> [--culprit <s>] [--json]
+  node baseline.js compare --baseline <file> --framework <f> [--current <file>|--test-output-dir <dir>] [--culprit <s>] [--json]
 
 Frameworks: junit-xml, jest-json, vitest-json, pytest-json, go-json, rust-text`);
 }
@@ -585,20 +624,23 @@ function main() {
 
     } else if (mode === 'compare') {
         if (!opts.baseline) fail('--baseline required');
-        if (!opts.current) fail('--current required');
         if (!opts.framework || !PARSERS[opts.framework]) fail(`--framework required`);
 
         if (!fs.existsSync(opts.baseline)) fail(`Baseline not found: ${opts.baseline}`);
-        if (!fs.existsSync(opts.current)) fail(`Current results not found: ${opts.current}`);
 
         const baseline = JSON.parse(fs.readFileSync(opts.baseline, 'utf-8'));
 
+        let currentTests;
         if (opts.framework === 'junit-xml') {
-            fail('compare mode with junit-xml requires pre-parsing to JSON first');
+            if (!opts.testOutputDir) fail('--test-output-dir required for junit-xml compare');
+            currentTests = PARSERS['junit-xml'](opts);
+        } else {
+            if (!opts.current) fail(`--current required for ${opts.framework}`);
+            if (!fs.existsSync(opts.current)) fail(`Current results not found: ${opts.current}`);
+            // Map --current to --input for parser compatibility
+            const parseOpts = { ...opts, input: opts.current };
+            currentTests = PARSERS[opts.framework](parseOpts);
         }
-        // Map --current to --input for parser compatibility
-        const parseOpts = { ...opts, input: opts.current };
-        const currentTests = PARSERS[opts.framework](parseOpts);
 
         if (opts.jsonOutput) {
             printJsonInterference(baseline, currentTests);

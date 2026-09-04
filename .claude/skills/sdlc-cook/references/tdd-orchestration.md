@@ -231,7 +231,7 @@ Chạy sau REFACTOR-full, khi GATE light PASS.
 | **F7** | Observability — log level appropriate, correlation ID propagation, structured logging, metrics |
 | **F8** | Error Handling — error codes canonical, no internal leak, graceful degradation |
 | **F9** | Performance — no blocking I/O hot path, no N+1 queries, connection/pool leak, cache strategy |
-| **F10** | Code Quality — naming conventions, test readability (business intent), no dead code, no framework anti-patterns |
+| **F10** | Code Quality — naming conventions, test readability (business intent), no dead code, no framework anti-patterns, controller/handler-layer discipline (business logic in service, controller thin) |
 
 Spawn: `sdlc-tdd-be-gate` hoặc `sdlc-tdd-fe-gate` với mode `full`.
 

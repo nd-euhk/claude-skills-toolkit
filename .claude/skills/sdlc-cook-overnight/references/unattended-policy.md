@@ -15,7 +15,7 @@ và morning report để human review sáng.
 | 3c | Upstream chain partial/failed (**chain halt**) | Skip các FR còn lại trong chain — reason "upstream {id} {status}"; Type 1 restore branch gốc tại điểm dừng | Mục Skipped |
 | 4 | Feature đang 🚧 In Progress (cook khác đang chạy) | Skip — không spawn cook trùng | Mục Skipped |
 | 5 | Night review (trước PR) | Chạy `sdlc-review-codechange --security --bugs --spec --unattended` (lean gating trio) trên worktree/subrepo sau GATE full pass; ghi verdict; KHÔNG chặn PR creation | Mục Reviewed |
-| 6 | PR creation | Auto tạo PR (host-detect: GitHub→`gh`, GitLab→`glab`, auth guard trước; fail → row 19), KHÔNG merge | Mục PR created |
+| 6 | PR creation | Auto tạo PR — **delegate qua skill `git` operation `pr`** (`Skill("git", "pr <branch> --to <target> --repo <dir> ...")`). Skill git tự route host (GitHub→`gh`, GitLab→`glab`, GitLab không `glab` → REST qua git-credential PAT), derive target (KHÔNG auto `origin/main`), auth guard; fail → row 19. KHÔNG merge | Mục PR created |
 | 7 | INTERFERENCE-LIGHT (1 chunk break test khác cùng file) | Dừng feature đó, ghi chi tiết (test broken, file, line) | Mục Failed |
 | 8 | TC BLOCKED / STALE / ERROR | Feature fail, ghi spec/tc cần human | Mục Failed |
 | 8b | Accidental-green (batch LIGHT — test đã pass sẵn, không sabotage) | KHÔNG fail từng TC — TC `SKIPPED`, flag cho human sáng review (test có thể đã được impl trước đó, hoặc spec sai). NHƯNG nếu TẤT CẢ TC của feature accidental-green (không có implementation nào) → feature fail | Mục Warnings (hoặc Failed nếu toàn bộ accidental-green) |
@@ -29,7 +29,7 @@ và morning report để human review sáng.
 | 16 | Type 1: restore branch gốc fail | Warning HIGH — chặn task kế (sub-repo đang ở branch task) | Mục Warnings |
 | 17 | Type 1: sub-repo không có remote | Không auto-PR, log cảnh báo — sáng human tự push/PR | Mục Warnings |
 | 18 | Baseline HARD-FAIL (harness không chạy được — không có baseline file) | Skip feature; ghi lệnh test + exit code + thiếu gì (deps/build/output-dir); KHÔNG dispatch workflow | Mục Skipped |
-| 19 | PR host/auth fail (`gh`/`glab` không authed, repo host lạ) | Không tạo PR, KHÔNG treo/hỏi đêm; log "PR-ready nhưng chưa tạo được (lý do)". **Board giữ 🚧 In Progress** (chưa có PR nên chưa chuyển 👀 In Review) — sáng human tạo PR tay rồi mới chuyển 👀 In Review | Mục Warnings |
+| 19 | PR host/auth/target fail (qua skill git: `gh`/`glab` chưa auth, GitLab-REST 401, host lạ, target không derive được) | Không tạo PR, KHÔNG treo/hỏi đêm; log "PR-ready nhưng chưa tạo được (lý do)". **Board giữ 🚧 In Progress** (chưa có PR nên chưa chuyển 👀 In Review) — sáng human tạo PR tay rồi mới chuyển 👀 In Review | Mục Warnings |
 
 ## Night Review (sdlc-review-codechange)
 
@@ -39,8 +39,9 @@ mà đêm không thể hỏi:
 
 ```javascript
 // Type 2: worktree path; Type 1: sub-repo path
-// targetBranch = PR target = baseRef của feature: default Type 2 → "origin/main" (workspace);
-// Type 1 → branch gốc sub-repo; chained → branch upstream FR (review scope = delta FR_k).
+// targetBranch = PR target = baseRef của feature (derive qua skill git `pr` preflight — KHÔNG auto
+// origin/main): chained → branch upstream FR; Type 1 → branch gốc sub-repo; Type 2 plain → workspace
+// default HOẶC integration branch (release-branch workflow). Review scope = diff feature...target.
 // specDir = <workspace>/agent_docs/features/<FEAT_ID>/ (SRS + IMP + TST).
 // --base → review scope = diff feature...target — chỉ code thay đổi, deterministic đêm.
 // --specs → thêm Spec Compliance: code có đáp ứng tài liệu (GAP/PARTIAL/DIVERGENT).
