@@ -2,6 +2,44 @@
 
 All notable changes to the skills-toolkit plugin are documented here.
 
+## [3.18.0] - 2026-09-04
+
+### Changed
+
+- **`sdlc-cook-overnight` 1.14.0:** MINOR — restructure `workflow-sdlc-cook-overnight.js` từ
+  phased-batch sang **per-chunk loop**. Mỗi chunk giờ chạy đủ 4 phase workflow-spawned:
+  RED chunk → GREEN chunk (+INTERFERENCE-LIGHT) → GATE light → REFACTOR light; sau loop:
+  REFACTOR full → GATE full (delta-gate) một lượt cuối. GATE light per-chunk chỉ chạy L2-L4
+  structural (total 3), **non-blocking** — delta-gate L1 (INTERFERENCE-FULL baseline compare)
+  dời về GATE full (chunk sau vẫn còn RED nên L1 ở GATE light sẽ false-trip). `gateLightPass`
+  bị bỏ khỏi `resumeFrom` (per-chunk GATE light không còn blocking). Đồng bộ `SKILL.md`,
+  `references/per-feature-cook.md`, `sdlc-routing-rules.md` + 8 agent overnight (GATE light =
+  L2-L4, REFACTOR giờ 3 tasks: light cleanup / full / targeted).
+
+## [3.17.1] - 2026-09-04
+
+### Fixed
+
+- **`sdlc-cook-overnight` 1.13.1:** PATCH — chống silent-TC-loss (invariant "No silent skip").
+  RED và GREEN giờ reconcile `result.tcResults` ngược với input chunk: TC bị subagent bỏ sót trong
+  response (crash giữa chunk, schema drop, partial result) được đánh `ERROR` + warning thay vì biến
+  mất im lặng (RED) hoặc giữ nhầm status `DONE` (GREEN). Đồng thời sửa `tc.id` → `tc.tcId` ở GREEN
+  phase (interference-stop + null branch): trước đó `tcResults.find(x => x.tcId === tc.id)` luôn miss
+  (element `tcResults` có `tcId`, không có `id`) → TC chunk sau không bị đánh ERROR khi GREEN dừng do
+  INTERFERENCE, và TC không bị đánh ERROR khi GREEN trả null.
+
+## [3.17.0] - 2026-09-04
+
+### Changed
+
+- **`sdlc-cook-overnight` 1.13.0:** MINOR — RED chunk như GREEN (bỏ bất đối xứng overload). `chunkSize`
+  thay thế `redBatchSize` + `greenChunkSize`: RED giờ viết test theo chunk + verify 1 lần/chunk
+  (trước: 1 RED agent viết TẤT CẢ test), luồng giữ nguyên RED chunk → GREEN chunk → GATE light →
+  REFACTOR full → GATE full khớp base. `maxTurn` overnight tăng theo khối lượng chunk:
+  RED/GREEN/REFACTOR 50, GATE 30 (trước: RED 40 / GREEN 35 / GATE 20 / REFACTOR 25).
+  `workflow-sdlc-cook-overnight.js`, `SKILL.md`, `references/per-feature-cook.md` + 8 agent
+  overnight đồng bộ.
+
 ## [3.16.1] - 2026-09-04
 
 ### Fixed

@@ -1,12 +1,10 @@
 export const meta = {
   name: 'workflow-sdlc-cook-overnight',
-  description: 'Overnight phased-batch TDD cook — RED batch (write all tests, verify RED, detect accidental-green) → GREEN chunked (implement + INTERFERENCE-LIGHT) → GATE light → REFACTOR full → GATE full. Tách khỏi workflow-sdlc-cook.js (per-TC) — overnight trade speed for granularity.',
+  description: 'Overnight per-chunk TDD cook — per chunk: RED (write tests, verify RED, detect accidental-green) → GREEN (implement + INTERFERENCE-LIGHT) → GATE light (L2-L4 structural) → REFACTOR light; then REFACTOR full → GATE full (delta-gate). Tách khỏi workflow-sdlc-cook.js (per-TC) — overnight trade speed for granularity.',
   phases: [
-    { title: 'RED Batch', detail: 'Write all test code, verify RED in one run, detect accidental-green (light)' },
-    { title: 'GREEN Chunks', detail: 'Implement minimal code per chunk + INTERFERENCE-LIGHT (same-file)' },
-    { title: 'GATE Light', detail: '4 critical checks + INTERFERENCE-FULL (baseline comparison)' },
+    { title: 'TDD Chunks', detail: 'Per chunk: RED → GREEN (+INTERFERENCE-LIGHT) → GATE light (L2-L4 structural) → REFACTOR light' },
     { title: 'REFACTOR Full', detail: '6 categories: security, data, perf, resilience, observability, quality' },
-    { title: 'GATE Full', detail: 'All 10 gates: L1-L4 + F5-F10' },
+    { title: 'GATE Full', detail: 'All 10 gates: L1 delta-gate (INTERFERENCE-FULL) + L2-L4 + F5-F10' },
     { title: 'Report', detail: 'Synthesize results, verify all gates, generate final report' },
   ],
 }
@@ -25,10 +23,9 @@ const {
   specRoot = '',
   agents = {},
   // ── Phased-batch tuning ──
-  redBatchSize = 0,    // 0 = một RED agent viết TẤT CẢ test; >0 = chunk theo size
-  greenChunkSize = 4,  // số TC mỗi GREEN chunk (3-5 khuyến nghị)
+  chunkSize = 4,  // số TC mỗi RED chunk VÀ GREEN chunk (3-5 khuyến nghị) — RED chunk như GREEN
   // ── Idempotent resume ──
-  resumeFrom = null,  // { completedTcIds: ['1','2'], completedTcFiles: {'1': ['a.java','b.java']}, gateLightPass: true, refactorDone: true, gateFullPass: false }
+  resumeFrom = null,  // { completedTcIds: ['1','2'], completedTcFiles: {'1': ['a.java','b.java']}, refactorDone: true, gateFullPass: false }
 } = _args
 
 // Caller chịu trách nhiệm chọn đúng agent type — workflow không suy diễn từ layer.
@@ -138,7 +135,7 @@ const COOK_REPORT = {
     summary: { type: 'string' },
     warnings: { type: 'array', items: { type: 'string' } },
     preExistingFailures: { type: 'array', items: { type: 'string' } },
-    // Delta-gate buckets forwarded from GATE light (INTERFERENCE-FULL).
+    // Delta-gate buckets forwarded from GATE full (INTERFERENCE-FULL delta-gate).
     interference: { type: 'array', items: DELTA_BUCKET_ITEM },
     preExistingStillFailing: { type: 'array', items: DELTA_BUCKET_ITEM },
     notInBaselineNowFailing: { type: 'array', items: DELTA_BUCKET_ITEM },
@@ -208,14 +205,14 @@ function redBatchAgentPrompt(tcs, prevResults) {
     : '  (none)'
   const tcFiles = Object.keys(BASELINE_BY_FILE)
 
-  return `You are the RED-batch phase. Write test code for a BATCH of test cases (not implementation), verify they all FAIL (RED) in one run, and detect accidental-green.
+  return `You are the RED-chunk phase. Write test code for a CHUNK of test cases (not implementation), verify they all FAIL (RED) in one run, and detect accidental-green.
 
 ${featureContext()}
 
-## Your Batch (${tcs.length} test cases)
+## Your Chunk (${tcs.length} test cases)
 ${tcListMarkdown(tcs)}
 
-## Prior Batch Results (already-processed TCs — do NOT re-write these)
+## Prior Chunk Results (already-processed TCs — do NOT re-write these)
 ${prevResultsMarkdown(prevResults)}
 
 ## Baseline Snapshot (pre-TDD)
@@ -236,9 +233,9 @@ ${tcFiles.map(f => `  - ${f}: TCs [${(BASELINE_BY_FILE[f] || []).join(', ')}]`).
 - **Hard boundaries**: ${SPECS_ROOT}/agent_docs/hard-boundaries.md
 - **Conventions**: ${SPECS_ROOT}/agent_docs/conventions.md
 
-## Your Task (Batch RED)
+## Your Task (Chunk RED)
 
-1. **Write test code** for ALL ${tcs.length} test cases in your batch.
+1. **Write test code** for ALL ${tcs.length} test cases in your chunk.
    - Write ONLY test code — no implementation.
    - Follow project conventions for test structure.
    - If a test spec is ambiguous for a given TC → mark that TC STALE (do not write it).
@@ -255,14 +252,14 @@ ${tcFiles.map(f => `  - ${f}: TCs [${(BASELINE_BY_FILE[f] || []).join(', ')}]`).
    EACH test you wrote appears in the FAILED list of the output. A test that FAILS = DONE
    (RED confirmed). A test you wrote that is ABSENT from the failed list (i.e. passed) is
    accidental-green — handle in step 3.
-   - **Multi-batch note** (redBatchSize > 1): tests written by PRIOR RED batches are still RED (not yet
-     implemented) — their failures are expected and do NOT count toward your batch. Only your batch's
-     tests determine RED confirmation for this batch.
+   - **Multi-chunk note** (chunkSize > 0): tests written by PRIOR RED chunks are still RED (not yet
+     implemented) — their failures are expected and do NOT count toward your chunk. Only your chunk's
+     tests determine RED confirmation for this chunk.
 
 3. **Detect accidental-green (LIGHT — no sabotage).** For any new test that PASSES unexpectedly:
    - Sanity-check: is the test trivially true (e.g. \`assertTrue(true)\`)? If yes → rewrite once, re-run, re-check.
    - If genuinely passing against existing code → mark SKIPPED with skipReason "accidental green — test already passes; needs human review (no sabotage in batch mode)".
-   - Do NOT sabotage. Do NOT spawn GREEN. Batch RED trades the sabotage×3 confirmation for speed; the accidental-green TC is flagged for human review in the morning.
+   - Do NOT sabotage. Do NOT spawn GREEN. Chunk RED trades the sabotage×3 confirmation for speed; the accidental-green TC is flagged for human review in the morning.
 
 ## Return Structured Output
 Return a BATCH_RESULT with:
@@ -274,15 +271,12 @@ Return a BATCH_RESULT with:
 `
 }
 
-function greenChunkAgentPrompt(tcs, redResults, futureChunkTcs = []) {
+function greenChunkAgentPrompt(tcs, redResults) {
   const allResults = redResults.map(r => `- ${r.tcId}: ${r.status} — ${r.tcName}`).join('\n')
   const preExistingList = BASELINE_PRE_EXISTING.length > 0
     ? BASELINE_PRE_EXISTING.map(f => `  - ${f}`).join('\n')
     : '  (none)'
   const tcFiles = Object.keys(BASELINE_BY_FILE)
-  const futureChunkList = futureChunkTcs.length > 0
-    ? futureChunkTcs.map(tc => `  - ${tc.tcId}: ${tc.tcName}`).join('\n')
-    : '  (none — this is the last chunk)'
 
   return `You are the GREEN-chunk phase. Implement minimal code to pass a CHUNK of test cases (already RED-verified), then check for INTERFERENCE-LIGHT.
 
@@ -298,10 +292,10 @@ ${allResults}
 - **Pre-existing failures** (NOT interference — exclude): ${preExistingList}
 - **Baseline by File**: ${tcFiles.map(f => `  - ${f}: TCs [${(BASELINE_BY_FILE[f] || []).join(', ')}]`).join('\n') || '  (no file groupings)'}
 
-## Other Chunks — Still RED (NOT your concern)
-These TCs belong to LATER GREEN chunks that run AFTER yours. They are still RED (not yet
-implemented). When INTERFERENCE-LIGHT sees one of these FAIL, it is NOT interference — exclude:
-${futureChunkList}
+## Other Chunks (later chunks — tests NOT yet written)
+In the per-chunk loop, later chunks' tests do not exist yet (each chunk finishes RED→GREEN before
+the next chunk starts), so they cannot appear in your run. Interference only sees: this chunk's
+TCs, pre-existing failures, accidental-green SKIPPED TCs, and tests from PREVIOUS chunks.
 
 ## Required Reading (đường dẫn relative tới ${SPECS_ROOT}/agent_docs)
 - **IMP spec**: ${SPECS_ROOT}/agent_docs/${layer === 'frontend' ? 'frontend' : 'backend'}/${service}/implementation/${frId}-impl.md
@@ -324,7 +318,7 @@ ${futureChunkList}
 3. **INTERFERENCE-LIGHT** — after the chunk passes, run ALL tests in every file touched by this chunk:
    - Identify the test file(s) your TCs belong to (use baseline byFile map + your own filesChanged).
    - Run those files: \`./gradlew :{service}:test --tests "{TestClass}"\` / \`./mvnw test -Dtest="{TestClass}"\` / \`npx vitest run <file>\`.
-   - If any test OTHER than (a) a TC in this chunk, (b) a pre-existing failure, (c) an accidental-green SKIPPED TC, (d) a TC of a LATER chunk (listed above — still RED, not yet GREEN) now FAILS → that is INTERFERENCE. Record which test broke + what file/line + likely culprit.
+   - If any test OTHER than (a) a TC in this chunk, (b) a pre-existing failure, or (c) an accidental-green SKIPPED TC now FAILS → that is INTERFERENCE (this includes a test from a PREVIOUS chunk that was already green — your change broke it). Record which test broke + what file/line + likely culprit.
    - Pre-existing failures are NOT interference — they were already broken before this cook.
 
 ## Return Structured Output
@@ -368,7 +362,7 @@ ${baselineSection}
 ## Tech Stack
 ${techStackHint || 'Detect from project conventions and framework'}
 
-## ${mode === 'light' ? 'LIGHT MODE — 4 Critical Checks + INTERFERENCE-FULL' : 'FULL MODE — All 10 Gates (INTERFERENCE-FULL skipped)'}
+## ${mode === 'light' ? 'LIGHT MODE — 4 Critical Checks + INTERFERENCE-FULL' : 'FULL MODE — All 10 Gates + INTERFERENCE-FULL delta-gate'}
 
 ${mode === 'light' ? `
 ### L1: Delta Gate — Regression Check vs Baseline (INTERFERENCE-FULL)
@@ -410,10 +404,9 @@ Do NOT report L1 PASS from exit code 0 — with pre-existing failures the exit c
 - Circuit breaker or retry with backoff on external dependencies
 - Graceful degradation when external service is unavailable
 ` : `
-### L1-L4: Critical Checks (from light mode)
-Re-verify all 4 light gates still pass after refactoring.
+### L1: Delta Gate — Regression Check vs Baseline (INTERFERENCE-FULL)
 
-**⚠️ INTERFERENCE-FULL is SKIPPED in full mode.** L1 in full mode re-verifies the delta gate — no NEW test failures appeared since GATE-light (compare current failures vs the baseline pre-existing list; a newly-failing test = regression). Exit code is NOT the signal when pre-existing failures exist. Re-run \`baseline compare --json\`, apply the same retry-before-fail (re-run each failing test once; pass → move to \`flaky\`), and return the same 3 buckets plus \`flaky\` (\`interference\`, \`preExistingStillFailing\`, \`notInBaselineNowFailing\`, \`flaky\`) verbatim in your GATE_RESULT.
+**⚠️ This is the PRIMARY INTERFERENCE-FULL delta-gate.** L1 runs the full regression check vs baseline — the per-chunk GATE light only ran L2-L4 structural checks and did NOT do the baseline compare (compare current failures vs the baseline pre-existing list; a newly-failing test = regression). Exit code is NOT the signal when pre-existing failures exist. Re-run \`baseline compare --json\`, apply the same retry-before-fail (re-run each failing test once; pass → move to \`flaky\`), and return the same 3 buckets plus \`flaky\` (\`interference\`, \`preExistingStillFailing\`, \`notInBaselineNowFailing\`, \`flaky\`) verbatim in your GATE_RESULT.
 
 ### F5: Security
 - All user inputs validated at boundary (type, range, format)
@@ -462,11 +455,62 @@ Re-verify all 4 light gates still pass after refactoring.
 Return a GATE_RESULT with: mode, status (PASS/FAIL), passed, total, failures array, summary — plus the 4 delta-gate buckets \`interference\`, \`preExistingStillFailing\`, \`notInBaselineNowFailing\`, \`flaky\` (verbatim objects from \`baseline compare --json\`; \`flaky\` = tests that failed the full-suite run but passed the targeted re-run).`
 }
 
+// Per-chunk GATE light — L2-L4 structural checks ONLY (no delta-gate/baseline compare).
+// The delta-gate (INTERFERENCE-FULL) can only run meaningfully once ALL chunks are GREEN —
+// while later chunks are still RED, their new failing tests would false-trip L1's
+// `notInBaselineNowFailing` bucket. Delta-gate is deferred to GATE full.
+function gateChunkLightPrompt(tcResults, techStackHint) {
+  const tcSummary = tcResults
+    .map(r => `- ${r.tcId}: ${r.status} — ${r.tcName} (files: ${(r.filesChanged || []).join(', ') || 'none'})`)
+    .join('\n')
+
+  const allFiles = [...new Set(tcResults.flatMap(r => r.filesChanged || []))]
+
+  return `You are a GATE verifier. Run LIGHT mode structural gate checks (L2-L4) on the current chunk of the TDD cycle.
+
+${featureContext()}
+
+## Chunk Summary
+${tcSummary}
+
+## Files Changed in This Chunk
+${allFiles.map(f => `- ${f}`).join('\n')}
+
+## Tech Stack
+${techStackHint || 'Detect from project conventions and framework'}
+
+## LIGHT MODE — 3 Structural Checks (L2-L4, per-chunk)
+NOTE: This is a NON-BLOCKING early structural check on the chunk's changed files. It does NOT run the baseline delta-gate (INTERFERENCE-FULL) — that happens once in GATE full after all chunks are GREEN. Report the violations you see; the final GATE full re-verifies them.
+
+### L2: Hard Boundaries
+- No cross-service database access
+- No direct table access to other service schemas
+- All inter-service communication via APIs or message broker
+
+### L3: Query Safety
+- No raw SQL string concatenation
+- Parameterized queries or ORM methods used throughout
+- No dynamic table/column names from user input
+
+### L4: External Call Resilience
+- All external HTTP calls have timeout configured
+- Circuit breaker or retry with backoff on external dependencies
+- Graceful degradation when external service is unavailable
+
+## Required Reading (đường dẫn relative tới ${SPECS_ROOT}/agent_docs)
+- **Hard boundaries**: ${SPECS_ROOT}/agent_docs/hard-boundaries.md
+- **Conventions**: ${SPECS_ROOT}/agent_docs/conventions.md
+- **Tech design**: ${SPECS_ROOT}/agent_docs/tech-design/${service}-service.md
+
+## Return Structured Output
+Return a GATE_RESULT with: mode ("light"), status (PASS/FAIL), passed, total (3), failures array, summary. Do NOT populate the delta-gate buckets (interference/preExistingStillFailing/notInBaselineNowFailing/flaky) — leave them empty; GATE full owns the delta-gate.`
+}
+
 function refactorAgentPrompt(mode, tcResults, gateLightPassed) {
   const allFiles = [...new Set(tcResults.flatMap(r => r.filesChanged || []))]
   const gateStatus = gateLightPassed
-    ? 'GATE light: PASS (4/4) — proceed with full refactoring'
-    : 'GATE light: FAIL — refactor only to fix gate failures'
+    ? 'GATE light: PASS'
+    : 'GATE light: FAIL — refactor to address structural violations'
 
   const preExistingList = BASELINE_PRE_EXISTING.length > 0
     ? BASELINE_PRE_EXISTING.map(f => `  - ${f}`).join('\n')
@@ -532,8 +576,7 @@ Return a REFACTOR_RESULT with: mode, categoriesRun, findingsFixed, findingsFlagg
 const MAX_GATE_RETRIES = 2
 
 async function runGateWithRetry(mode, totalChecks, phaseName, tcResultsFiltered, techStackHint) {
-  const modeLabel = mode.toUpperCase()
-  const phaseDisplay = `GATE ${modeLabel}`
+  const phaseDisplay = phaseName  // must match a meta.phases title exactly (e.g. 'GATE Full')
 
   let result = null
   try {
@@ -601,19 +644,44 @@ This is a TARGETED FIX — fix ONLY the failures listed above. Do NOT run the fu
   return { result, retries }
 }
 
+// Per-chunk GATE light — L2-L4 structural checks ONLY, run ONCE per chunk (non-blocking,
+// no retry/targeted-fix). The delta-gate (INTERFERENCE-FULL baseline compare) is deferred
+// to GATE full because later chunks are still RED and would false-trip L1.
+async function runChunkGateLight(chunkTcResults, techStackHint) {
+  let result
+  try {
+    result = await agent(gateChunkLightPrompt(chunkTcResults, techStackHint), {
+      label: 'GATE-light-chunk',
+      phase: 'TDD Chunks',
+      agentType: GATE,
+      schema: GATE_RESULT,
+    })
+  } catch (e) {
+    log(`GATE light (chunk) error: ${e.message || e}`)
+    result = { mode: 'light', status: 'FAIL', passed: 0, total: 3, failures: [`Agent error: ${e.message || e}`], summary: 'GATE light chunk failed to execute' }
+  }
+  if (!result) {
+    result = { mode: 'light', status: 'FAIL', passed: 0, total: 3, failures: ['Agent returned null'], summary: 'GATE light chunk agent returned null' }
+  }
+  log(`${result.status === 'PASS' ? '✅' : '⚠️'} GATE light (chunk): ${result.status} (${result.passed}/${result.total}) — non-blocking`)
+  if (result.failures && result.failures.length > 0) {
+    result.failures.forEach(f => log(`  ❌ ${f}`))
+  }
+  return result
+}
+
 // ═══════════════════════════════════════════
-// PHASED-BATCH TDD EXECUTION
+// PER-CHUNK LOOP TDD EXECUTION
 // ═══════════════════════════════════════════
 
-log(`🏁 Overnight cook started (phased-batch): ${featureName}`)
+log(`🏁 Overnight cook started (per-chunk loop): ${featureName}`)
 log(`📋 FR-ID: ${frId} | Service: ${service} | Layer: ${layer}`)
 log(`🧪 Test Cases: ${testCases.length} (${testCases.map(tc => tc.id).join(', ')})`)
-log(`🔀 Strategy: PHASED-BATCH — RED batch (redBatchSize=${redBatchSize || 'all'}) → GREEN chunks (size=${greenChunkSize}) → REFACTOR/GATE once`)
+log(`🔀 Strategy: PER-CHUNK LOOP — per chunk: RED → GREEN (+INTERFERENCE-LIGHT) → GATE light (L2-L4) → REFACTOR light; then REFACTOR full → GATE full (delta-gate). Mỗi bước là một agent do workflow spawn (không spawn từ RED). chunkSize=${chunkSize}`)
 
-// ── Idempotent resume: skip phases already completed in prior run ──
+// ── Idempotent resume: skip TCs already completed in prior run ──
 const completedTcIds = new Set(resumeFrom?.completedTcIds || [])
 const completedTcFiles = resumeFrom?.completedTcFiles || {}  // { tcId: [files] } — từ COOK_REPORT trước (preserves filesChanged trên resume)
-const skipGateLight = resumeFrom?.gateLightPass === true
 const skipRefactor = resumeFrom?.refactorDone === true
 const skipGateFull = resumeFrom?.gateFullPass === true
 
@@ -621,6 +689,19 @@ const tcResults = []
 const warnings = []
 let allTestsPass = true
 let interferenceCount = 0
+const allFiles = []
+let techStackHint = ''
+
+// Recompute tech-stack hint from accumulated changed files (agents tự detect nếu hint rỗng).
+function updateTechStack(files) {
+  for (const f of files || []) allFiles.push(f)
+  const uniq = [...new Set(allFiles)]
+  if (uniq.some(f => f.endsWith('.java'))) techStackHint = 'Java/Spring Boot'
+  else if (uniq.some(f => f.endsWith('.ts') || f.endsWith('.tsx'))) techStackHint = 'TypeScript/Node.js'
+  else if (uniq.some(f => f.endsWith('.py'))) techStackHint = 'Python'
+  else if (uniq.some(f => f.endsWith('.go'))) techStackHint = 'Go'
+  else if (uniq.some(f => f.endsWith('.rs'))) techStackHint = 'Rust'
+}
 
 if (completedTcIds.size > 0) {
   log(`⏭️ Resuming: ${completedTcIds.size} TCs already done → ${[...completedTcIds].join(', ')}`)
@@ -629,10 +710,10 @@ if (completedTcIds.size > 0) {
       const files = completedTcFiles[tc.id] || []
       // testFile không thể recover chính xác từ filesChanged (filesChanged gộp test+impl) → để rỗng (trung thực hơn là đoán).
       tcResults.push({ tcId: tc.id, tcName: tc.name, status: 'DONE', filesChanged: files, testFile: '' })
+      updateTechStack(files)
     }
   }
 }
-if (skipGateLight) log('⏭️ Skipping GATE light (already PASS)')
 if (skipRefactor) log('⏭️ Skipping REFACTOR full (already done)')
 if (skipGateFull) log('⏭️ Skipping GATE full (already PASS)')
 
@@ -647,23 +728,28 @@ if (testCases.length === 0) {
   }
 }
 
-// ── Phase 1: RED Batch (viết hết test, verify RED 1 lần, detect accidental-green) ──
-phase('RED Batch')
+// ── Per-chunk loop: RED → GREEN (+INTERFERENCE-LIGHT) → GATE light (L2-L4) → REFACTOR light ──
+phase('TDD Chunks')
 
 const pendingTcs = testCases.filter(tc => !completedTcIds.has(tc.id))
-const redBatches = redBatchSize > 0 ? chunk(pendingTcs, redBatchSize) : (pendingTcs.length > 0 ? [pendingTcs] : [])
+const chunks = chunk(pendingTcs, Math.max(1, chunkSize))
+const gateLightChunks = []  // per-chunk GATE light results (non-blocking)
 
-for (const batch of redBatches) {
-  const result = await agent(redBatchAgentPrompt(batch, tcResults), {
-    label: `RED-batch ${batch.length}TCs`,
-    phase: 'RED Batch',
+for (const [ci, chunkTcs] of chunks.entries()) {
+  log(`\n── Chunk ${ci + 1}/${chunks.length}: [${chunkTcs.map(tc => tc.id).join(', ')}] ──`)
+
+  // 1. RED chunk (workflow-spawned)
+  const redResult = await agent(redBatchAgentPrompt(chunkTcs, tcResults), {
+    label: `RED-${chunkTcs.map(tc => tc.id).join(',')}`,
+    phase: 'TDD Chunks',
     agentType: RED_BATCH,
     schema: BATCH_RESULT,
   })
 
-  if (result && result.tcResults) {
-    for (const r of result.tcResults) {
+  if (redResult && redResult.tcResults) {
+    for (const r of redResult.tcResults) {
       tcResults.push(r)
+      updateTechStack(r.filesChanged)
       const emoji = r.status === 'DONE' ? '🔴' : r.status === 'SKIPPED' ? '⏭️' : '❌'
       log(`${emoji} ${r.tcId}: ${r.status} — ${r.tcName}`)
       if (r.status === 'SKIPPED') {
@@ -674,79 +760,126 @@ for (const batch of redBatches) {
         warnings.push(`${r.tcId} ${r.status}: ${r.errorDetail || r.skipReason || 'Unknown error'}`)
       }
     }
+    // Reconciliation (No silent skip): any TC in this chunk the agent did NOT return
+    // would otherwise vanish from tcResults — surface it as ERROR, not silent loss.
+    const returnedIds = new Set(redResult.tcResults.map(r => r.tcId))
+    for (const tc of chunkTcs) {
+      if (!returnedIds.has(tc.id)) {
+        tcResults.push({ tcId: tc.id, tcName: tc.name, status: 'ERROR', filesChanged: [], errorDetail: 'RED chunk agent returned no result for this TC — lost in chunk response' })
+        allTestsPass = false
+        warnings.push(`${tc.id} ERROR: RED chunk agent returned no result — TC lost in chunk response`)
+      }
+    }
   } else {
-    for (const tc of batch) {
+    for (const tc of chunkTcs) {
       tcResults.push({ tcId: tc.id, tcName: tc.name, status: 'ERROR', filesChanged: [], errorDetail: 'RED batch agent returned null — likely skipped or crashed' })
       allTestsPass = false
       warnings.push(`${tc.id} ERROR: RED batch agent returned null`)
     }
   }
-}
 
-const redDoneCount = tcResults.filter(r => r.status === 'DONE').length
-const redSkippedCount = tcResults.filter(r => r.status === 'SKIPPED').length
-log(`\n📊 RED batch summary: ${redDoneCount} RED-confirmed, ${redSkippedCount} accidental-green, ${tcResults.filter(r => ['BLOCKED','STALE','ERROR'].includes(r.status)).length} failed`)
+  // 2. GREEN chunk (workflow-spawned) — implement RED-confirmed TCs in THIS chunk
+  const toImplement = tcResults.filter(r => r.status === 'DONE' && chunkTcs.some(tc => tc.id === r.tcId))
+  let chunkInterfered = false
 
-// ── Phase 2: GREEN Chunks (implement RED-confirmed TCs theo chunk + INTERFERENCE-LIGHT) ──
-phase('GREEN Chunks')
+  if (toImplement.length > 0) {
+    const greenResult = await agent(greenChunkAgentPrompt(toImplement, tcResults), {
+      label: `GREEN-${toImplement.map(tc => tc.tcId).join(',')}`,
+      phase: 'TDD Chunks',
+      agentType: GREEN_CHUNK,
+      schema: BATCH_RESULT,
+    })
 
-const toImplement = tcResults.filter(r => r.status === 'DONE' && !completedTcIds.has(r.tcId))
-const greenChunks = chunk(toImplement, Math.max(1, greenChunkSize))
-
-for (const [ci, gchunk] of greenChunks.entries()) {
-  const result = await agent(greenChunkAgentPrompt(gchunk, tcResults, greenChunks.slice(ci + 1).flat()), {
-    label: `GREEN-chunk ${gchunk.map(tc => tc.id).join(',')}`,
-    phase: 'GREEN Chunks',
-    agentType: GREEN_CHUNK,
-    schema: BATCH_RESULT,
-  })
-
-  if (result) {
-    // Merge per-TC statuses back into master list
-    const byId = new Map((result.tcResults || []).map(r => [r.tcId, r]))
-    for (const r of tcResults) {
-      if (byId.has(r.tcId)) {
-        const g = byId.get(r.tcId)
-        r.status = g.status === 'DONE' ? 'DONE' : (g.status || 'ERROR')
-        r.filesChanged = [...new Set([...(r.filesChanged || []), ...(g.filesChanged || [])])]
-        if (g.errorDetail) r.errorDetail = g.errorDetail
-        if (g.status === 'ERROR') {
-          allTestsPass = false
-          warnings.push(`${r.tcId} GREEN ${g.status || 'ERROR'}: ${g.errorDetail || 'stuck'}`)
-        }
-      }
-    }
-
-    // Interference from this chunk
-    if (result.interference && result.interference.length > 0) {
-      interferenceCount += result.interference.length
-      // Do NOT clobber per-TC status to INTERFERENCE — TCs that passed stay DONE.
-      // Interference is a chunk-level signal: the chunk's own TCs DID pass, but they broke
-      // OTHER tests. Detail lives in warnings[], and the feature-level status is set to
-      // 'failed' by the interferenceCount > 0 guard below.
-      result.interference.forEach(i => {
-        log(`  ⚠️ INTERFERENCE-LIGHT: ${i}`)
-        warnings.push(`INTERFERENCE-LIGHT (chunk ${gchunk.map(tc => tc.id).join(',')}): ${i}`)
-      })
-      log(`  🛑 Stopping GREEN — ${gchunk.map(tc => tc.id).join(',')} caused same-file interference`)
-      // Mark TCs in later chunks as not-implemented (they were RED'd but GREEN never ran)
-      for (let rj = ci + 1; rj < greenChunks.length; rj++) {
-        for (const tc of greenChunks[rj]) {
-          const r = tcResults.find(x => x.tcId === tc.id)
-          if (r && r.status === 'DONE') {
-            r.status = 'ERROR'
-            r.errorDetail = 'GREEN not run — stopped after INTERFERENCE in prior chunk'
+    if (greenResult) {
+      // Merge per-TC statuses back into master list
+      const byId = new Map((greenResult.tcResults || []).map(r => [r.tcId, r]))
+      for (const r of tcResults) {
+        if (byId.has(r.tcId)) {
+          const g = byId.get(r.tcId)
+          r.status = g.status === 'DONE' ? 'DONE' : (g.status || 'ERROR')
+          r.filesChanged = [...new Set([...(r.filesChanged || []), ...(g.filesChanged || [])])]
+          updateTechStack(g.filesChanged)
+          if (g.errorDetail) r.errorDetail = g.errorDetail
+          if (g.status === 'ERROR') {
+            allTestsPass = false
+            warnings.push(`${r.tcId} GREEN ${g.status || 'ERROR'}: ${g.errorDetail || 'stuck'}`)
           }
         }
       }
-      break
+
+      // Reconciliation (No silent skip): any TC in this chunk the GREEN agent did NOT return
+      // keeps its RED 'DONE' status → falsely counted as implemented. Mark ERROR.
+      for (const tc of toImplement) {
+        if (!byId.has(tc.tcId)) {
+          const r = tcResults.find(x => x.tcId === tc.tcId)
+          if (r) {
+            r.status = 'ERROR'
+            r.errorDetail = 'GREEN chunk agent returned no result for this TC — implementation not confirmed'
+            allTestsPass = false
+            warnings.push(`${tc.tcId} ERROR: GREEN chunk agent returned no result — implementation not confirmed`)
+          }
+        }
+      }
+
+      // Interference from this chunk (same-file breakage)
+      if (greenResult.interference && greenResult.interference.length > 0) {
+        interferenceCount += greenResult.interference.length
+        greenResult.interference.forEach(i => {
+          log(`  ⚠️ INTERFERENCE-LIGHT: ${i}`)
+          warnings.push(`INTERFERENCE-LIGHT (chunk ${toImplement.map(tc => tc.tcId).join(',')}): ${i}`)
+        })
+        log(`  🛑 Stopping loop — ${toImplement.map(tc => tc.tcId).join(',')} caused same-file interference`)
+        chunkInterfered = true
+      }
+    } else {
+      for (const tc of toImplement) {
+        const r = tcResults.find(x => x.tcId === tc.tcId)
+        if (r) { r.status = 'ERROR'; r.errorDetail = 'GREEN chunk agent returned null' }
+        allTestsPass = false
+        warnings.push(`${tc.tcId} ERROR: GREEN chunk agent returned null`)
+      }
     }
-  } else {
-    for (const tc of gchunk) {
-      const r = tcResults.find(x => x.tcId === tc.id)
-      if (r) { r.status = 'ERROR'; r.errorDetail = 'GREEN chunk agent returned null' }
-      allTestsPass = false
-      warnings.push(`${tc.id} ERROR: GREEN chunk agent returned null`)
+  }
+
+  if (chunkInterfered) {
+    // Later chunks were never RED/GREEN'd (per-chunk loop stops before them) — mark them not-cooked.
+    for (let rj = ci + 1; rj < chunks.length; rj++) {
+      for (const tc of chunks[rj]) {
+        const r = tcResults.find(x => x.tcId === tc.id)
+        if (r && r.status === 'DONE') {
+          r.status = 'ERROR'
+          r.errorDetail = 'Cook not run — stopped after INTERFERENCE in prior chunk'
+        }
+      }
+    }
+    break
+  }
+
+  // 3. GATE light (per-chunk, L2-L4 structural, NON-BLOCKING) — workflow-spawned
+  const chunkDone = tcResults.filter(r => chunkTcs.some(tc => tc.id === r.tcId) && ['DONE', 'SKIPPED'].includes(r.status))
+  let chunkGateLight = null
+  if (chunkDone.length > 0) {
+    chunkGateLight = await runChunkGateLight(chunkDone, techStackHint)
+    gateLightChunks.push(chunkGateLight)
+  }
+
+  // 4. REFACTOR light (per-chunk cleanup, 3 ops) — workflow-spawned
+  if (chunkDone.length > 0) {
+    let rl = null
+    try {
+      rl = await agent(refactorAgentPrompt('light', chunkDone, chunkGateLight ? chunkGateLight.status === 'PASS' : true), {
+        label: `REFACTOR-light-${chunkDone.map(tc => tc.tcId).join(',')}`,
+        phase: 'TDD Chunks',
+        agentType: REFACTOR,
+        schema: REFACTOR_RESULT,
+      })
+    } catch (e) {
+      log(`REFACTOR light error: ${e.message || e}`)
+      rl = { mode: 'light', categoriesRun: [], findingsFixed: 0, findingsFlagged: 0, testSuiteStillPassing: true, summary: `Agent error: ${e.message || e}` }
+    }
+    if (rl) {
+      log(`🔧 REFACTOR light (chunk): ${rl.findingsFixed} fixed, ${rl.findingsFlagged} flagged${rl.testSuiteStillPassing ? '' : ' — ⚠️ may have failures'}`)
+      if (!rl.testSuiteStillPassing) warnings.push(`REFACTOR light (chunk ${chunkDone.map(tc => tc.tcId).join(',')}) may have caused test failures`)
     }
   }
 }
@@ -757,23 +890,27 @@ const skippedCount = tcResults.filter(r => r.status === 'SKIPPED').length
 const failedCount = tcResults.filter(r => ['BLOCKED', 'STALE', 'ERROR'].includes(r.status)).length
 
 log(`\n📊 TC Summary: ${doneCount} DONE, ${skippedCount} SKIPPED (accidental-green), ${interferenceCount} INTERFERENCE, ${failedCount} FAILED`)
-
-// ── Tech stack detection ──
-const allFiles = [...new Set(tcResults.flatMap(r => r.filesChanged || []))]
-let techStackHint = ''
-if (allFiles.some(f => f.endsWith('.java'))) techStackHint = 'Java/Spring Boot'
-else if (allFiles.some(f => f.endsWith('.ts') || f.endsWith('.tsx'))) techStackHint = 'TypeScript/Node.js'
-else if (allFiles.some(f => f.endsWith('.py'))) techStackHint = 'Python'
-else if (allFiles.some(f => f.endsWith('.go'))) techStackHint = 'Go'
-else if (allFiles.some(f => f.endsWith('.rs'))) techStackHint = 'Rust'
 log(`🔧 Detected tech stack: ${techStackHint || 'Unknown'}`)
+
+// ── Aggregate per-chunk GATE light (non-blocking) ──
+const gateLightResult = {
+  mode: 'light',
+  status: gateLightChunks.length === 0 || gateLightChunks.every(g => g.status === 'PASS') ? 'PASS' : 'FAIL',
+  passed: gateLightChunks.reduce((s, g) => s + (g.passed || 0), 0),
+  total: gateLightChunks.reduce((s, g) => s + (g.total || 0), 0),
+  failures: gateLightChunks.flatMap(g => g.failures || []),
+  summary: `Per-chunk L2-L4 structural gate — ${gateLightChunks.length} chunk(s) checked (non-blocking; delta-gate deferred to GATE full)`,
+}
+if (gateLightResult.status !== 'PASS') {
+  warnings.push(`GATE light (per-chunk L2-L4) had failures — non-blocking, re-verified at GATE full: ${gateLightResult.failures.join('; ')}`)
+}
 
 // ── Early exit checks ──
 if (!allTestsPass && doneCount === 0) {
   log('🛑 All TCs failed — cannot proceed to GATE.')
   return {
     flow, featureName, frId, service,
-    status: 'failed', tcResults, gateLight: null, refactorFull: null, gateFull: null,
+    status: 'failed', tcResults, gateLight: gateLightResult, refactorFull: null, gateFull: null,
     summary: `All ${testCases.length} TCs failed. ${interferenceCount} INTERFERENCE, ${failedCount} BLOCKED/STALE/ERROR. Cannot proceed to GATE.`,
     warnings,
     nextStep: 'Review TC failures. Fix ambiguous specs, interference, or blocked TCs. Retry cook.',
@@ -784,7 +921,7 @@ if (doneCount === 0 && skippedCount > 0 && failedCount === 0) {
   log('⚠️ All TCs accidental-green (SKIPPED) — no implementation produced. Feature cannot be "completed".')
   return {
     flow, featureName, frId, service,
-    status: 'failed', tcResults, gateLight: null, refactorFull: null, gateFull: null,
+    status: 'failed', tcResults, gateLight: gateLightResult, refactorFull: null, gateFull: null,
     summary: `All ${testCases.length} TCs accidental-green — tests already pass without implementation. Needs spec review (tests may be wrong or feature already implemented).`,
     warnings,
     nextStep: 'Review TST spec for this feature. Accidental-green across all TCs suggests wrong/misplaced tests or pre-existing implementation. Fix spec then re-run cook.',
@@ -795,7 +932,7 @@ if (interferenceCount > 0) {
   log(`⚠️ ${interferenceCount} INTERFERENCE-LIGHT — pipeline cannot continue`)
   return {
     flow, featureName, frId, service,
-    status: 'failed', tcResults, gateLight: null, refactorFull: null, gateFull: null,
+    status: 'failed', tcResults, gateLight: gateLightResult, refactorFull: null, gateFull: null,
     summary: `${interferenceCount} same-file interference detected during GREEN chunks. Must be resolved by human.`,
     warnings,
     nextStep: 'Review INTERFERENCE TCs. Human decides: revert culprit or fix broken test. Re-run cook after resolution.',
@@ -806,38 +943,10 @@ if (failedCount > 0) {
   log(`⚠️ ${failedCount} TC(s) failed — proceeding with ${doneCount + skippedCount} successful TCs`)
 }
 
-// ── Phase 3: GATE Light ──
-phase('GATE Light')
+// ── REFACTOR Full ──
+phase('REFACTOR Full')
 
 const lightTcFilter = r => ['DONE', 'SKIPPED'].includes(r.status)
-
-let gateLightResult, gateLightRetries
-if (skipGateLight) {
-  gateLightResult = { mode: 'light', status: 'PASS', passed: 4, total: 4, failures: [], summary: 'Resumed — already PASS in prior run' }
-  gateLightRetries = 0
-  log('⏭️ GATE light skipped (already PASS)')
-} else {
-  log(`🔍 Running GATE light (4 critical checks + INTERFERENCE-FULL baseline comparison)...`)
-  log(`  Baseline: ${BASELINE_PATH || 'MISSING — interference detection skipped'}`)
-  const gateLight = await runGateWithRetry('light', 4, 'GATE Light', tcResults.filter(lightTcFilter), techStackHint)
-  gateLightResult = gateLight.result
-  gateLightRetries = gateLight.retries
-}
-
-if (gateLightResult.status !== 'PASS') {
-  warnings.push(`GATE light FAIL after ${gateLightRetries} retries: ${(gateLightResult.failures || []).join('; ')}`)
-  log('⚠️ GATE light failed after max retries — cannot proceed to REFACTOR full')
-  return {
-    flow, featureName, frId, service,
-    status: 'failed', tcResults, gateLight: gateLightResult, refactorFull: null, gateFull: null,
-    summary: `GATE light FAIL after ${gateLightRetries} retries. ${gateLightResult.passed}/${gateLightResult.total} gates passed.`,
-    warnings,
-    nextStep: 'Review GATE light failures manually. Fix issues and re-run cook.',
-  }
-}
-
-// ── Phase 4: REFACTOR Full ──
-phase('REFACTOR Full')
 
 let refactorResult
 if (skipRefactor) {
@@ -872,7 +981,7 @@ if (refactorResult.findingsFlagged > 0) {
   warnings.push(`${refactorResult.findingsFlagged} findings were flagged but not fixed during refactoring`)
 }
 
-// ── Phase 5: GATE Full ──
+// ── GATE Full ──
 phase('GATE Full')
 
 let gateFullResult, gateFullRetries
@@ -881,7 +990,7 @@ if (skipGateFull) {
   gateFullRetries = 0
   log('⏭️ GATE full skipped (already PASS)')
 } else {
-  log('🔍 Running GATE full (10 gates)...')
+  log('🔍 Running GATE full (10 gates + INTERFERENCE-FULL delta-gate)...')
   const gateFull = await runGateWithRetry('full', 10, 'GATE Full', tcResults.filter(lightTcFilter), techStackHint)
   gateFullResult = gateFull.result
   gateFullRetries = gateFull.retries
@@ -891,12 +1000,12 @@ if (gateFullResult.status !== 'PASS') {
   warnings.push(`GATE full FAIL after ${gateFullRetries} retries: ${(gateFullResult.failures || []).join('; ')}`)
 }
 
-// ── Phase 6: Report ──
+// ── Report ──
 phase('Report')
 
 const overallStatus = (gateFullResult.status === 'PASS' && failedCount === 0 && interferenceCount === 0)
   ? 'completed'
-  : (gateLightResult.status === 'PASS' ? 'partial' : 'failed')
+  : 'partial'
 
 const deltaBuckets = deltaBucketsFrom(gateLightResult, gateFullResult)
 
@@ -925,7 +1034,7 @@ log(`🏁 Overnight Cook Pipeline: ${overallStatus.toUpperCase()}`)
 log(`${'='.repeat(60)}`)
 log(`📋 ${featureName} (${frId})`)
 log(`🧪 TCs: ${doneCount} DONE, ${skippedCount} SKIPPED, ${interferenceCount} INTERFERENCE, ${failedCount} FAILED`)
-log(`🚦 GATE light: ${gateLightResult.status} (${gateLightResult.passed}/${gateLightResult.total})${BASELINE_PATH ? ' + INTERFERENCE-FULL' : ''}`)
+log(`🚦 GATE light (per-chunk L2-L4): ${gateLightResult.status} (${gateLightResult.passed}/${gateLightResult.total})`)
 log(`🔧 REFACTOR: ${refactorResult.findingsFixed} fixed, ${refactorResult.findingsFlagged} flagged`)
 log(`🚦 GATE full: ${gateFullResult.status} (${gateFullResult.passed}/${gateFullResult.total})`)
 log(`📦 ${allFiles.length} files changed`)
@@ -947,9 +1056,9 @@ return report
 // REPORT HELPERS
 // ═══════════════════════════════════════════
 
-// Pick the delta-gate buckets from the first gate result that ran the baseline
-// compare (GATE light's INTERFERENCE-FULL is the designated full compare; GATE full
-// re-verifies and is the fallback). Returns empty arrays when no compare ran.
+// Pick the delta-gate buckets from the gate result that ran the baseline compare.
+// Only GATE full runs INTERFERENCE-FULL (per-chunk GATE light is L2-L4 structural only).
+// Returns empty arrays when no compare ran.
 function deltaBucketsFrom(...gateResults) {
   for (const r of gateResults) {
     if (r && [r.interference, r.preExistingStillFailing, r.notInBaselineNowFailing, r.flaky].some(Array.isArray)) {

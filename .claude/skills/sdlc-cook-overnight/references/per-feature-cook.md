@@ -178,8 +178,7 @@ Workflow({
     flow: "cook",
     repoPath: "${REPO_PATH}",       // Type 1: sub-repo; Type 2: worktree
     specRoot: "${SPEC_ROOT}",       // Type 1: parent; Type 2: nơi chứa agent_docs/
-    redBatchSize: 0,                // 0 = 1 RED agent viết TẤT CẢ test; >0 = chunk theo size
-    greenChunkSize: 4,              // số TC mỗi GREEN chunk (3-5 khuyến nghị)
+    chunkSize: 4,                   // số TC mỗi RED chunk VÀ GREEN chunk (3-5 khuyến nghị)
   }
 })
 ```
@@ -188,10 +187,11 @@ Workflow({
 cwd của controller). Không truyền → workflow chạy trong CWD hiện tại (backward-compatible).
 Xem sdlc-cook Bước 8.
 
-**Phased-batch TDD (khác sdlc-cook per-TC):** workflow này chạy RED batch (viết hết test,
-verify RED 1 lần, accidental-green LIGHT flag không sabotage) → GREEN chunk (3-5 TC/chunk,
-INTERFERENCE-LIGHT trên file touched) → GATE light (INTERFERENCE-FULL baseline) → REFACTOR
-full → GATE full. Dùng 8 agent overnight riêng: `sdlc-tdd-be-red-overnight`,
+**Per-chunk loop TDD (khác sdlc-cook per-TC):** workflow này chạy per chunk — RED chunk (viết test
+theo chunk, verify RED 1 lần/chunk, accidental-green LIGHT flag không sabotage) → GREEN chunk
+(3-5 TC/chunk, INTERFERENCE-LIGHT trên file touched) → GATE light (L2-L4 structural, non-blocking)
+→ REFACTOR light; sau loop: REFACTOR full → GATE full (INTERFERENCE-FULL baseline). Dùng 8 agent
+overnight riêng: `sdlc-tdd-be-red-overnight`,
 `sdlc-tdd-be-green-overnight`, `sdlc-tdd-fe-red-overnight`, `sdlc-tdd-fe-green-overnight`,
 `sdlc-tdd-be-gate-overnight`, `sdlc-tdd-fe-gate-overnight`, `sdlc-tdd-be-refactor-overnight`,
 `sdlc-tdd-fe-refactor-overnight` (không đụng agent per-TC của sdlc-cook). GATE/REFACTOR
@@ -223,7 +223,7 @@ JSON
 - **Checkpoint = COOK_REPORT thuần** (do workflow sinh, ghi nguyên văn). Controller không thêm
   field vào file này; branch/commit/verdict/PR link là controller state, điền vào Phase 6.
 
-**Semantics phased-batch (khác per-TC):**
+**Semantics per-chunk loop (khác per-TC):**
 - `tcResults[].status = SKIPPED` = accidental-green LIGHT (test đã pass sẵn, flag cho human
   sáng review — KHÔNG sabotage). Không coi là fail — TRỪ KHI mọi TC đều SKIPPED (không có
   implementation nào được sinh ra → feature `status = "failed"`, không báo `completed`).
@@ -244,7 +244,7 @@ branch + commit hash (điền vào morning report Phase 6) để sáng checkout 
 ## Resume (sáng hôm sau)
 
 Nếu Workflow crash đêm qua → resume bằng `resumeFromRunId` (tool-level, ưu tiên) hoặc
-`resumeFrom` arg (`completedTcIds`, `completedTcFiles`, `gateLightPass`, `refactorDone`,
+`resumeFrom` arg (`completedTcIds`, `completedTcFiles`, `refactorDone`,
 `gateFullPass`) — lấy từ **checkpoint file** `.work/reports/per-feature/{FR-ID}-{BE|FE}.json`
 của feature đó (COOK_REPORT đã persist ở §7 — không phải memory/session log). `completedTcFiles`
 (map `{ tcId: [files] }`) bảo toàn `filesChanged` cho các TC đã xong — nếu thiếu, TC resumed
